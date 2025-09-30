@@ -1,0 +1,1463 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// CORE MODELS - Companies & Multi-tenancy
+// ============================================
+
+model Company {
+  id                String              @id @default(uuid())
+  name              String
+  legalName         String?
+  tradingName       String?
+  abnAcn            String?
+  gstNumber         String?
+  logoUrl           String?
+  email             String
+  phone             String?
+  website           String?
+  address           Json?
+  gstEnabled        Boolean             @default(false)
+  
+  // Business Details
+  industryType      String?
+  teamSize          TeamSize?
+  city              String?
+  state             String?
+  postcode          String?
+  country           String              @default("Australia")
+  
+  // Onboarding Status
+  onboardingStep    Int                 @default(0)
+  onboardingCompleted Boolean           @default(false)
+  setupWizardCompleted Boolean          @default(false)
+  
+  // Subscription
+  subscriptionStatus SubscriptionStatus @default(TRIAL)
+  trialEndsAt       DateTime?
+  targetMarket      TargetMarket        @default(TRADIES)
+  stripeCustomerId  String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  users             User[]
+  userGroups        UserGroup[]
+  customers         Customer[]
+  products          Product[]
+  categories        ProductCategory[]
+  priceLists        PriceList[]
+  productPackages   ProductPackage[]
+  skuPatterns       SKUPattern[]
+  quotes            Quote[]
+  orders            Order[]
+  invoices          Invoice[]
+  locations         Location[]
+  jobs              Job[]
+  paymentProfiles   PaymentProfile[]
+  activityLogs      ActivityLog[]
+  enabledModules    EnabledModule[]
+  webhooks          Webhook[]
+  moduleSubscriptions ModuleSubscription[]
+  billingHistory    BillingRecord[]
+  suppliers         Supplier[]
+  purchaseOrders    PurchaseOrder[]
+  approvalRules     ApprovalWorkflowRule[]
+  crewMembers       CrewMember[]
+  automationTriggers AutomationTrigger[]
+  
+  // Stock Management Relations
+  inventorySettings InventorySettings?
+  warehouses        Warehouse[]
+  autoPORules       AutoPORule[]
+
+  @@index([email])
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+  SUSPENDED
+}
+
+enum TargetMarket {
+  TRADIES
+  SME
+}
+
+enum TeamSize {
+  SOLO           // 1 person
+  SMALL_TEAM     // 2-5 people  
+  MEDIUM_TEAM    // 6-20 people
+  LARGE_TEAM     // 21+ people
+}
+
+// ============================================
+// MODULE MARKETPLACE & BILLING SYSTEM
+// ============================================
+
+model AvailableModule {
+  id            String           @id @default(uuid())
+  name          String
+  description   String
+  category      ModuleCategory
+  monthlyPrice  Decimal
+  setupFee      Decimal?         @default(0)
+  targetMarket  TargetMarket
+  features      String[]         // JSON array of feature descriptions
+  dependencies  String[]         // JSON array of required module IDs
+  isPopular     Boolean          @default(false)
+  screenshots   String[]         // JSON array of image URLs
+  isActive      Boolean          @default(true)
+  sortOrder     Int              @default(0)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  subscriptions ModuleSubscription[]
+
+  @@map("available_modules")
+}
+
+enum ModuleCategory {
+  CORE
+  SALES
+  INVENTORY
+  LOGISTICS
+  REPORTING
+  INDUSTRY_SPECIFIC
+  TRADIES
+}
+
+model ModuleSubscription {
+  id              String             @id @default(uuid())
+  companyId       String
+  moduleId        String
+  status          SubscriptionStatus
+  enabledAt       DateTime           @default(now())
+  disabledAt      DateTime?
+  trialEndsAt     DateTime?
+  nextBillingDate DateTime
+  monthlyAmount   Decimal
+  usageCharges    Decimal            @default(0)
+  stripeSubscriptionId String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  module  AvailableModule @relation(fields: [moduleId], references: [id])
+
+  @@unique([companyId, moduleId])
+  @@map("module_subscriptions")
+}
+
+model BillingRecord {
+  id              String        @id @default(uuid())
+  companyId       String
+  amount          Decimal
+  description     String
+  status          BillingStatus
+  billingDate     DateTime
+  paidAt          DateTime?
+  stripeInvoiceId String?
+  createdAt       DateTime      @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("billing_records")
+}
+
+enum BillingStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// ============================================
+// USER MANAGEMENT
+// ============================================
+
+model User {
+  id              String    @id @default(uuid())
+  companyId       String
+  email           String    @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  isActive        Boolean   @default(true)
+  lastLogin       DateTime?
+  emailVerified   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  company         Company   @relation(fields: [companyId], references: [id])
+  groupMemberships UserGroupMembership[]
+  sessions        AuthSession[]
+  quotesCreated   Quote[]   @relation("QuoteCreatedBy")
+  ordersCreated   Order[]   @relation("OrderCreatedBy")
+  invoicesCreated Invoice[] @relation("InvoiceCreatedBy")
+  activityLogs    ActivityLog[]
+  
+  // Stock Management Relations
+  warehousePermissions      UserWarehousePermission[]
+  managedWarehouses         Warehouse[]               @relation("WarehouseManager")
+  stockReservationsCreated  StockReservation[]
+  stockMovementsCreated     StockMovement[]           @relation("MovementCreator")
+  stockMovementsApproved    StockMovement[]           @relation("MovementApprover")
+  purchaseOrdersCreated     PurchaseOrder[]           @relation("POCreator")
+  purchaseOrdersApproved    PurchaseOrder[]           @relation("POApprover")
+  autoGeneratedPOsApproved  AutoGeneratedPO[]
+  poApprovals               POApproval[]
+  stocktakesCreated         Stocktake[]               @relation("StocktakeCreator")
+  stocktakesApproved        Stocktake[]               @relation("StocktakeApprover")
+  stocktakesCompleted       Stocktake[]               @relation("StocktakeCompleter")
+  stocktakeItemsCounted     StocktakeItem[]           @relation("StocktakeCounter")
+  stocktakeItemsRecounted   StocktakeItem[]           @relation("StocktakeRecounter")
+  stocktakeItemsVerified    StocktakeItem[]           @relation("StocktakeVerifier")
+  stocktakeFormsAssigned    StocktakeForm[]
+  transfersRequested        StockTransfer[]           @relation("TransferRequester")
+  transfersApproved         StockTransfer[]           @relation("TransferApprover")
+  transfersShipped          StockTransfer[]           @relation("TransferShipper")
+  transfersReceived         StockTransfer[]           @relation("TransferReceiver")
+  tasks           CustomerTask[]
+  attachmentUploads   PurchaseOrderAttachment[] @relation("AttachmentUploadedBy")
+  statusChanges       PurchaseOrderStatusLog[] @relation("StatusLogChangedBy")
+  crewMemberProfile CrewMember?
+  customPricesCreated CustomerCustomPrice[] @relation("CustomPriceCreatedBy")
+  customPricesUpdated CustomerCustomPrice[] @relation("CustomPriceUpdatedBy") 
+  priceChanges        PriceChangeHistory[]
+  pricelistTemplatesCreated CustomPricelistTemplate[]
+
+  @@index([companyId, email])
+}
+
+model UserGroup {
+  id              String   @id @default(uuid())
+  companyId       String
+  name            String
+  permissions     Json
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  company         Company  @relation(fields: [companyId], references: [id])
+  members         UserGroupMembership[]
+
+  @@unique([companyId, name])
+}
+
+model UserGroupMembership {
+  userId      String
+  groupId     String
+  assignedAt  DateTime @default(now())
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id])
+  group       UserGroup @relation(fields: [groupId], references: [id])
+
+  @@id([userId, groupId])
+}
+
+model AuthSession {
+  id          String   @id @default(uuid())
+  userId      String
+  token       String   @unique
+  refreshToken String  @unique
+  deviceInfo  Json?
+  ipAddress   String?
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  lastActivity DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+}
+
+// ============================================
+// COMPREHENSIVE STOCK MANAGEMENT SYSTEM
+// ============================================
+
+// System Configuration
+model InventorySettings {
+  id                          String   @id @default(uuid())
+  companyId                   String   @unique
+  stockDeductionTrigger       StockDeductionTrigger @default(INVOICE)
+  reservationExpiryHours      Int      @default(24)
+  lowStockNotificationEnabled Boolean  @default(true)
+  autoCreatePoEnabled         Boolean  @default(false)
+  defaultWarehouseId          String?
+  barcodeScanningEnabled      Boolean  @default(true)
+  mobileStocktakeEnabled      Boolean  @default(true)
+  handwritingOcrEnabled       Boolean  @default(true)
+  autoPoEnabled               Boolean  @default(false)
+  autoPoApprovalRequired      Boolean  @default(true)
+  autoPoCombineSuppliers      Boolean  @default(true)
+  autoPoMinimumItems          Int      @default(1)
+  autoPoScheduleTime          String   @default("09:00:00")
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@map("inventory_settings")
+}
+
+enum StockDeductionTrigger {
+  INVOICE
+  DELIVERY_NOTE
+  MANUAL
+}
+
+// Warehouses & Locations
+model Warehouse {
+  id            String   @id @default(uuid())
+  companyId     String
+  name          String
+  code          String
+  address       String?
+  phone         String?
+  email         String?
+  managerUserId String?
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  timezone      String   @default("UTC")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company            Company                      @relation(fields: [companyId], references: [id])
+  manager            User?                        @relation("WarehouseManager", fields: [managerUserId], references: [id])
+  userPermissions    UserWarehousePermission[]
+  productInventory   ProductInventory[]
+  stockReservations  StockReservation[]
+  stockMovements     StockMovement[]
+  stockTransfersFrom StockTransfer[]              @relation("TransferFrom")
+  stockTransfersTo   StockTransfer[]              @relation("TransferTo")
+  stocktakes         Stocktake[]
+  purchaseOrders     PurchaseOrder[]
+
+  @@unique([companyId, code])
+  @@map("warehouses")
+}
+
+// User Warehouse Permissions
+model UserWarehousePermission {
+  id                     String              @id @default(uuid())
+  userId                 String
+  warehouseId            String
+  permissionLevel        WarehousePermission
+  canAdjustStock         Boolean             @default(false)
+  canCreateStocktakes    Boolean             @default(false)
+  canApproveStocktakes   Boolean             @default(false)
+  canTransferStock       Boolean             @default(false)
+  createdAt              DateTime            @default(now())
+
+  user      User      @relation(fields: [userId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([userId, warehouseId])
+  @@map("user_warehouse_permissions")
+}
+
+enum WarehousePermission {
+  VIEW
+  EDIT
+  MANAGE
+  ADMIN
+}
+
+// Product Inventory (Core Stock Tracking)
+model ProductInventory {
+  id                String    @id @default(uuid())
+  productId         String
+  warehouseId       String
+  quantityOnHand    Int       @default(0)
+  quantityReserved  Int       @default(0)
+  quantityPendingIn Int       @default(0)
+  quantityAllocated Int       @default(0)
+  reorderPoint      Int       @default(0)
+  reorderQuantity   Int       @default(0)
+  maxStockLevel     Int       @default(0)
+  costPrice         Decimal   @db.Decimal(10,2) @default(0)
+  averageCost       Decimal   @db.Decimal(10,2) @default(0)
+  lastCost          Decimal   @db.Decimal(10,2) @default(0)
+  lastReceivedDate  DateTime?
+  lastSoldDate      DateTime?
+  lastStocktakeDate DateTime?
+  binLocation       String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  product           Product            @relation(fields: [productId], references: [id])
+  warehouse         Warehouse          @relation(fields: [warehouseId], references: [id])
+  stockReservations StockReservation[]
+  stockMovements    StockMovement[]
+  stocktakeItems    StocktakeItem[]
+  lowStockAlerts    LowStockNotification[]
+
+  @@unique([productId, warehouseId])
+  @@map("product_inventory")
+}
+
+// Stock Reservations (Soft Reservations)
+model StockReservation {
+  id                String              @id @default(uuid())
+  productId         String
+  warehouseId       String
+  referenceType     ReservationReference
+  referenceId       String
+  referenceNumber   String?
+  quantityReserved  Int
+  quantityFulfilled Int                 @default(0)
+  reservedUntil     DateTime?
+  status            ReservationStatus   @default(ACTIVE)
+  priority          Priority            @default(NORMAL)
+  notes             String?
+  createdBy         String
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  product         Product          @relation(fields: [productId], references: [id])
+  warehouse       Warehouse        @relation(fields: [warehouseId], references: [id])
+  productInventory ProductInventory @relation(fields: [productId, warehouseId], references: [productId, warehouseId])
+  creator         User             @relation(fields: [createdBy], references: [id])
+
+  @@map("stock_reservations")
+}
+
+enum ReservationReference {
+  QUOTE
+  ORDER
+  MANUAL
+  TRANSFER
+}
+
+enum ReservationStatus {
+  ACTIVE
+  PARTIAL
+  FULFILLED
+  EXPIRED
+  CANCELLED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// Stock Movements (Complete Audit Trail)
+model StockMovement {
+  id              String            @id @default(uuid())
+  productId       String
+  warehouseId     String
+  movementType    MovementType
+  quantity        Int
+  unitCost        Decimal?          @db.Decimal(10,2)
+  referenceType   MovementReference
+  referenceId     String?
+  referenceNumber String?
+  batchNumber     String?
+  expiryDate      DateTime?
+  reasonCode      String?
+  notes           String?
+  locationFrom    String?
+  locationTo      String?
+  createdBy       String
+  approvedBy      String?
+  approvedAt      DateTime?
+  createdAt       DateTime          @default(now())
+
+  product         Product          @relation(fields: [productId], references: [id])
+  warehouse       Warehouse        @relation(fields: [warehouseId], references: [id])
+  productInventory ProductInventory @relation(fields: [productId, warehouseId], references: [productId, warehouseId])
+  creator         User             @relation("MovementCreator", fields: [createdBy], references: [id])
+  approver        User?            @relation("MovementApprover", fields: [approvedBy], references: [id])
+
+  @@map("stock_movements")
+}
+
+enum MovementType {
+  IN
+  OUT
+  TRANSFER_OUT
+  TRANSFER_IN
+  ADJUSTMENT
+  STOCKTAKE
+}
+
+enum MovementReference {
+  PURCHASE_ORDER
+  SALES_ORDER
+  INVOICE
+  DELIVERY_NOTE
+  ADJUSTMENT
+  STOCKTAKE
+  TRANSFER
+  RETURN
+  MANUAL
+}
+
+// Suppliers
+model Supplier {
+  id                  String   @id @default(uuid())
+  companyId           String
+  name                String
+  companyName         String?
+  email               String?
+  phone               String?
+  address             String?
+  contactPerson       String?
+  paymentTerms        String?
+  leadTimeDays        Int      @default(0)
+  minimumOrderValue   Decimal  @db.Decimal(10,2) @default(0)
+  currencyCode        String   @default("USD")
+  taxNumber           String?
+  supplierCode        String?
+  isActive            Boolean  @default(true)
+  rating              Decimal  @db.Decimal(2,1) @default(0)
+  performanceScore    Decimal  @db.Decimal(5,2) @default(0)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  company         Company           @relation(fields: [companyId], references: [id])
+  productSuppliers ProductSupplier[]
+  purchaseOrders  PurchaseOrder[]
+
+  @@unique([companyId, supplierCode])
+  @@map("suppliers")
+}
+
+// Product-Supplier Relationships
+model ProductSupplier {
+  id                     String    @id @default(uuid())
+  productId              String
+  supplierId             String
+  supplierSku            String?
+  supplierName           String?
+  supplierCost           Decimal   @db.Decimal(10,2)
+  leadTimeDays           Int       @default(0)
+  minimumOrderQuantity   Int       @default(1)
+  packSize               Int       @default(1)
+  isPreferred            Boolean   @default(false)
+  lastOrderDate          DateTime?
+  lastCost               Decimal?  @db.Decimal(10,2)
+  lastDeliveryDays       Int?
+  qualityRating          Decimal   @db.Decimal(2,1) @default(0)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  product              Product              @relation(fields: [productId], references: [id])
+  supplier             Supplier             @relation(fields: [supplierId], references: [id])
+  purchaseOrderItems   PurchaseOrderItem[]
+
+  @@unique([productId, supplierId])
+  @@map("product_suppliers")
+}
+
+// Purchase Orders
+model PurchaseOrder {
+  id                   String            @id @default(uuid())
+  poNumber             String            @unique
+  supplierId           String
+  warehouseId          String
+  status               PurchaseOrderStatus @default(DRAFT)
+  priority             Priority          @default(NORMAL)
+  orderDate            DateTime
+  expectedDeliveryDate DateTime?
+  actualDeliveryDate   DateTime?
+  subtotal             Decimal           @db.Decimal(10,2) @default(0)
+  taxRate              Decimal           @db.Decimal(5,2) @default(0)
+  taxAmount            Decimal           @db.Decimal(10,2) @default(0)
+  shippingCost         Decimal           @db.Decimal(10,2) @default(0)
+  totalAmount          Decimal           @db.Decimal(10,2) @default(0)
+  currencyCode         String            @default("USD")
+  termsConditions      String?
+  internalNotes        String?
+  supplierNotes        String?
+  createdBy            String
+  approvedBy           String?
+  approvedAt           DateTime?
+  sentAt               DateTime?
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  supplier           Supplier             @relation(fields: [supplierId], references: [id])
+  warehouse          Warehouse            @relation(fields: [warehouseId], references: [id])
+  creator            User                 @relation("POCreator", fields: [createdBy], references: [id])
+  approver           User?                @relation("POApprover", fields: [approvedBy], references: [id])
+  items              PurchaseOrderItem[]
+  autoGeneratedPOs   AutoGeneratedPO[]
+  poApprovals        POApproval[]
+
+  @@map("purchase_orders")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  ACKNOWLEDGED
+  PARTIAL
+  COMPLETED
+  CANCELLED
+}
+
+// Purchase Order Items
+model PurchaseOrderItem {
+  id               String    @id @default(uuid())
+  purchaseOrderId  String
+  productId        String
+  quantityOrdered  Int
+  quantityReceived Int       @default(0)
+  unitCost         Decimal   @db.Decimal(10,2)
+  expectedDate     DateTime?
+  receivedDate     DateTime?
+  batchNumber      String?
+  expiryDate       DateTime?
+  notes            String?
+
+  purchaseOrder   PurchaseOrder   @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// Auto-generated PO tracking
+model AutoGeneratedPO {
+  id                    String    @id @default(uuid())
+  purchaseOrderId       String
+  triggerType           AutoPOTrigger @default(LOW_STOCK)
+  productsIncluded      Json
+  generationReason      String?
+  autoApprovalEligible  Boolean   @default(false)
+  generatedAt           DateTime  @default(now())
+  approvedAt            DateTime?
+  approvedBy            String?
+  sentAt                DateTime?
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  approver      User?         @relation(fields: [approvedBy], references: [id])
+
+  @@map("auto_generated_pos")
+}
+
+enum AutoPOTrigger {
+  LOW_STOCK
+  STOCKOUT
+  SCHEDULED
+}
+
+// PO approval workflow
+model POApproval {
+  id               String          @id @default(uuid())
+  purchaseOrderId  String
+  approverUserId   String
+  approvalLevel    Int             @default(1)
+  status           ApprovalStatus  @default(PENDING)
+  decisionNotes    String?
+  approvedAmount   Decimal?        @db.Decimal(10,2)
+  createdAt        DateTime        @default(now())
+  decidedAt        DateTime?
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  approver      User          @relation(fields: [approverUserId], references: [id])
+
+  @@map("po_approvals")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SKIPPED
+}
+
+// Auto PO generation rules
+model AutoPORule {
+  id                      String   @id @default(uuid())
+  companyId               String
+  warehouseId             String?
+  categoryId              String?
+  supplierId              String?
+  priority                Priority @default(NORMAL)
+  maxOrderValue           Decimal? @db.Decimal(10,2)
+  combineWithManualPOs    Boolean  @default(false)
+  requireManagerApproval  Boolean  @default(true)
+  autoSendEnabled         Boolean  @default(false)
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  company   Company            @relation(fields: [companyId], references: [id])
+  warehouse Warehouse?         @relation(fields: [warehouseId], references: [id])
+  category  ProductCategory?   @relation(fields: [categoryId], references: [id])
+  supplier  Supplier?          @relation(fields: [supplierId], references: [id])
+
+  @@map("auto_po_rules")
+}
+
+// Stocktakes
+model Stocktake {
+  id                           String         @id @default(uuid())
+  stocktakeNumber              String         @unique
+  name                         String
+  warehouseId                  String
+  status                       StocktakeStatus @default(PLANNED)
+  type                         StocktakeType  @default(FULL)
+  stocktakeDate                DateTime
+  categoryFilter               Json?
+  locationFilter               String?
+  assignedUsers                Json?
+  hideQuantitiesFromCounters   Boolean        @default(true)
+  allowMobileCounting          Boolean        @default(true)
+  requireBarcodeScanning       Boolean        @default(false)
+  varianceThresholdPercentage  Decimal        @db.Decimal(5,2) @default(5.00)
+  createdBy                    String
+  approvedBy                   String?
+  completedBy                  String?
+  completedAt                  DateTime?
+  approvedAt                   DateTime?
+  instructions                 String?
+  notes                        String?
+  createdAt                    DateTime       @default(now())
+  updatedAt                    DateTime       @updatedAt
+
+  warehouse  Warehouse        @relation(fields: [warehouseId], references: [id])
+  creator    User             @relation("StocktakeCreator", fields: [createdBy], references: [id])
+  approver   User?            @relation("StocktakeApprover", fields: [approvedBy], references: [id])
+  completer  User?            @relation("StocktakeCompleter", fields: [completedBy], references: [id])
+  items      StocktakeItem[]
+  forms      StocktakeForm[]
+
+  @@map("stocktakes")
+}
+
+enum StocktakeStatus {
+  PLANNED
+  IN_PROGRESS
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+enum StocktakeType {
+  FULL
+  PARTIAL
+  CYCLE
+  SPOT
+}
+
+// Stocktake Items
+model StocktakeItem {
+  id                   String          @id @default(uuid())
+  stocktakeId          String
+  productId            String
+  systemQuantity       Int
+  countedQuantity      Int?
+  countedBy            String?
+  countedAt            DateTime?
+  recountedBy          String?
+  recountedAt          DateTime?
+  verifiedBy           String?
+  verifiedAt           DateTime?
+  status               StocktakeItemStatus @default(PENDING)
+  unitCost             Decimal?        @db.Decimal(10,2)
+  notes                String?
+  batchNumber          String?
+  expiryDate           DateTime?
+  binLocation          String?
+
+  stocktake       Stocktake        @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  product         Product          @relation(fields: [productId], references: [id])
+  counter         User?            @relation("StocktakeCounter", fields: [countedBy], references: [id])
+  recounter       User?            @relation("StocktakeRecounter", fields: [recountedBy], references: [id])
+  verifier        User?            @relation("StocktakeVerifier", fields: [verifiedBy], references: [id])
+
+  @@map("stocktake_items")
+}
+
+enum StocktakeItemStatus {
+  PENDING
+  COUNTED
+  VARIANCE
+  RECOUNTED
+  VERIFIED
+  APPROVED
+}
+
+// Stocktake Forms (For printed/handwritten forms)
+model StocktakeForm {
+  id                           String     @id @default(uuid())
+  stocktakeId                  String
+  formNumber                   String
+  formType                     FormType
+  assignedTo                   String
+  productsPerPage              Int        @default(20)
+  pageNumber                   Int
+  status                       FormStatus @default(GENERATED)
+  uploadedImagePath            String?
+  ocrProcessed                 Boolean    @default(false)
+  ocrConfidenceScore           Decimal?   @db.Decimal(3,2)
+  ocrResults                   Json?
+  manualVerificationRequired   Boolean    @default(false)
+  completedAt                  DateTime?
+  uploadedAt                   DateTime?
+  processedAt                  DateTime?
+  createdAt                    DateTime   @default(now())
+
+  stocktake    Stocktake @relation(fields: [stocktakeId], references: [id], onDelete: Cascade)
+  assignedUser User      @relation(fields: [assignedTo], references: [id])
+
+  @@unique([stocktakeId, formNumber])
+  @@map("stocktake_forms")
+}
+
+enum FormType {
+  PRINTED
+  DIGITAL
+}
+
+enum FormStatus {
+  GENERATED
+  ASSIGNED
+  COMPLETED
+  UPLOADED
+  PROCESSED
+}
+
+// Low Stock Notifications
+model LowStockNotification {
+  id                   String                     @id @default(uuid())
+  productId            String
+  warehouseId          String
+  currentQuantity      Int
+  reorderPoint         Int
+  reorderQuantity      Int?
+  suggestedPoQuantity  Int?
+  preferredSupplierId  String?
+  status               LowStockNotificationStatus @default(ACTIVE)
+  notifiedUsers        Json?
+  priority             Priority                   @default(MEDIUM)
+  createdAt            DateTime                   @default(now())
+  acknowledgedAt       DateTime?
+  resolvedAt           DateTime?
+
+  product           Product          @relation(fields: [productId], references: [id])
+  warehouse         Warehouse        @relation(fields: [warehouseId], references: [id])
+  preferredSupplier Supplier?        @relation(fields: [preferredSupplierId], references: [id])
+
+  @@unique([productId, warehouseId, status])
+  @@map("low_stock_notifications")
+}
+
+enum LowStockNotificationStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  PO_CREATED
+  RESOLVED
+}
+
+// Product Barcodes
+model ProductBarcode {
+  id          String      @id @default(uuid())
+  productId   String
+  barcode     String      @unique
+  barcodeType BarcodeType
+  isPrimary   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("product_barcodes")
+}
+
+enum BarcodeType {
+  UPC
+  EAN
+  CODE128
+  QR
+  CODE39
+}
+
+// Stock Transfer Requests
+model StockTransfer {
+  id                   String             @id @default(uuid())
+  transferNumber       String             @unique
+  fromWarehouseId      String
+  toWarehouseId        String
+  status               StockTransferStatus @default(REQUESTED)
+  priority             Priority           @default(NORMAL)
+  requestedBy          String
+  approvedBy           String?
+  shippedBy            String?
+  receivedBy           String?
+  transferDate         DateTime
+  expectedArrivalDate  DateTime?
+  actualArrivalDate    DateTime?
+  reason               String?
+  shippingMethod       String?
+  trackingNumber       String?
+  notes                String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  fromWarehouse Warehouse              @relation("TransferFrom", fields: [fromWarehouseId], references: [id])
+  toWarehouse   Warehouse              @relation("TransferTo", fields: [toWarehouseId], references: [id])
+  requester     User                   @relation("TransferRequester", fields: [requestedBy], references: [id])
+  approver      User?                  @relation("TransferApprover", fields: [approvedBy], references: [id])
+  shipper       User?                  @relation("TransferShipper", fields: [shippedBy], references: [id])
+  receiver      User?                  @relation("TransferReceiver", fields: [receivedBy], references: [id])
+  items         StockTransferItem[]
+
+  @@map("stock_transfers")
+}
+
+enum StockTransferStatus {
+  REQUESTED
+  APPROVED
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+// Stock Transfer Items
+model StockTransferItem {
+  id                String    @id @default(uuid())
+  transferId        String
+  productId         String
+  quantityRequested Int
+  quantityShipped   Int       @default(0)
+  quantityReceived  Int       @default(0)
+  unitCost          Decimal?  @db.Decimal(10,2)
+  batchNumber       String?
+  expiryDate        DateTime?
+  notes             String?
+
+  transfer StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  product  Product       @relation(fields: [productId], references: [id])
+
+  @@map("stock_transfer_items")
+}
+
+// ============================================
+// PRODUCT CATALOG
+// ============================================
+
+model ProductCategory {
+  id                  String   @id @default(uuid())
+  companyId           String
+  name                String
+  parentId            String?
+  sortOrder           Int      @default(0)
+  color               String   @default("#3B82F6")
+  isStructureComplete Boolean  @default(false)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  parent      ProductCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ProductCategory[] @relation("CategoryHierarchy")
+  productMappings ProductCategoryMapping[]
+  autoPORules AutoPORule[]
+
+  @@index([companyId, parentId])
+}
+
+model Product {
+  id              String   @id @default(uuid())
+  companyId       String
+  sku             String
+  name            String
+  description     String?
+  cost            Decimal?
+  weight          Decimal?
+  unitOfMeasure   String?
+  supplierName    String?
+  isActive        Boolean  @default(true)
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  company         Company  @relation(fields: [companyId], references: [id])
+  categoryMappings ProductCategoryMapping[]
+  prices          ProductPrice[]
+  stockLevels     StockLevel[]
+  lineItems       DocumentLineItem[]
+  packageComponents PackageComponent[]
+  formulaPricing  FormulaPricing?
+  purchaseOrderLineItems PurchaseOrderLineItem[]
+  customPrices    CustomerCustomPrice[]
+  priceHistory    PriceChangeHistory[]
+  
+  // Stock Management Relations
+  inventory          ProductInventory[]
+  stockReservations  StockReservation[]
+  stockMovements     StockMovement[]
+  stocktakeItems     StocktakeItem[]
+  lowStockAlerts     LowStockNotification[]
+  productSuppliers   ProductSupplier[]
+  purchaseOrderItems PurchaseOrderItem[]
+  barcodes           ProductBarcode[]
+  transferItems      StockTransferItem[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, isActive])
+}
+
+model ProductCategoryMapping {
+  productId   String
+  categoryId  String
+
+  // Relations
+  product     Product         @relation(fields: [productId], references: [id])
+  category    ProductCategory @relation(fields: [categoryId], references: [id])
+
+  @@id([productId, categoryId])
+}
+
+model PriceList {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  isDefault   Boolean  @default(false)
+  markup      Decimal?
+  effectiveFrom DateTime?
+  effectiveTo DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  prices      ProductPrice[]
+  customers   Customer[]
+
+  @@index([companyId, isDefault])
+}
+
+model ProductPrice {
+  id          String   @id @default(uuid())
+  productId   String
+  priceListId String
+  price       Decimal
+  effectiveFrom DateTime @default(now())
+  effectiveTo DateTime?
+
+  // Relations
+  product     Product   @relation(fields: [productId], references: [id])
+  priceList   PriceList @relation(fields: [priceListId], references: [id])
+
+  @@unique([productId, priceListId, effectiveFrom])
+  @@index([productId, priceListId])
+}
+
+model ProductPackage {
+  id               String    @id @default(uuid())
+  companyId        String
+  name             String
+  description      String?
+  hasOwnPrice      Boolean   @default(false)
+  packagePrice     Decimal?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  
+  // Relations
+  company          Company   @relation(fields: [companyId], references: [id])
+  components       PackageComponent[]
+  
+  @@index([companyId])
+}
+
+model PackageComponent {
+  id          String   @id @default(uuid())
+  packageId   String
+  productId   String
+  quantity    Decimal
+  unitPrice   Decimal?
+
+  // Relations
+  package     ProductPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@index([packageId])
+}
+
+model FormulaPricing {
+  id          String   @id @default(uuid())
+  productId   String   @unique
+  formulaName String
+  formula     String   // JSON string of formula structure
+  variables   String   // JSON string of variable definitions
+  
+  // Relations
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model SKUPattern {
+  id          String   @id @default(uuid())
+  companyId   String
+  pattern     String   // The learned pattern like "CAT-SUB-####"
+  category    String?
+  subcategory String?
+  usageCount  Int      @default(1)
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  
+  @@index([companyId, usageCount])
+}
+
+// ============================================
+// CUSTOMER MANAGEMENT
+// ============================================
+
+model Customer {
+  id              String   @id @default(uuid())
+  companyId       String
+  name            String
+  email           String?
+  phone           String?
+  website         String?
+  billingAddress  Json?
+  shippingAddress Json?
+  paymentTerms    String?
+  priceListId     String?
+  creditLimit     Decimal?
+  taxExempt       Boolean  @default(false)
+  notes           String?
+  tags            String[]
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  company         Company  @relation(fields: [companyId], references: [id])
+  priceList       PriceList? @relation(fields: [priceListId], references: [id])
+  contacts        CustomerContact[]
+  quotes          Quote[]
+  orders          Order[]
+  invoices        Invoice[]
+  jobs            Job[]
+  activities      CustomerActivity[]
+  tasks           CustomerTask[]
+  glassCustomerPrices CustomerGlassPrice[]
+  serviceWindows  ServiceWindow[]
+  customPrices    CustomerCustomPrice[]
+  priceHistory    PriceChangeHistory[]
+  pricelistTemplatesAsSource CustomPricelistTemplate[]
+
+  @@index([companyId, email])
+  @@index([companyId, isActive])
+}
+
+model CustomerContact {
+  id          String   @id @default(uuid())
+  customerId  String
+  name        String
+  email       String?
+  phone       String?
+  role        String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, isPrimary])
+}
+
+model CustomerActivity {
+  id          String   @id @default(uuid())
+  customerId  String
+  type        String
+  title       String
+  description String?
+  referenceType String?
+  referenceId String?
+  amount      Decimal?
+  status      String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  customer    Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId, createdAt])
+}
+
+model CustomerTask {
+  id          String   @id @default(uuid())
+  customerId  String
+  title       String
+  description String?
+  type        String
+  priority    String
+  dueDate     DateTime
+  assignedTo  String
+  status      String
+  completedAt DateTime?
+  completedBy String?
+  reminderAt  DateTime?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  // Relations
+  customer    Customer @relation(fields: [customerId], references: [id])
+  assignee    User     @relation(fields: [assignedTo], references: [id])
+
+  @@index([customerId, dueDate])
+  @@index([assignedTo, status])
+}
+
+// ============================================
+// SALES DOCUMENTS
+// ============================================
+
+model Quote {
+  id          String   @id @default(uuid())
+  companyId   String
+  customerId  String
+  quoteNumber String
+  revision    String   @default("A")
+  status      QuoteStatus @default(DRAFT)
+  subtotal    Decimal
+  taxAmount   Decimal
+  total       Decimal
+  validUntil  DateTime?
+  sentAt      DateTime?
+  viewedAt    DateTime?
+  acceptedAt  DateTime?
+  declinedAt  DateTime?
+  notes       String?
+  internalNotes String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  customer    Customer @relation(fields: [customerId], references: [id])
+  creator     User     @relation("QuoteCreatedBy", fields: [createdBy], references: [id])
+  lineItems   DocumentLineItem[] @relation("QuoteLineItems")
+  glassQuoteItems GlassQuoteItem[]
+  orders      Order[]
+  jobs        Job[]
+
+  @@unique([companyId, quoteNumber, revision])
+  @@index([companyId, customerId, status])
+}
+
+enum QuoteStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  VIEWED
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model Order {
+  id          String   @id @default(uuid())
+  companyId   String
+  customerId  String
+  quoteId     String?
+  orderNumber String
+  status      OrderStatus @default(CONFIRMED)
+  subtotal    Decimal
+  taxAmount   Decimal
+  total       Decimal
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  customer    Customer @relation(fields: [customerId], references: [id])
+  quote       Quote?   @relation(fields: [quoteId], references: [id])
+  creator     User     @relation("OrderCreatedBy", fields: [createdBy], references: [id])
+  lineItems   DocumentLineItem[] @relation("OrderLineItems")
+  invoices    Invoice[]
+  stockAllocations StockAllocation[]
+
+  @@unique([companyId, orderNumber])
+  @@index([companyId, customerId, status])
+}
+
+enum OrderStatus {
+  CONFIRMED
+  IN_PROGRESS
+  READY_FOR_DELIVERY
+  PARTIALLY_DELIVERED
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+model Invoice {
+  id            String   @id @default(uuid())
+  companyId     String
+  customerId    String
+  orderId       String?
+  invoiceNumber String
+  type          InvoiceType @default(FINAL)
+  status        InvoiceStatus @default(UNPAID)
+  subtotal      Decimal
+  taxAmount     Decimal
+  total         Decimal
+  dueDate       DateTime
+  paidAmount    Decimal  @default(0)
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  company       Company  @relation(fields: [companyId], references: [id])
+  customer      Customer @relation(fields: [customerId], references: [id])
+  order         Order?   @relation(fields: [orderId], references: [id])
+  creator       User     @relation("InvoiceCreatedBy", fields: [createdBy], references: [id])
+  lineItems     DocumentLineItem[] @relation("InvoiceLineItems")
+  payments      Payment[]
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId, customerId, status])
+  @@index([dueDate, status])
+}
+
+enum InvoiceType {
+  DEPOSIT
+  PROGRESS
+  FINAL
+  STANDALONE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  VIEWED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+  UNPAID
+}
+
+model DocumentLineItem {
+  id            String   @id @default(uuid())
+  documentType  DocumentType
+  quoteId       String?
+  orderId       String?
+  invoiceId     String?
+  productId     String?
+  description   String
+  quantity      Decimal
+  unitPrice     Decimal
+  discountPercent Decimal @default(0)
+  lineTotal     Decimal
+  sortOrder     Int
+
+  // Relations
+  quote         Quote?   @relation("QuoteLineItems", fields: [quoteId], references: [id])
+  order         Order?   @relation("OrderLineItems", fields: [orderId], references: [id])
+  invoice       Invoice? @relation("InvoiceLineItems", fields: [invoiceId], references: [id])
+  product       Product? @relation(fields: [productId], references: [id])
+
+  @@index([quoteId])
+  @@index([orderId])
+  @@index([invoiceId])
+}
+
+enum DocumentType {
+  QUOTE
+  ORDER
+  INVOICE
+}
+
+model Payment {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  amount      Decimal
+  method      String
+  reference   String?
+  receivedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  // Relations
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+}
+
+// ============================================
+// INVENTORY MANAGEMENT
+// ============================================
+
+model Location {
+  id          String   @id @default(uuid())
+  companyId   String
+  name        String
+  address     Json?
+  type        LocationType @default(WAREHOUSE)
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  company     Company  @relation(fields: [companyId], references: [id])
+  stockLevels StockLevel[]
+  stockMovements StockMovement[]
+
+  @@unique([companyId, name])
+  @@index([companyId, isActive])
+}
+
+enum LocationType {
+  WAREHOUSE
+  TRUCK
+  STORE
+  SITE
+}
+
+model StockLevel {
+  id              String   @id @default(uuid())
+  productId       String
+  locationId      String
+  quantityOnHand  Decimal
+  quantityReserved Decimal @default(0)
+  quantityAvailable Decimal
+  minLevel        Decimal?
+  maxLevel        Decimal?
+  reorderPoint    Decimal?
+  lastUpdated     DateTime @default(now())
+
+  // Relations
+  product         Product  @relation(fields: [productId], references: [id])
+  location        Location @relation(fields: [locationId], references: [id])
+  allocations     StockAllocation[]
+
+  @@unique([productId, locationId])
+  @@index([locationId])
+}

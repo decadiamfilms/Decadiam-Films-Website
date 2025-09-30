@@ -1,0 +1,828 @@
+openapi: 3.0.3
+info:
+  title: SalesKik Purchase Orders API
+  description: |
+    Comprehensive RESTful API for managing purchase orders, suppliers, approvals, and procurement workflows.
+    
+    ## Authentication
+    
+    The API supports multiple authentication methods:
+    - Bearer Token authentication
+    - API Key authentication  
+    - OAuth 2.0 with scopes
+    
+    ## Rate Limiting
+    
+    - Standard endpoints: 100 requests/minute
+    - Authentication: 20 requests/minute
+    - File uploads: 10 requests/minute
+    
+    ## Webhooks
+    
+    Real-time notifications available for all major events.
+    
+  version: "1.0.0"
+  contact:
+    name: SalesKik API Support
+    email: api-support@saleskik.com
+    url: https://docs.saleskik.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.saleskik.com/v1
+    description: Production server
+  - url: https://staging-api.saleskik.com/v1
+    description: Staging server
+  - url: http://localhost:5001/api/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+  - OAuth2: [purchase-orders:read, purchase-orders:write]
+
+paths:
+  /purchase-orders:
+    get:
+      summary: List Purchase Orders
+      description: Retrieve a paginated list of purchase orders with filtering and search capabilities
+      operationId: listPurchaseOrders
+      tags:
+        - Purchase Orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number for pagination
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          description: Number of results per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: status
+          in: query
+          description: Filter by order status
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/PurchaseOrderStatus'
+        - name: supplier_id
+          in: query
+          description: Filter by supplier ID
+          schema:
+            type: string
+            format: uuid
+        - name: priority
+          in: query
+          description: Filter by priority level
+          schema:
+            $ref: '#/components/schemas/PriorityLevel'
+        - name: search
+          in: query
+          description: Full-text search across all purchase order fields
+          schema:
+            type: string
+            maxLength: 255
+        - name: created_after
+          in: query
+          description: Filter orders created after this date
+          schema:
+            type: string
+            format: date-time
+        - name: created_before
+          in: query
+          description: Filter orders created before this date
+          schema:
+            type: string
+            format: date-time
+        - name: min_amount
+          in: query
+          description: Minimum order amount
+          schema:
+            type: number
+            format: decimal
+            minimum: 0
+        - name: max_amount
+          in: query
+          description: Maximum order amount
+          schema:
+            type: number
+            format: decimal
+      responses:
+        '200':
+          description: Successfully retrieved purchase orders
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PurchaseOrder'
+                  pagination:
+                    $ref: '#/components/schemas/PaginationInfo'
+                  filters_applied:
+                    type: array
+                    items:
+                      type: string
+                  search_metadata:
+                    type: object
+                    properties:
+                      search_duration_ms:
+                        type: integer
+                      total_indexed_orders:
+                        type: integer
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+    post:
+      summary: Create Purchase Order
+      description: Create a new purchase order with supplier information and line items
+      operationId: createPurchaseOrder
+      tags:
+        - Purchase Orders
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePurchaseOrderRequest'
+      responses:
+        '201':
+          description: Purchase order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /purchase-orders/{id}:
+    get:
+      summary: Get Purchase Order Details
+      description: Retrieve detailed information for a specific purchase order
+      operationId: getPurchaseOrder
+      tags:
+        - Purchase Orders
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Purchase order UUID
+          schema:
+            type: string
+            format: uuid
+        - name: include
+          in: query
+          description: Include related data in response
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [supplier, customer, line_items, attachments, audit_trail, all]
+      responses:
+        '200':
+          description: Purchase order details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update Purchase Order
+      description: Update an existing purchase order (restrictions apply based on status)
+      operationId: updatePurchaseOrder
+      tags:
+        - Purchase Orders
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePurchaseOrderRequest'
+      responses:
+        '200':
+          description: Purchase order updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PurchaseOrder'
+        '409':
+          description: Update not allowed due to order status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /purchase-orders/{id}/approve:
+    post:
+      summary: Approve Purchase Order
+      description: Approve a purchase order requiring authorization
+      operationId: approvePurchaseOrder
+      tags:
+        - Purchase Orders
+      security:
+        - BearerAuth: []
+        - OAuth2: [purchase-orders:approve]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                approval_comments:
+                  type: string
+                  maxLength: 1000
+                  description: Comments explaining approval decision
+                override_business_rules:
+                  type: boolean
+                  default: false
+                  description: Override business rule restrictions (admin only)
+              required:
+                - approval_comments
+      responses:
+        '200':
+          description: Purchase order approved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  purchase_order:
+                    $ref: '#/components/schemas/PurchaseOrder'
+                  approval_details:
+                    type: object
+                    properties:
+                      approved_by:
+                        type: string
+                        format: uuid
+                      approved_at:
+                        type: string
+                        format: date-time
+                      approval_comments:
+                        type: string
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://auth.saleskik.com/oauth/authorize
+          tokenUrl: https://auth.saleskik.com/oauth/token
+          scopes:
+            purchase-orders:read: Read purchase order data
+            purchase-orders:write: Create and update purchase orders
+            purchase-orders:approve: Approve purchase orders
+            suppliers:read: Read supplier information
+            suppliers:write: Manage supplier data
+            admin:full: Full administrative access
+
+  schemas:
+    PurchaseOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique purchase order identifier
+        purchase_order_number:
+          type: string
+          description: Human-readable purchase order number
+          example: "PO-2024-001"
+        supplier:
+          $ref: '#/components/schemas/Supplier'
+        customer:
+          $ref: '#/components/schemas/Customer'
+        customer_reference:
+          type: string
+          nullable: true
+          description: Customer project or job reference
+        status:
+          $ref: '#/components/schemas/PurchaseOrderStatus'
+        priority_level:
+          $ref: '#/components/schemas/PriorityLevel'
+        total_amount:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Total order amount in base currency
+        expected_delivery_date:
+          type: string
+          format: date
+          nullable: true
+        shipping_instructions:
+          type: string
+          nullable: true
+          maxLength: 2000
+        internal_notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        approval_required:
+          type: boolean
+          description: Whether order requires manager approval
+        approved_by:
+          type: string
+          format: uuid
+          nullable: true
+        approval_date:
+          type: string
+          format: date-time
+          nullable: true
+        approval_comments:
+          type: string
+          nullable: true
+        supplier_confirmed_date:
+          type: string
+          format: date-time
+          nullable: true
+        invoice_required:
+          type: boolean
+          default: true
+        invoice_created:
+          type: boolean
+          default: false
+        dispatch_blocked:
+          type: boolean
+          default: true
+          description: Whether order is blocked from dispatch
+        line_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PurchaseOrderLineItem'
+        attachments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attachment'
+        created_by:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - purchase_order_number
+        - supplier
+        - status
+        - priority_level
+        - total_amount
+        - line_items
+        - created_by
+        - created_at
+        - updated_at
+
+    PurchaseOrderStatus:
+      type: string
+      enum:
+        - DRAFT
+        - PENDING_APPROVAL
+        - APPROVED
+        - SENT_TO_SUPPLIER
+        - CONFIRMATION_PENDING
+        - CONFIRMATION_OVERDUE
+        - SUPPLIER_CONFIRMED
+        - PARTIALLY_RECEIVED
+        - FULLY_RECEIVED
+        - INVOICED
+        - COMPLETED
+        - CANCELLED
+        - ON_HOLD
+
+    PriorityLevel:
+      type: string
+      enum:
+        - NORMAL
+        - HIGH
+        - URGENT
+      description: Order priority level affecting processing and escalation
+
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        supplier_name:
+          type: string
+          maxLength: 200
+        supplier_code:
+          type: string
+          maxLength: 50
+        contact_person:
+          type: string
+          nullable: true
+          maxLength: 100
+        email_address:
+          type: string
+          format: email
+        phone_number:
+          type: string
+          nullable: true
+        payment_terms:
+          type: string
+          nullable: true
+        is_local_glass_supplier:
+          type: boolean
+          default: false
+        is_approved_supplier:
+          type: boolean
+          default: true
+        performance_rating:
+          type: number
+          format: decimal
+          minimum: 0
+          maximum: 5
+          default: 5.0
+        total_orders_count:
+          type: integer
+          minimum: 0
+      required:
+        - id
+        - supplier_name
+        - email_address
+
+    PurchaseOrderLineItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+        product:
+          $ref: '#/components/schemas/Product'
+        quantity_ordered:
+          type: number
+          format: decimal
+          minimum: 0
+        quantity_received:
+          type: number
+          format: decimal
+          minimum: 0
+          default: 0
+        unit_price:
+          type: number
+          format: decimal
+          minimum: 0
+        subtotal:
+          type: number
+          format: decimal
+          description: Calculated as quantity_ordered * unit_price
+        custom_module_flag:
+          type: boolean
+          default: false
+          description: Whether this item uses custom modules (e.g., custom glass)
+        special_instructions:
+          type: string
+          nullable: true
+          maxLength: 1000
+        line_item_notes:
+          type: string
+          nullable: true
+          maxLength: 1000
+
+    CreatePurchaseOrderRequest:
+      type: object
+      properties:
+        supplier_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+          format: uuid
+          nullable: true
+        customer_reference:
+          type: string
+          nullable: true
+          maxLength: 100
+        priority_level:
+          $ref: '#/components/schemas/PriorityLevel'
+        expected_delivery_date:
+          type: string
+          format: date
+          nullable: true
+        shipping_instructions:
+          type: string
+          nullable: true
+          maxLength: 2000
+        internal_notes:
+          type: string
+          nullable: true
+          maxLength: 2000
+        line_items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            properties:
+              product_id:
+                type: string
+                format: uuid
+              quantity_ordered:
+                type: number
+                format: decimal
+                minimum: 0.001
+              unit_price:
+                type: number
+                format: decimal
+                minimum: 0
+              special_instructions:
+                type: string
+                nullable: true
+                maxLength: 1000
+              custom_module_flag:
+                type: boolean
+                default: false
+            required:
+              - product_id
+              - quantity_ordered
+              - unit_price
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+                maxLength: 255
+              content_type:
+                type: string
+              file_data:
+                type: string
+                format: base64
+                description: Base64 encoded file content
+              description:
+                type: string
+                nullable: true
+              is_required:
+                type: boolean
+                default: false
+              include_with_supplier_order:
+                type: boolean
+                default: true
+      required:
+        - supplier_id
+        - line_items
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+            message:
+              type: string
+              description: Human-readable error message
+            details:
+              type: object
+              description: Additional error details
+            request_id:
+              type: string
+              description: Unique request identifier for debugging
+            timestamp:
+              type: string
+              format: date-time
+            documentation_url:
+              type: string
+              format: uri
+              description: Link to relevant documentation
+          required:
+            - code
+            - message
+            - request_id
+            - timestamp
+
+    PaginationInfo:
+      type: object
+      properties:
+        current_page:
+          type: integer
+          minimum: 1
+        total_pages:
+          type: integer
+          minimum: 1
+        total_count:
+          type: integer
+          minimum: 0
+        per_page:
+          type: integer
+          minimum: 1
+        has_next:
+          type: boolean
+        has_previous:
+          type: boolean
+      required:
+        - current_page
+        - total_pages
+        - total_count
+        - per_page
+        - has_next
+        - has_previous
+
+  responses:
+    BadRequest:
+      description: Bad request - invalid parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "INVALID_PARAMETER"
+              message: "Invalid status value provided"
+              details:
+                parameter: "status"
+                provided_value: "INVALID_STATUS"
+                valid_values: ["DRAFT", "PENDING_APPROVAL", "APPROVED"]
+              request_id: "req_123456789"
+              timestamp: "2024-01-11T09:15:30Z"
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "AUTHENTICATION_REQUIRED"
+              message: "Valid authentication token required"
+              request_id: "req_123456789"
+              timestamp: "2024-01-11T09:15:30Z"
+
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "PERMISSION_DENIED"
+              message: "User lacks required permissions for this action"
+              details:
+                required_scope: "purchase-orders:approve"
+                user_scopes: ["purchase-orders:read", "purchase-orders:write"]
+              request_id: "req_123456789"
+              timestamp: "2024-01-11T09:15:30Z"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "RESOURCE_NOT_FOUND"
+              message: "Purchase order not found"
+              details:
+                resource_type: "purchase_order"
+                resource_id: "550e8400-e29b-41d4-a716-446655440000"
+              request_id: "req_123456789"
+              timestamp: "2024-01-11T09:15:30Z"
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - type: object
+                properties:
+                  error:
+                    properties:
+                      validation_errors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            field:
+                              type: string
+                            message:
+                              type: string
+                            code:
+                              type: string
+          example:
+            error:
+              code: "VALIDATION_ERROR"
+              message: "One or more validation errors occurred"
+              validation_errors:
+                - field: "supplier_id"
+                  message: "Supplier ID is required"
+                  code: "REQUIRED_FIELD"
+                - field: "line_items"
+                  message: "At least one line item is required"
+                  code: "MIN_ITEMS"
+              request_id: "req_123456789"
+              timestamp: "2024-01-11T09:15:30Z"
+
+    TooManyRequests:
+      description: Rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per window
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix timestamp when rate limit resets
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error:
+              code: "RATE_LIMIT_EXCEEDED"
+              message: "Too many requests. Please try again later."
+              details:
+                limit: 100
+                window: "1 minute"
+                retry_after: 45
+              request_id: "req_123456789"
+              timestamp: "2024-01-11T09:15:30Z"
+
+tags:
+  - name: Purchase Orders
+    description: Purchase order management operations
+  - name: Suppliers
+    description: Supplier management operations  
+  - name: Approvals
+    description: Purchase order approval workflows
+  - name: Attachments
+    description: File attachment management
+  - name: Reports
+    description: Reporting and analytics
+  - name: Admin
+    description: Administrative operations
+
+externalDocs:
+  description: Complete API Documentation
+  url: https://docs.saleskik.com/api/purchase-orders

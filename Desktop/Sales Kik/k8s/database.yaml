@@ -1,0 +1,317 @@
+# PostgreSQL Database Cluster Configuration for High Availability
+# Primary-replica setup with automatic failover and backup
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-primary
+  namespace: production
+  labels:
+    app: postgres
+    role: primary
+spec:
+  serviceName: postgres-primary-service
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+      role: primary
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: primary
+    spec:
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_DB
+          value: "saleskik"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: password
+        - name: POSTGRES_REPLICATION_MODE
+          value: "master"
+        - name: POSTGRES_REPLICATION_USER
+          value: "replicator"
+        - name: POSTGRES_REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replication-password
+        ports:
+        - containerPort: 5432
+          name: postgres
+        volumeMounts:
+        - name: postgres-storage
+          mountPath: /var/lib/postgresql/data
+        - name: postgres-config
+          mountPath: /etc/postgresql/postgresql.conf
+          subPath: postgresql.conf
+        - name: postgres-config
+          mountPath: /etc/postgresql/pg_hba.conf
+          subPath: pg_hba.conf
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U postgres
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready -U postgres
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: postgres-config
+        configMap:
+          name: postgres-config
+  volumeClaimTemplates:
+  - metadata:
+      name: postgres-storage
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 200Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-replica
+  namespace: production
+  labels:
+    app: postgres
+    role: replica
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: postgres
+      role: replica
+  template:
+    metadata:
+      labels:
+        app: postgres
+        role: replica
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:15-alpine
+        env:
+        - name: POSTGRES_MASTER_SERVICE
+          value: "postgres-primary-service"
+        - name: POSTGRES_REPLICATION_MODE
+          value: "slave"
+        - name: POSTGRES_REPLICATION_USER
+          value: "replicator"
+        - name: POSTGRES_REPLICATION_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-secret
+              key: replication-password
+        - name: POSTGRES_MASTER_PORT_NUMBER
+          value: "5432"
+        ports:
+        - containerPort: 5432
+          name: postgres
+        volumeMounts:
+        - name: postgres-replica-storage
+          mountPath: /var/lib/postgresql/data
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - -c
+            - pg_isready
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      volumes:
+      - name: postgres-replica-storage
+        emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-primary-service
+  namespace: production
+  labels:
+    app: postgres
+    role: primary
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  selector:
+    app: postgres
+    role: primary
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-replica-service
+  namespace: production
+  labels:
+    app: postgres
+    role: replica
+spec:
+  type: ClusterIP
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+  selector:
+    app: postgres
+    role: replica
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-config
+  namespace: production
+data:
+  postgresql.conf: |
+    # Performance Settings
+    shared_buffers = 256MB
+    effective_cache_size = 1GB
+    work_mem = 4MB
+    maintenance_work_mem = 64MB
+    
+    # WAL Settings for Replication
+    wal_level = replica
+    max_wal_senders = 3
+    wal_keep_size = 64MB
+    hot_standby = on
+    
+    # Connection Settings
+    max_connections = 100
+    listen_addresses = '*'
+    
+    # Logging
+    log_destination = 'stderr'
+    logging_collector = on
+    log_directory = 'pg_log'
+    log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'
+    log_statement = 'mod'
+    log_min_duration_statement = 1000
+    
+    # Checkpoint Settings
+    checkpoint_completion_target = 0.9
+    checkpoint_timeout = 15min
+    
+    # Autovacuum
+    autovacuum = on
+    autovacuum_max_workers = 3
+
+  pg_hba.conf: |
+    # Database administrative login by Unix domain socket
+    local   all             postgres                                peer
+    
+    # IPv4 local connections
+    host    all             all             127.0.0.1/32            md5
+    host    all             all             0.0.0.0/0               md5
+    
+    # IPv6 local connections
+    host    all             all             ::1/128                 md5
+    
+    # Replication connections
+    host    replication     replicator      0.0.0.0/0               md5
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: production
+spec:
+  schedule: "0 2 * * *" # Daily at 2 AM
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: postgres-backup
+            image: postgres:15-alpine
+            env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+            command:
+            - /bin/sh
+            - -c
+            - |
+              BACKUP_FILE="/backups/saleskik_backup_$(date +%Y%m%d_%H%M%S).sql"
+              pg_dump -h postgres-primary-service -U postgres -d saleskik > $BACKUP_FILE
+              gzip $BACKUP_FILE
+              
+              # Cleanup old backups (keep 30 days)
+              find /backups -name "*.sql.gz" -mtime +30 -delete
+              
+              echo "Backup completed: ${BACKUP_FILE}.gz"
+            volumeMounts:
+            - name: backup-storage
+              mountPath: /backups
+          volumes:
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: postgres-backup-pvc
+          restartPolicy: OnFailure
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-backup-pvc
+  namespace: production
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: standard

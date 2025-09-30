@@ -1,0 +1,10 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="myobGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#e91e63;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#9c27b0;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="50" fill="url(#myobGradient)"/>
+  <text x="50" y="60" font-family="Arial, sans-serif" font-size="20" font-weight="bold" text-anchor="middle" fill="white">myob</text>
+</svg>

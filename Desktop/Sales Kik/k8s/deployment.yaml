@@ -1,0 +1,306 @@
+# Kubernetes Deployment for SalesKik Purchase Order System
+# High availability, auto-scaling, and production-ready configuration
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: saleskik-purchase-orders
+  namespace: production
+  labels:
+    app: saleskik-purchase-orders
+    version: v1.0.0
+    component: web
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: saleskik-purchase-orders
+  template:
+    metadata:
+      labels:
+        app: saleskik-purchase-orders
+        version: v1.0.0
+    spec:
+      serviceAccountName: saleskik-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        fsGroup: 1001
+      containers:
+      - name: app
+        image: saleskik/purchase-orders:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+          name: http
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-secret
+              key: url
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: url
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: app-secrets
+              key: session-secret
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: email-secrets
+              key: sendgrid-api-key
+        - name: TWILIO_ACCOUNT_SID
+          valueFrom:
+            secretKeyRef:
+              name: sms-secrets
+              key: twilio-account-sid
+        - name: TWILIO_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: sms-secrets
+              key: twilio-auth-token
+        - name: AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: aws-secrets
+              key: access-key-id
+        - name: AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: aws-secrets
+              key: secret-access-key
+        - name: S3_BUCKET
+          value: "saleskik-purchase-orders-attachments"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        volumeMounts:
+        - name: uploads-storage
+          mountPath: /app/uploads
+        - name: logs-storage
+          mountPath: /app/logs
+        - name: app-config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: uploads-storage
+        persistentVolumeClaim:
+          claimName: uploads-pvc
+      - name: logs-storage
+        persistentVolumeClaim:
+          claimName: logs-pvc
+      - name: app-config
+        configMap:
+          name: app-config
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: saleskik-purchase-orders-service
+  namespace: production
+  labels:
+    app: saleskik-purchase-orders
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: saleskik-purchase-orders
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: saleskik-purchase-orders-ingress
+  namespace: production
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  tls:
+  - hosts:
+    - api.saleskik.com
+    secretName: saleskik-tls
+  rules:
+  - host: api.saleskik.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: saleskik-purchase-orders-service
+            port:
+              number: 80
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: saleskik-purchase-orders-hpa
+  namespace: production
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: saleskik-purchase-orders
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 10
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads-pvc
+  namespace: production
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: logs-pvc
+  namespace: production
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: production
+data:
+  app.json: |
+    {
+      "name": "SalesKik Purchase Orders",
+      "version": "1.0.0",
+      "environment": "production",
+      "features": {
+        "realTimeUpdates": true,
+        "emailDelivery": true,
+        "smsNotifications": true,
+        "fileUploads": true,
+        "audit": true
+      },
+      "limits": {
+        "maxFileSize": "10MB",
+        "maxAttachments": 20,
+        "sessionTimeout": "2h"
+      }
+    }
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: saleskik-service-account
+  namespace: production
+  labels:
+    app: saleskik-purchase-orders
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: production
+  name: saleskik-role
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: saleskik-role-binding
+  namespace: production
+subjects:
+- kind: ServiceAccount
+  name: saleskik-service-account
+  namespace: production
+roleRef:
+  kind: Role
+  name: saleskik-role
+  apiGroup: rbac.authorization.k8s.io
