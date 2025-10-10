@@ -182,9 +182,9 @@ export default function CustomPricelistsPage() {
         
         if (subcategoriesAtLevel.length > 0) {
           const fieldName = level === 0 ? 'Subcategory' : 
-                           level === 1 ? 'Type' : 
-                           level === 2 ? 'Dimensions' : 
-                           `Level ${level + 1}`;
+                           level === 1 ? 'Category Type' : 
+                           level === 2 ? 'Specification' : 
+                           `Option ${level + 1}`;
           
           dropdowns.push(
             <CustomDropdown
@@ -304,32 +304,27 @@ export default function CustomPricelistsPage() {
     try {
       console.log('🔍 Custom Price Lists: Loading categories from database...');
       
-      // Direct API call without going through problematic dataService
-      const response = await fetch('/api/category/structure', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Use correct API URL with environment variable
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
       
       console.log('📡 Custom Price Lists: API Response status:', response.status);
       
       if (response.ok) {
-        const categoriesData = await response.json();
-        console.log('📋 Custom Price Lists: Raw categories from database:', categoriesData);
+        const apiResponse = await response.json();
+        console.log('📋 Custom Price Lists: Raw API response:', apiResponse);
         
-        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
-          // Transform simple database format to frontend format
-          const transformedCategories = categoriesData.map((cat: any) => ({
+        if (apiResponse.success && Array.isArray(apiResponse.data) && apiResponse.data.length > 0) {
+          // Use the categories with their subcategories directly
+          const transformedCategories = apiResponse.data.map((cat: any) => ({
             id: cat.id,
             name: cat.name,
             color: cat.color || '#3B82F6',
-            isActive: true,
-            isStructureComplete: true,
-            subcategories: [],
-            specialItems: [],
-            createdBy: 'database',
-            productCount: 0,
+            isActive: cat.isActive,
+            isStructureComplete: cat.isStructureComplete,
+            subcategories: cat.subcategories || [], // Keep the subcategories!
+            specialItems: cat.specialItems || [],
+            createdBy: cat.createdBy || 'database',
+            productCount: cat.subcategories ? cat.subcategories.length : 0,
             createdAt: cat.createdAt ? new Date(cat.createdAt) : new Date(),
             updatedAt: cat.updatedAt ? new Date(cat.updatedAt) : new Date()
           }));
@@ -814,45 +809,6 @@ export default function CustomPricelistsPage() {
                   </div>
                   
                   {/* Selected Path Display (Enhanced from NewQuotePage) */}
-                  {(selectedCategory || selectedPath.length > 0) && (
-                    <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <div className="text-sm text-blue-800 font-medium mb-2">Selected Category Path:</div>
-                      <div className="flex items-center space-x-2">
-                        {selectedCategory && (
-                          <span 
-                            className="px-2 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium"
-                          >
-                            {categories.find(c => c.id === selectedCategory)?.name}
-                          </span>
-                        )}
-                        {selectedPath.length > 0 && selectedCategory && (
-                          <span className="text-blue-400">→</span>
-                        )}
-                        {selectedPath.map((item, index) => (
-                          <React.Fragment key={item.id}>
-                            <span 
-                              className="px-2 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium"
-                              style={{ borderLeft: `3px solid ${item.color}` }}
-                            >
-                              {item.name}
-                            </span>
-                            {index < selectedPath.length - 1 && (
-                              <span className="text-blue-400">→</span>
-                            )}
-                          </React.Fragment>
-                        ))}
-                        <button
-                          onClick={() => {
-                            setSelectedPath([]);
-                            setSelectedCategory('');
-                          }}
-                          className="ml-2 text-blue-600 hover:text-blue-800 text-sm underline"
-                        >
-                          Clear All
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
