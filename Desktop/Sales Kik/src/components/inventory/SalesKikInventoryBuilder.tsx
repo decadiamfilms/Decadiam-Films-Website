@@ -168,49 +168,79 @@ export default function SalesKikInventoryBuilder() {
     checkAndGenerateTemplates();
   }, [mainCategories]);
 
+  // Helper function to flatten nested subcategories from database
+  const flattenSubcategoriesWithChildren = (subcategories: any[]): any[] => {
+    const result: any[] = [];
+    
+    const processSubcategory = (sub: any) => {
+      // Add the subcategory itself
+      result.push({
+        id: sub.id,
+        name: sub.name,
+        categoryId: sub.category_id,
+        parentId: sub.parent_id, // Map database field to frontend field
+        color: sub.color || '#10B981', // Use database color for sub-categories
+        isVisible: sub.isVisible,
+        sortOrder: sub.sortOrder || 0,
+        level: sub.level || 0, // Include level from database
+        options: (sub.options || []).map((option: any) => ({
+          id: option.id,
+          label: option.label,
+          value: option.value,
+          subcategoryId: sub.id,
+          isActive: option.isActive,
+          sortOrder: option.sortOrder || 0
+        })),
+        linkedFinalProducts: [],
+      });
+
+      // Recursively process children
+      if (sub.children && sub.children.length > 0) {
+        sub.children.forEach((child: any) => processSubcategory(child));
+      }
+    };
+
+    // Process all top-level subcategories
+    subcategories.forEach(sub => processSubcategory(sub));
+    
+    return result;
+  };
+
   const fetchCategories = async () => {
     try {
       console.log('🔍 Inventory Builder: Loading categories from database...');
       
-      // Try database first
-      const response = await fetch('/api/category/structure', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Try new database API first
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
       
       console.log('📡 Inventory Builder: API Response status:', response.status);
       
       if (response.ok) {
-        const categoriesData = await response.json();
-        console.log('📋 Inventory Builder: Raw categories from database:', categoriesData);
+        const apiResponse = await response.json();
+        console.log('📋 Inventory Builder: Raw API response:', apiResponse);
         
-        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
-          // Transform database hierarchical structure to frontend flat structure
-          const transformedCategories = categoriesData.map((cat: any) => ({
-            id: cat.id,
-            name: cat.name,
-            color: cat.color || '#3B82F6',
-            isActive: cat.isActive !== undefined ? cat.isActive : true,
-            isStructureComplete: cat.isStructureComplete !== undefined ? cat.isStructureComplete : false,
-            subcategories: (cat.children || []).map((child: any) => ({
-              id: child.id,
-              name: child.name,
-              categoryId: cat.id,
-              color: child.color || '#3B82F6',
-              isVisible: child.isActive !== undefined ? child.isActive : true,
-              sortOrder: child.sortOrder || 0,
-              options: [],
-              linkedFinalProducts: [],
-              level: 0
-            })),
-            specialItems: [],
-            createdBy: 'database',
-            productCount: 0,
-            createdAt: cat.createdAt ? new Date(cat.createdAt) : new Date(),
-            updatedAt: cat.updatedAt ? new Date(cat.updatedAt) : new Date()
-          }));
+        if (apiResponse.success && Array.isArray(apiResponse.data)) {
+          const categoriesData = apiResponse.data;
+          
+          // Transform new hierarchical structure to frontend format
+          const transformedCategories = categoriesData.map((cat: any) => {
+            console.log('🔍 Frontend: Transforming category:', cat.name);
+            console.log('📂 Raw subcategories from API:', cat.subcategories);
+            
+            return {
+              id: cat.id,
+              name: cat.name,
+              color: cat.color || '#3B82F6', // Use database color or default
+              isActive: cat.isActive,
+              isStructureComplete: false, // Default to false for now
+              subcategories: cat.subcategories || [], // Use direct mapping instead of flatten function
+              specialItems: [],
+              createdBy: 'database',
+              productCount: cat._count?.products || 0,
+              createdAt: cat.created_at ? new Date(cat.created_at) : new Date(),
+              updatedAt: cat.updated_at ? new Date(cat.updated_at) : new Date()
+            };
+          });
           
           setMainCategories(transformedCategories);
           console.log('✅ Inventory Builder: Categories loaded from database:', transformedCategories.length);
@@ -219,12 +249,17 @@ export default function SalesKikInventoryBuilder() {
         }
       }
       
-      // If database fails, start fresh (don't use localStorage anymore)
-      console.log('📝 Inventory Builder: No categories found, starting fresh');
+      // If database fails, start with empty categories
+      console.log('📝 Inventory Builder: API failed, starting with empty categories');
       setMainCategories([]);
+      console.log('✅ Inventory Builder: Ready for new categories from UI');
     } catch (error) {
       console.error('❌ Inventory Builder: Error loading categories:', error);
+      
+      // If there's an error, start with empty categories so user can create new ones
+      console.log('📝 Inventory Builder: Error occurred, starting with empty categories');
       setMainCategories([]);
+      console.log('✅ Inventory Builder: Ready for new categories from UI');
     }
   };
 
@@ -375,7 +410,7 @@ function CategoryStructureBuilder({ categories, onCategoriesUpdate, onLogAction 
         ...category,
         subcategories: category.subcategories.map(sub => ({
           ...sub,
-          color: sub.color || '#6B7280',
+          color: sub.color, // Don't override with gray - keep original color
           level: sub.level || 0,
           parentId: sub.parentId || undefined,
           options: sub.options || [],
@@ -405,33 +440,69 @@ function CategoryStructureBuilder({ categories, onCategoriesUpdate, onLogAction 
         });
       }
       
-      // Save to database for persistence
+      // Save complete category structure to database (including subcategories)
       try {
-        // Save individual category to database instead of localStorage
         if (category.name && category.name.trim().length > 0) {
-          const response = await fetch('/api/category/structure', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              name: category.name,
-              color: category.color,
-              sortOrder: 0
-            })
-          });
+          console.log('💾 Saving complete category structure to database:', category.name);
+          console.log('📂 Subcategories count:', category.subcategories.length);
           
-          if (response.ok) {
-            console.log('✅ Category saved to database:', category.name);
-          } else {
-            console.warn('❌ Failed to save to database, using localStorage fallback');
-            localStorage.setItem('saleskik-categories', JSON.stringify(updatedCategories));
+          // First, check if category exists in database or if it's a new one
+          const isNewCategory = !categories.find(c => c.id === category.id);
+          
+          if (isNewCategory) {
+            console.log('🆕 Creating new category in database first:', category.name);
+            
+            // Create the basic category first
+            const createResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                name: category.name,
+                description: '',
+                color: category.color,
+                sortOrder: 0
+              })
+            });
+            
+            if (createResponse.ok) {
+              const createResult = await createResponse.json();
+              console.log('✅ Basic category created:', createResult);
+              
+              // Update the category ID to match the database-generated one
+              category.id = createResult.data.id;
+              console.log('🔄 Updated category ID to:', category.id);
+            }
           }
+          
+          // Now save the complete structure (if there are subcategories)
+          if (category.subcategories.length > 0) {
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(category)
+            });
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('✅ Complete category structure with subcategories saved to database:', result);
+            } else {
+              console.warn('❌ Failed to save subcategories to database');
+              const errorText = await response.text();
+              console.error('Error details:', errorText);
+            }
+          }
+          
+          // Refresh categories from database to get latest state
+          setTimeout(() => {
+            fetchCategories();
+          }, 500);
         }
       } catch (error) {
-        console.error('Error saving to database, using localStorage fallback:', error);
-        localStorage.setItem('saleskik-categories', JSON.stringify(updatedCategories));
+        console.error('Error saving category to database:', error);
       }
       
       setEditingCategory(null);
@@ -450,7 +521,7 @@ function CategoryStructureBuilder({ categories, onCategoriesUpdate, onLogAction 
     
     // Save completion status to database
     try {
-      const response = await fetch(`/api/category/structure/${categoryId}`, {
+      const response = await fetch(`/api/categories/${categoryId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
@@ -543,11 +614,10 @@ function CategoryStructureBuilder({ categories, onCategoriesUpdate, onLogAction 
               try {
                 console.log('🗑️ Deleting category from database:', categoryId);
                 
-                // Delete from database first
-                const response = await fetch(`/api/category/structure/${categoryId}`, {
+                // Delete from database first using new API
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories/${categoryId}`, {
                   method: 'DELETE',
                   headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
                     'Content-Type': 'application/json'
                   }
                 });

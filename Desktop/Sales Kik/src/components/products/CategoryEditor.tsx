@@ -4,6 +4,7 @@ import {
   FolderIcon, LinkIcon, ChevronDownIcon, ChevronRightIcon,
   EyeIcon, DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
+import { apiService } from '../../services/api.service';
 
 interface MainCategory {
   id: string;
@@ -124,34 +125,46 @@ export default function CategoryEditor({ category, onSave, onCancel }: CategoryE
 
   // Helper functions
   const getChildren = (parentId: string) => {
-    return editedCategory.subcategories
+    const children = editedCategory.subcategories
       .filter(sub => sub.parentId === parentId)
       .sort((a, b) => a.sortOrder - b.sortOrder);
+    
+    if (children.length > 0) {
+      console.log(`🔍 CategoryEditor: Children of ${parentId}:`, children.map(c => `${c.name} (level ${c.level})`));
+    }
+    return children;
   };
 
   const getTopLevel = () => {
-    return editedCategory.subcategories
+    const topLevel = editedCategory.subcategories
       .filter(sub => !sub.parentId)
       .sort((a, b) => a.sortOrder - b.sortOrder);
+    
+    console.log('🔍 CategoryEditor: Top level subcategories:', topLevel.map(t => `${t.name} (level ${t.level})`));
+    return topLevel;
   };
 
   // Add subcategory
-  const addSubcategory = (parentId?: string) => {
+  const addSubcategory = async (parentId?: string) => {
     const name = newSubcategoryName.trim() || 'New Subcategory';
     const newId = Date.now().toString();
     let parentLevel = -1;
     let subcategoryColor = editedCategory.color;
     
     if (parentId) {
+      // Child subcategory - inherit parent color
       const parent = editedCategory.subcategories.find(s => s.id === parentId);
       if (parent) {
         parentLevel = parent.level;
         subcategoryColor = parent.color;
+        console.log('🎨 Child subcategory inheriting color:', subcategoryColor, 'from parent:', parent.name);
       }
     } else {
+      // Top-level subcategory - assign bright color from array
       const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
       const topLevelCount = editedCategory.subcategories.filter(s => !s.parentId).length;
       subcategoryColor = colors[topLevelCount % colors.length];
+      console.log('🎨 Top-level subcategory assigned color:', subcategoryColor, 'index:', topLevelCount);
     }
 
     // Calculate proper sort order based on siblings
@@ -179,12 +192,16 @@ export default function CategoryEditor({ category, onSave, onCancel }: CategoryE
       level: parentLevel + 1
     };
     
+    // Update local state immediately for responsive UI
     const newState = {
       ...editedCategory,
       subcategories: [...editedCategory.subcategories, newSubcategory]
     };
     saveToHistory(newState);
     setNewSubcategoryName('');
+    
+    // Note: Individual subcategory saving disabled - only complete structure save is used
+    console.log('✅ Subcategory added to local state - will save with complete structure');
     
     // Only open edit mode for sub-sub-categories (when parentId exists)
     // Main subcategories from sidebar already have typed names
