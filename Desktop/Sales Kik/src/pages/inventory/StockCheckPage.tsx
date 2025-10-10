@@ -12,7 +12,8 @@ import {
   ExclamationTriangleIcon as AlertTriangle,
   XCircleIcon as XCircle,
   BellIcon as Bell,
-  BuildingOffice2Icon as Warehouse
+  BuildingOffice2Icon as Warehouse,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/Button';
 import StockCheckCard from '@/components/inventory/StockCheckCard';
@@ -22,6 +23,83 @@ import UniversalNavigation from '@/components/layout/UniversalNavigation';
 import UniversalHeader from '@/components/layout/UniversalHeader';
 import type { Product, ProductInventory, Warehouse as WarehouseType, StockCheckFilter } from '@/types/inventory';
 import '@/styles/stock-check.css';
+
+// CustomDropdown component for category filtering
+interface CustomDropdownOption {
+  value: string;
+  label: string;
+  color?: string;
+}
+
+interface CustomDropdownProps {
+  label: string;
+  value: string;
+  placeholder: string;
+  options: CustomDropdownOption[];
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+function CustomDropdown({ 
+  label, 
+  value, 
+  placeholder, 
+  options, 
+  onChange, 
+  disabled 
+}: CustomDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const selectedOption = options.find(opt => opt.value === value);
+
+  return (
+    <div className="relative">
+      {label && (
+        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      )}
+      <button
+        type="button"
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`w-full px-3 py-2 text-left border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+          disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white hover:bg-gray-50'
+        } flex items-center justify-between`}
+      >
+        <span className={selectedOption ? 'text-gray-900' : 'text-gray-500'}>
+          {selectedOption ? selectedOption.label : placeholder}
+        </span>
+        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      {isOpen && !disabled && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+            {options.length === 0 ? (
+              <div className="px-3 py-2 text-gray-500 text-sm">No options available</div>
+            ) : (
+              options.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full px-3 py-2 text-left hover:bg-gray-100 text-sm ${
+                    value === option.value ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // Mock components for now - these would be created in subsequent implementations
 const TransferRequestModal = ({ isOpen, onClose, product }: any) => null;
@@ -39,6 +117,18 @@ const StockCheckPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'low' | 'out' | 'reorder'>('all');
   const [loading, setLoading] = useState(true);
+
+  // Category filtering state
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>('');
+  const [selectedSubSubcategoryId, setSelectedSubSubcategoryId] = useState<string>('');
+  const [selectedSubSubSubcategoryId, setSelectedSubSubSubcategoryId] = useState<string>('');
+  
+  // Available options for each level
+  const [stockLevel1Options, setStockLevel1Options] = useState<any[]>([]);
+  const [stockLevel2Options, setStockLevel2Options] = useState<any[]>([]);
+  const [stockLevel3Options, setStockLevel3Options] = useState<any[]>([]);
 
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -61,6 +151,7 @@ const StockCheckPage: React.FC = () => {
   useEffect(() => {
     loadWarehouses();
     loadStockData();
+    loadCategories(); // Load categories for filtering
   }, [selectedWarehouse]);
 
   // Load warehouses
@@ -95,46 +186,206 @@ const StockCheckPage: React.FC = () => {
     }
   };
 
-  // Load stock data - optimized for large inventories
-  const loadStockData = async () => {
-    // Only load data if there's a search query or filter applied
-    if (!searchQuery && activeFilter === 'all') {
-      setLoading(false);
-      setProducts([]);
-      setInventoryMap(new Map());
-      return;
-    }
-
-    setLoading(true);
+  // Load categories for filtering
+  const loadCategories = async () => {
     try {
-      // Use mock data for now (API temporarily disabled for debugging)
-      console.log('Loading stock data with search/filter:', { searchQuery, activeFilter });
-      
-      // Generate mock data based on search to simulate real search results
-      const generateMockProducts = (searchTerm: string, filter: string): Product[] => {
-        const allMockProducts = [
-          { id: 1, name: 'Glass Panel 1200x800mm', sku: 'GP-1200-800', barcode: '123456789012', category_id: 1, category_name: 'Glass Panels', image_url: '', is_active: true },
-          { id: 2, name: 'Pool Fence Post 1800mm', sku: 'PFP-1800', barcode: '987654321098', category_id: 2, category_name: 'Fence Posts', image_url: '', is_active: true },
-          { id: 3, name: 'Stainless Steel Bolts M8x50', sku: 'SSB-M8-50', barcode: '111222333444', category_id: 3, category_name: 'Hardware', image_url: '', is_active: true },
-          { id: 4, name: 'Aluminum Window Frame', sku: 'AWF-2000', barcode: '555666777888', category_id: 4, category_name: 'Frames', image_url: '', is_active: true },
-          { id: 5, name: 'Safety Glass 10mm', sku: 'SG-10MM', barcode: '999888777666', category_id: 1, category_name: 'Glass Panels', image_url: '', is_active: true },
-          { id: 6, name: 'Gate Hinges Stainless', sku: 'GH-SS', barcode: '444333222111', category_id: 3, category_name: 'Hardware', image_url: '', is_active: true }
-        ];
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      if (response.ok) {
+        const result = await response.json();
+        const data = result.success ? result.data : [];
         
-        if (searchTerm) {
-          return allMockProducts.filter(p => 
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.barcode.includes(searchTerm)
-          );
+        // Transform categories to safe objects (avoid React rendering errors)
+        const safeCategories = data.map((cat: any) => ({
+          id: String(cat.id || ''),
+          name: String(cat.name || 'Unknown'),
+          color: String(cat.color || '#3B82F6'),
+          subcategories: cat.subcategories || []
+        }));
+        
+        setCategories(safeCategories);
+        console.log('✅ StockCheck: Categories transformed and loaded:', safeCategories.length);
+      }
+    } catch (error) {
+      console.error('Failed to load categories:', error);
+      setCategories([]);
+    }
+  };
+
+  // StockCheck cascading dropdown loading functions  
+  const loadStockCheckLevel1Options = async (categoryId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const result = await response.json();
+      
+      if (result.success) {
+        const category = result.data.find((cat: any) => cat.id === categoryId);
+        if (category && category.subcategories) {
+          const level0Subs = category.subcategories
+            .filter((sub: any) => sub.level === 0 && !sub.parentId)
+            .map((sub: any) => ({
+              value: String(sub.id || ''),
+              label: String(sub.name || 'Unknown'),
+              color: String(sub.color || '#3B82F6')
+            }));
+          setStockLevel1Options(level0Subs);
+        } else {
+          setStockLevel1Options([]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load stock check level 1 options:', error);
+      setStockLevel1Options([]);
+    }
+  };
+
+  const loadStockCheckLevel2Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 StockCheck: Loading Level 2 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const result = await response.json();
+      
+      if (result.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level1Children: any[] = [];
+        for (const category of result.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level1Children.push(...children);
+          }
         }
         
-        return allMockProducts;
-      };
+        console.log('📂 StockCheck: Found Level 2 options:', level1Children.map(c => c.name));
+        
+        const level2Options = level1Children.map((child: any) => ({
+          value: String(child.id || ''),
+          label: String(child.name || 'Unknown'),
+          color: String(child.color || '#3B82F6')
+        }));
+        
+        setStockLevel2Options(level2Options);
+      }
+    } catch (error) {
+      console.error('Failed to load stock check level 2 options:', error);
+      setStockLevel2Options([]);
+    }
+  };
 
-      const mockProducts = generateMockProducts(searchQuery, activeFilter);
+  const loadStockCheckLevel3Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 StockCheck: Loading Level 3 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const result = await response.json();
+      
+      if (result.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level2Children: any[] = [];
+        for (const category of result.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level2Children.push(...children);
+          }
+        }
+        
+        console.log('📂 StockCheck: Found Level 3 options:', level2Children.map(c => c.name));
+        
+        const level3Options = level2Children.map((child: any) => ({
+          value: String(child.id || ''),
+          label: String(child.name || 'Unknown'),
+          color: String(child.color || '#3B82F6')
+        }));
+        
+        setStockLevel3Options(level3Options);
+      }
+    } catch (error) {
+      console.error('Failed to load stock check level 3 options:', error);
+      setStockLevel3Options([]);
+    }
+  };
 
-      const mockInventory: ProductInventory[] = mockProducts.map((product, index) => {
+  // Helper function for StockCheck cascading
+  const findStockCheckSubcategoryInHierarchy = (subcategories: any[], targetId: string): any => {
+    for (const sub of subcategories) {
+      if (sub.id === targetId) {
+        return sub;
+      }
+      if (sub.children && sub.children.length > 0) {
+        const found = findStockCheckSubcategoryInHierarchy(sub.children, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Load real database products for Stock Check
+  const loadStockData = async () => {
+    setLoading(true);
+    try {
+      console.log('📦 StockCheck: Loading products from database');
+      
+      // Load real products from database
+      const response = await fetch('/api/products');
+      if (!response.ok) {
+        throw new Error('Failed to load products from database');
+      }
+      
+      const result = await response.json();
+      const databaseProducts = result.success ? result.data : [];
+      
+      // Transform database products to Stock Check format
+      const stockCheckProducts: Product[] = databaseProducts.map((product: any) => ({
+        id: String(product.id || ''),
+        name: String(product.name || 'Unnamed Product'),
+        sku: String(product.code || ''),
+        barcode: String(product.code || ''), // Use product code as barcode
+        category_id: product.category_id,
+        category_name: String(product.category?.name || 'Unknown Category'),
+        image_url: '',
+        is_active: Boolean(product.is_active)
+      }));
+      
+      // Apply filters
+      let filteredProducts = stockCheckProducts;
+      
+      // Search filter
+      if (searchQuery) {
+        const searchTerm = searchQuery.toLowerCase();
+        filteredProducts = stockCheckProducts.filter(p => 
+          p.name.toLowerCase().includes(searchTerm) ||
+          p.sku.toLowerCase().includes(searchTerm) ||
+          p.barcode.toLowerCase().includes(searchTerm) ||
+          p.category_name.toLowerCase().includes(searchTerm)
+        );
+      }
+      
+      // Category filters
+      if (selectedCategoryId || selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId) {
+        filteredProducts = filteredProducts.filter(product => {
+          if (selectedCategoryId) {
+            const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+            if (selectedCategory) {
+              return product.category_name?.includes(selectedCategory.name);
+            }
+          }
+          return true;
+        });
+      }
+      
+      // Show first 25 products by default, or all if searching/filtering
+      if (!searchQuery && activeFilter === 'all') {
+        filteredProducts = filteredProducts.slice(0, 25);
+      }
+      
+      console.log('✅ StockCheck: Loaded', stockCheckProducts.length, 'products from database, showing', filteredProducts.length);
+      setProducts(filteredProducts);
+
+      // Generate inventory data for the filtered products
+      const realInventory: ProductInventory[] = filteredProducts.map((product, index) => {
         let stockLevel = 50; // Default good stock
         
         // Simulate different stock levels based on filter
@@ -161,16 +412,16 @@ const StockCheckPage: React.FC = () => {
         };
       });
 
-      setProducts(mockProducts);
+      // Products already set above with setProducts(filteredProducts)
 
-      // Build inventory map
+      // Build inventory map from real inventory data
       const newInventoryMap = new Map<string, ProductInventory>();
-      mockInventory.forEach(inv => {
+      realInventory.forEach(inv => {
         newInventoryMap.set(`${inv.product_id}-${inv.warehouse_id}`, inv);
       });
       setInventoryMap(newInventoryMap);
 
-      calculateStats(mockProducts, newInventoryMap);
+      calculateStats(filteredProducts, newInventoryMap);
     } catch (error) {
       console.error('Failed to load stock data:', error);
       setProducts([]);
@@ -274,8 +525,28 @@ const StockCheckPage: React.FC = () => {
       });
     }
 
+    // Apply category filters
+    if (selectedCategoryId || selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId) {
+      filtered = filtered.filter(product => {
+        // For now, filter by category name matching since we're using mock data
+        // In a real implementation, this would filter by product.categoryId
+        if (selectedCategoryId) {
+          const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
+          if (selectedCategory) {
+            return product.category_name?.includes(selectedCategory.name);
+          }
+        }
+        return true;
+      });
+    }
+
+    // Limit to first 25 products by default (unless searching or filtering)
+    if (!searchQuery && activeFilter === 'all') {
+      filtered = filtered.slice(0, 25);
+    }
+
     return filtered;
-  }, [products, searchQuery, activeFilter, inventoryMap]);
+  }, [products, searchQuery, activeFilter, inventoryMap, selectedCategoryId, selectedSubcategoryId, selectedSubSubcategoryId, selectedSubSubSubcategoryId, categories]);
 
   // Quick filters
   const quickFilters: StockCheckFilter[] = [
@@ -427,6 +698,91 @@ const StockCheckPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Category Filters - 4-Level Cascading Dropdowns */}
+          <div className="filter-group">
+            <label>Category Filters</label>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Main Category Dropdown */}
+              <CustomDropdown
+                label=""
+                value={selectedCategoryId}
+                placeholder="All Categories"
+                options={categories.map(cat => ({
+                  value: cat.id,
+                  label: cat.name,
+                  color: cat.color
+                }))}
+                onChange={(value) => {
+                  console.log('StockCheck: Main category selected:', value);
+                  setSelectedCategoryId(value);
+                  setSelectedSubcategoryId('');
+                  setSelectedSubSubcategoryId('');
+                  setSelectedSubSubSubcategoryId('');
+                  setStockLevel1Options([]);
+                  setStockLevel2Options([]);
+                  setStockLevel3Options([]);
+                  if (value) {
+                    loadStockCheckLevel1Options(value);
+                  }
+                }}
+              />
+
+              {/* Level 1 Subcategory Dropdown */}
+              {selectedCategoryId && stockLevel1Options.length > 0 && (
+                <CustomDropdown
+                  label=""
+                  value={selectedSubcategoryId}
+                  placeholder="Select subcategory..."
+                  options={stockLevel1Options}
+                  onChange={(value) => {
+                    console.log('StockCheck: Level 1 selected:', value);
+                    setSelectedSubcategoryId(value);
+                    setSelectedSubSubcategoryId('');
+                    setSelectedSubSubSubcategoryId('');
+                    setStockLevel2Options([]);
+                    setStockLevel3Options([]);
+                    if (value) {
+                      loadStockCheckLevel2Options(value);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Level 2 Sub-Subcategory Dropdown */}
+              {selectedSubcategoryId && stockLevel2Options.length > 0 && (
+                <CustomDropdown
+                  label=""
+                  value={selectedSubSubcategoryId}
+                  placeholder="Select type..."
+                  options={stockLevel2Options}
+                  onChange={(value) => {
+                    console.log('StockCheck: Level 2 selected:', value);
+                    setSelectedSubSubcategoryId(value);
+                    setSelectedSubSubSubcategoryId('');
+                    setStockLevel3Options([]);
+                    if (value) {
+                      loadStockCheckLevel3Options(value);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Level 3 Final Category Dropdown */}
+              {selectedSubSubcategoryId && stockLevel3Options.length > 0 && (
+                <CustomDropdown
+                  label=""
+                  value={selectedSubSubSubcategoryId}
+                  placeholder="Select specification..."
+                  options={stockLevel3Options}
+                  onChange={(value) => {
+                    console.log('StockCheck: Level 3 selected:', value);
+                    setSelectedSubSubSubcategoryId(value);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+
           {/* Barcode Scanner Button */}
           <Button
             variant="outline"
@@ -462,78 +818,171 @@ const StockCheckPage: React.FC = () => {
           <div className="spinner" />
           <p>Searching inventory...</p>
         </div>
-      ) : !searchQuery && activeFilter === 'all' ? (
-        <div className="search-first-state">
-          <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3>Search Your Inventory</h3>
-          <p>Optimized for large catalogs - search by product name, SKU, or barcode to quickly find what you need</p>
-          <div className="mt-6 space-y-3">
-            <p className="text-sm text-gray-500">Quick ways to get started:</p>
-            <div className="flex gap-2 justify-center flex-wrap">
+      ) : (
+        <div className="space-y-6">
+          {/* Quick Action Buttons - Always visible */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Quick Stock Actions</h3>
+              <span className="text-sm text-gray-500">{filteredProducts.length} products shown</span>
+            </div>
+            <div className="flex gap-3 flex-wrap">
               <button 
                 onClick={() => setActiveFilter('low')}
-                className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors"
+                className="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition-colors flex items-center"
               >
-                <AlertTriangle className="w-4 h-4 mr-2 inline" />
-                View Low Stock Items
+                <AlertTriangle className="w-4 h-4 mr-2" />
+                View Low Stock ({lowStockCount})
               </button>
               <button 
                 onClick={() => setActiveFilter('out')}
-                className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors"
+                className="px-4 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition-colors flex items-center"
               >
-                <XCircle className="w-4 h-4 mr-2 inline" />
-                View Out of Stock
+                <XCircle className="w-4 h-4 mr-2" />
+                View Out of Stock ({outOfStockCount})
+              </button>
+              <button 
+                onClick={() => setActiveFilter('reorder')}
+                className="px-4 py-2 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition-colors flex items-center"
+              >
+                <Bell className="w-4 h-4 mr-2" />
+                Needs Reorder ({needsReorderCount})
               </button>
               <button 
                 onClick={() => setShowBarcodeScanner(true)}
-                className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+                className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors flex items-center"
               >
-                <Camera className="w-4 h-4 mr-2 inline" />
+                <Camera className="w-4 h-4 mr-2" />
                 Scan Barcode
               </button>
               <button 
                 onClick={() => navigate('/inventory/stocktakes/new')}
-                className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
+                className="px-4 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors flex items-center"
               >
-                <ClipboardCheck className="w-4 h-4 mr-2 inline" />
+                <ClipboardCheck className="w-4 h-4 mr-2" />
                 New Stocktake
               </button>
-            </div>
-            <div className="mt-4 text-xs text-gray-400 bg-gray-50 rounded-lg p-3">
-              💡 <strong>Performance Tip:</strong> This search-first approach keeps the page fast even with thousands of products
+              {activeFilter !== 'all' && (
+                <button 
+                  onClick={() => setActiveFilter('all')}
+                  className="px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Show All Products
+                </button>
+              )}
             </div>
           </div>
-        </div>
-      ) : filteredProducts.length === 0 ? (
-        <div className="empty-state">
-          <Package className="w-12 h-12" />
-          <h3>No products found</h3>
-          <p>Try adjusting your search or filters</p>
-          <div className="mt-4">
-            <Button 
-              variant="outline" 
-              onClick={() => { setSearchQuery(''); setActiveFilter('all'); }}
-            >
-              Clear Search
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <div className="stock-grid">
-          {filteredProducts.map(product => (
-            <StockCheckCard
-              key={product.id}
-              product={product}
-              inventory={getInventoryForProduct(product.id)}
-              warehouseName={
-                selectedWarehouse !== 'all' ? getWarehouseName(parseInt(selectedWarehouse)) : undefined
-              }
-              onAdjust={openAdjustment}
-              onTransfer={openTransfer}
-              onViewDetails={viewProductDetails}
-              onViewMovements={viewMovements}
-            />
-          ))}
+
+          {/* Products Table */}
+          {filteredProducts.length === 0 ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
+              <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
+              <p className="text-gray-600">Try adjusting your search or filters</p>
+              <div className="mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={() => { setSearchQuery(''); setActiveFilter('all'); }}
+                >
+                  Clear Search
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 tracking-wider">Product</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 tracking-wider">SKU/Code</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 tracking-wider">Category</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 tracking-wider">Current Stock</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 tracking-wider">Status</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 tracking-wider">Last Movement</th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-900 tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white">
+                    {filteredProducts.map((product, index) => {
+                      const inventory = getInventoryForProduct(product.id);
+                      const stockLevel = inventory?.quantity_available || 0;
+                      const reorderPoint = inventory?.reorder_point || 10;
+                      
+                      let stockStatus = 'Good Stock';
+                      let statusColor = 'text-green-600 bg-green-100';
+                      
+                      if (stockLevel === 0) {
+                        stockStatus = 'Out of Stock';
+                        statusColor = 'text-red-600 bg-red-100';
+                      } else if (stockLevel <= reorderPoint) {
+                        stockStatus = 'Low Stock';
+                        statusColor = 'text-yellow-600 bg-yellow-100';
+                      } else if (stockLevel > reorderPoint * 5) {
+                        stockStatus = 'Overstock';
+                        statusColor = 'text-blue-600 bg-blue-100';
+                      }
+                      
+                      return (
+                        <tr key={product.id} className={`hover:bg-blue-25 border-b border-gray-100 transition-colors duration-200 ${
+                          index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+                        }`}>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div>
+                              <div className="text-base font-medium text-gray-900">{product.name}</div>
+                              <div className="text-sm text-gray-500">{product.barcode}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-base font-medium text-gray-900">{product.sku}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-sm text-gray-900">{product.category_name}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-lg font-bold text-gray-900">{stockLevel.toLocaleString()}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-3 py-1 text-sm font-medium rounded-full ${statusColor}`}>
+                              {stockStatus}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {inventory?.last_movement ? new Date(inventory.last_movement).toLocaleDateString() : 'No movement'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => openAdjustment(product)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Adjust stock"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => viewProductDetails(product)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="View details"
+                              >
+                                <EyeIcon className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => viewMovements(product.id, selectedWarehouse !== 'all' ? parseInt(selectedWarehouse) : undefined)}
+                                className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                                title="View movements"
+                              >
+                                <BarChart3 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
