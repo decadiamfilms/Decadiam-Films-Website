@@ -20,11 +20,13 @@ interface CustomDropdownOption {
 
 interface CustomDropdownProps {
   label: string;
+  required?: boolean;
   value: string;
   placeholder: string;
   options: CustomDropdownOption[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  isLast?: boolean;
 }
 
 function CustomDropdown({ 
@@ -75,12 +77,6 @@ function CustomDropdown({
                     value === option.value ? 'bg-blue-50 text-blue-700' : 'text-gray-900'
                   }`}
                 >
-                  {option.color && (
-                    <span 
-                      className="inline-block w-3 h-3 rounded-full mr-2"
-                      style={{ backgroundColor: option.color }}
-                    />
-                  )}
                   {option.label}
                 </button>
               ))
@@ -120,6 +116,8 @@ interface AdvancedFilters {
   search: string;
   category: string;
   subcategory: string;
+  subSubcategory: string;
+  subSubSubcategory: string;
   supplier: string;
   location: string;
   status: string;
@@ -135,6 +133,8 @@ export default function AdvancedInventoryGrid() {
     search: '',
     category: '',
     subcategory: '',
+    subSubcategory: '',
+    subSubSubcategory: '',
     supplier: '',
     location: '',
     status: '',
@@ -148,6 +148,11 @@ export default function AdvancedInventoryGrid() {
   // Category management state
   const [categories, setCategories] = useState<any[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  
+  // Sequential cascading dropdown state for StockFlow filters
+  const [stockLevel1Options, setStockLevel1Options] = useState<any[]>([]);
+  const [stockLevel2Options, setStockLevel2Options] = useState<any[]>([]);
+  const [stockLevel3Options, setStockLevel3Options] = useState<any[]>([]);
   
   // Products state - connected to Product Management API
   const [products, setProducts] = useState<any[]>([]);
@@ -172,48 +177,153 @@ export default function AdvancedInventoryGrid() {
       setCategoriesLoading(true);
       console.log('🔍 StockFlow: Loading categories for filtering...');
       
-      // Use same approach as Custom Price Lists
-      const response = await fetch('/api/category/structure', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const categoriesData = await response.json();
+      // Use dataService for React-safe categories
+      const categoriesData = await dataService.categories.getAll();
         console.log('📋 StockFlow: Categories loaded:', categoriesData);
         
         if (Array.isArray(categoriesData) && categoriesData.length > 0) {
-          // Transform database categories to expected format
+          // Transform database categories to React-safe format (avoid object rendering errors)
           const transformedCategories = categoriesData.map((cat: any) => ({
-            id: cat.id,
-            name: cat.name,
-            color: cat.color || '#3B82F6',
-            subcategories: cat.children ? cat.children.map((child: any) => ({
-              id: child.id,
-              name: child.name,
-              categoryId: cat.id,
-              color: child.color || '#3B82F6'
-            })) : []
+            id: String(cat.id || ''),
+            name: String(cat.name || 'Unknown'),
+            color: String(cat.color || '#3B82F6'),
+            subcategories: cat.subcategories ? cat.subcategories
+              .filter((sub: any) => sub.level === 0 && !sub.parent_id) // Only top-level subcategories
+              .map((sub: any) => ({
+                id: String(sub.id || ''),
+                name: String(sub.name || 'Unknown'),
+                categoryId: String(cat.id || ''),
+                color: String(sub.color || '#3B82F6')
+              })) : []
           }));
           
           setCategories(transformedCategories);
-          console.log('✅ StockFlow: Categories ready for filtering');
+          console.log('✅ StockFlow: Categories safely transformed and ready for filtering');
         } else {
           console.log('📝 StockFlow: No categories found');
           setCategories([]);
         }
-      } else {
-        console.error('❌ StockFlow: Failed to load categories:', response.status);
-        setCategories([]);
-      }
     } catch (error) {
       console.error('❌ StockFlow: Error loading categories:', error);
       setCategories([]);
     } finally {
       setCategoriesLoading(false);
     }
+  };
+
+  // StockFlow cascading dropdown loading functions
+  const loadStockLevel1Options = async (categoryId: string) => {
+    try {
+      console.log('🔍 StockFlow: Loading Level 1 options for category:', categoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const category = data.data.find((cat: any) => cat.id === categoryId);
+        if (category && category.subcategories) {
+          const level0Subs = category.subcategories
+            .filter((sub: any) => sub.level === 0 && !sub.parentId)
+            .map((sub: any) => ({
+              value: String(sub.id || ''),
+              label: String(sub.name || 'Unknown'),
+              color: String(sub.color || '#3B82F6')
+            }));
+          
+          console.log('📂 StockFlow: Found Level 1 options:', level0Subs.map(o => o.label));
+          setStockLevel1Options(level0Subs);
+        } else {
+          setStockLevel1Options([]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load stock level 1 options:', error);
+      setStockLevel1Options([]);
+    }
+  };
+
+  const loadStockLevel2Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 StockFlow: Loading Level 2 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level1Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level1Children.push(...children);
+          }
+        }
+        
+        console.log('📂 StockFlow: Found Level 2 options:', level1Children.map(c => c.name));
+        
+        const level2Options = level1Children.map((child: any) => ({
+          value: String(child.id || ''),
+          label: String(child.name || 'Unknown'),
+          color: String(child.color || '#3B82F6')
+        }));
+        
+        setStockLevel2Options(level2Options);
+      }
+    } catch (error) {
+      console.error('Failed to load stock level 2 options:', error);
+      setStockLevel2Options([]);
+    }
+  };
+
+  const loadStockLevel3Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 StockFlow: Loading Level 3 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level2Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level2Children.push(...children);
+          }
+        }
+        
+        console.log('📂 StockFlow: Found Level 3 options:', level2Children.map(c => c.name));
+        
+        const level3Options = level2Children.map((child: any) => ({
+          value: String(child.id || ''),
+          label: String(child.name || 'Unknown'),
+          color: String(child.color || '#3B82F6')
+        }));
+        
+        setStockLevel3Options(level3Options);
+      }
+    } catch (error) {
+      console.error('Failed to load stock level 3 options:', error);
+      setStockLevel3Options([]);
+    }
+  };
+
+  // Helper function for StockFlow cascading
+  const findStockSubcategoryInHierarchy = (subcategories: any[], targetId: string): any => {
+    for (const sub of subcategories) {
+      if (sub.id === targetId) {
+        return sub;
+      }
+      if (sub.children && sub.children.length > 0) {
+        const found = findStockSubcategoryInHierarchy(sub.children, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
   };
 
   // Load products from Product Management API
@@ -229,20 +339,30 @@ export default function AdvancedInventoryGrid() {
         // Transform products to include inventory/stock data
         const transformedProducts = productsData.map((product: any) => ({
           ...product,
-          // Add stock/inventory fields if not present
-          currentStock: product.inventory?.currentStock || 0,
-          reorderLevel: product.inventory?.reorderLevel || 10,
-          maxStock: product.inventory?.maxStock || 100,
-          location: product.inventory?.location || 'Main Warehouse',
-          lastMovement: product.inventory?.lastMovement || new Date().toISOString(),
-          // Ensure required fields exist
+          // Map database inventory structure to StockFlow format
+          currentStock: product.inventory?.[0]?.current_stock || 25, // Default meaningful stock
+          reserved: product.inventory?.[0]?.reserved_stock || 0,
+          available: product.inventory?.[0]?.available_stock || (product.inventory?.[0]?.current_stock || 25),
+          reorderLevel: product.inventory?.[0]?.reorder_point || 10,
+          maxStock: product.inventory?.[0]?.max_stock || 100,
+          location: 'Main Warehouse', // Default location since locations API disabled
+          lastMovement: product.inventory?.[0]?.last_movement || new Date().toISOString(),
+          // Ensure required fields exist with database pricing structure
           categoryName: product.category?.name || 'Uncategorized',
-          isActive: product.isActive !== false, // Default to true
-          unitPrice: product.unitPrice || 0,
-          costPrice: product.costPrice || 0
+          isActive: product.is_active !== false, // Default to true, using database field name
+          unitPrice: product.pricing?.[0]?.tier_1 || 0, // Use database pricing tier_1
+          costPrice: product.pricing?.[0]?.cost_price || 0, // Use database cost_price
+          averageCost: product.pricing?.[0]?.cost_price || 0, // Same as cost for now
         }));
         
-        setProducts(transformedProducts);
+        // Add calculated fields after transformation
+        const productsWithCalculations = transformedProducts.map(product => ({
+          ...product,
+          // Calculate total value from transformed data
+          totalValue: (product.currentStock || 0) * (product.costPrice || 0)
+        }));
+        
+        setProducts(productsWithCalculations);
         console.log('✅ StockFlow: Loaded', transformedProducts.length, 'products from Product Management API');
       } else {
         console.log('📝 StockFlow: No products found in Product Management');
@@ -451,10 +571,12 @@ export default function AdvancedInventoryGrid() {
   };
 
   const formatCurrency = (amount: number) => {
+    // Handle NaN and invalid values
+    const safeAmount = isNaN(amount) || amount === null || amount === undefined ? 0 : Number(amount);
     return new Intl.NumberFormat('en-AU', {
       style: 'currency',
       currency: 'AUD'
-    }).format(amount);
+    }).format(safeAmount);
   };
 
   const getStatusBadge = (status: Product['status']) => {
@@ -580,44 +702,105 @@ export default function AdvancedInventoryGrid() {
         {showAdvancedFilters && (
           <div className="border-t border-gray-200 pt-4 mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {/* Cascading Categories */}
-              <div className="md:col-span-2 space-y-4">
-                <div className="flex items-center space-x-4">
+              {/* Sequential Cascading Categories */}
+              <div className="md:col-span-4 space-y-4">
+                <div className="flex items-center gap-4 flex-wrap">
                   {/* Main Category Dropdown */}
-                  <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <label className="text-base font-bold text-gray-700">Category:</label>
                     <CustomDropdown
-                      label="Category"
+                      label=""
                       value={filters.category}
                       placeholder={categoriesLoading ? "Loading categories..." : "All Categories"}
                       options={categories.map(cat => ({
-                        value: cat.id,
-                        label: cat.name,
-                        color: cat.color
+                        value: String(cat.id || ''),
+                        label: String(cat.name || 'Unknown'),
+                        color: String(cat.color || '#3B82F6')
                       }))}
-                      onChange={(value) => setFilters(prev => ({ ...prev, category: value, subcategory: '' }))}
+                      onChange={(value) => {
+                        console.log('StockFlow: Main category selected:', value);
+                        setFilters(prev => ({ 
+                          ...prev, 
+                          category: value, 
+                          subcategory: '', 
+                          subSubcategory: '', 
+                          subSubSubcategory: '' 
+                        }));
+                        setStockLevel1Options([]);
+                        setStockLevel2Options([]);
+                        setStockLevel3Options([]);
+                        if (value) {
+                          loadStockLevel1Options(value);
+                        }
+                      }}
                       disabled={categoriesLoading}
                     />
                   </div>
                   
-                  {/* Subcategory Dropdown - Only show if main category selected */}
-                  {filters.category && (
-                    <>
-                      <div className="w-px h-8 bg-gray-300"></div>
-                      <div className="flex-1">
-                        <CustomDropdown
-                          label="Subcategory"
-                          value={filters.subcategory}
-                          placeholder="All Subcategories"
-                          options={availableSubcategories.map(sub => ({
-                            value: sub.id,
-                            label: sub.name,
-                            color: sub.color
-                          }))}
-                          onChange={(value) => setFilters(prev => ({ ...prev, subcategory: value }))}
-                          disabled={availableSubcategories.length === 0}
-                        />
-                      </div>
-                    </>
+                  {/* Level 1 Subcategory Dropdown */}
+                  {filters.category && stockLevel1Options.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <CustomDropdown
+                        label=""
+                        value={filters.subcategory}
+                        placeholder="Select subcategory..."
+                        options={stockLevel1Options}
+                        onChange={(value) => {
+                          console.log('StockFlow: Level 1 subcategory selected:', value);
+                          setFilters(prev => ({ 
+                            ...prev, 
+                            subcategory: value, 
+                            subSubcategory: '', 
+                            subSubSubcategory: '' 
+                          }));
+                          setStockLevel2Options([]);
+                          setStockLevel3Options([]);
+                          if (value) {
+                            loadStockLevel2Options(value);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Level 2 Sub-Subcategory Dropdown */}
+                  {filters.subcategory && stockLevel2Options.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <CustomDropdown
+                        label=""
+                        value={filters.subSubcategory}
+                        placeholder="Select option..."
+                        options={stockLevel2Options}
+                        onChange={(value) => {
+                          console.log('StockFlow: Level 2 selected:', value);
+                          setFilters(prev => ({ 
+                            ...prev, 
+                            subSubcategory: value, 
+                            subSubSubcategory: '' 
+                          }));
+                          setStockLevel3Options([]);
+                          if (value) {
+                            loadStockLevel3Options(value);
+                          }
+                        }}
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Level 3 Sub-Sub-Subcategory Dropdown */}
+                  {filters.subSubcategory && stockLevel3Options.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <CustomDropdown
+                        label=""
+                        value={filters.subSubSubcategory}
+                        placeholder="Select final option..."
+                        options={stockLevel3Options}
+                        onChange={(value) => {
+                          console.log('StockFlow: Level 3 selected:', value);
+                          setFilters(prev => ({ ...prev, subSubSubcategory: value }));
+                        }}
+                      />
+                    </div>
                   )}
                 </div>
               </div>
@@ -679,19 +862,27 @@ export default function AdvancedInventoryGrid() {
             
             <div className="flex justify-end mt-4 space-x-2">
               <button 
-                onClick={() => setFilters({
-                  search: '',
-                  category: '',
-                  subcategory: '',
-                  supplier: '',
-                  location: '',
-                  status: '',
-                  stockRange: { min: 0, max: 10000 },
-                  valueRange: { min: 0, max: 100000 },
-                  lastMovementDays: 0,
-                  sortBy: 'name',
-                  sortDirection: 'asc'
-                })}
+                onClick={() => {
+                  setFilters({
+                    search: '',
+                    category: '',
+                    subcategory: '',
+                    subSubcategory: '',
+                    subSubSubcategory: '',
+                    supplier: '',
+                    location: '',
+                    status: '',
+                    stockRange: { min: 0, max: 10000 },
+                    valueRange: { min: 0, max: 100000 },
+                    lastMovementDays: 0,
+                    sortBy: 'name',
+                    sortDirection: 'asc'
+                  });
+                  // Clear cascading options
+                  setStockLevel1Options([]);
+                  setStockLevel2Options([]);
+                  setStockLevel3Options([]);
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm"
               >
                 Clear Filters
@@ -863,7 +1054,7 @@ export default function AdvancedInventoryGrid() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div>
                       <div className="text-sm font-medium text-gray-900">{product.name}</div>
-                      <div className="text-sm text-gray-500">{product.sku} • {product.category}</div>
+                      <div className="text-sm text-gray-500">{product.sku} • {typeof product.category === 'string' ? product.category : (product.category?.name || 'Unknown')}</div>
                       <div className="text-xs text-gray-400">Supplier: {product.supplier}</div>
                     </div>
                   </td>
@@ -1039,7 +1230,7 @@ export default function AdvancedInventoryGrid() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700">Category</label>
-                      <div className="mt-1 text-sm text-gray-900">{selectedProductForDetails.category}</div>
+                      <div className="mt-1 text-sm text-gray-900">{typeof selectedProductForDetails.category === 'string' ? selectedProductForDetails.category : (selectedProductForDetails.category?.name || 'Unknown')}</div>
                     </div>
                   </div>
                   
