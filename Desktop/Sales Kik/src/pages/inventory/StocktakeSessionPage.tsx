@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import UniversalNavigation from '@/components/layout/UniversalNavigation';
 import UniversalHeader from '@/components/layout/UniversalHeader';
+import { CustomDropdown } from '@/components/ui/CustomDropdown';
 
 interface StocktakeItem {
   id: string;
@@ -67,12 +68,145 @@ const StocktakeSessionPage: React.FC = () => {
   const [showCountModal, setShowCountModal] = useState(false);
   const [countInput, setCountInput] = useState<number>(0);
   const [countNotes, setCountNotes] = useState('');
+  
+  // Category filtering state
+  const [categories, setCategories] = useState<any[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>('');
+  const [selectedSubSubcategoryId, setSelectedSubSubcategoryId] = useState<string>('');
+  const [selectedSubSubSubcategoryId, setSelectedSubSubSubcategoryId] = useState<string>('');
+  const [stockLevel1Options, setStockLevel1Options] = useState<any[]>([]);
+  const [stockLevel2Options, setStockLevel2Options] = useState<any[]>([]);
+  const [stockLevel3Options, setStockLevel3Options] = useState<any[]>([]);
 
   useEffect(() => {
     if (sessionId) {
       loadStocktakeSession();
+      loadCategories(); // Load categories for filtering
     }
   }, [sessionId]);
+
+  // Load categories for filtering
+  const loadCategories = async () => {
+    try {
+      console.log('🔍 Stocktake: Attempting to load categories...');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      console.log('📡 Stocktake: API response status:', response.status);
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('📋 Stocktake: Raw API response:', result);
+        const data = result.success ? result.data : [];
+        setCategories(data);
+        console.log('✅ Stocktake: Categories loaded successfully:', data.length);
+        console.log('📂 Stocktake: Category names:', data.map((c: any) => c.name));
+      } else {
+        console.warn('❌ Stocktake: API response not ok:', response.status);
+      }
+    } catch (error) {
+      console.error('❌ Stocktake: Failed to load categories:', error);
+      setCategories([]);
+    }
+  };
+
+  // Stocktake category dropdown loading functions
+  const loadStocktakeLevel1Options = async (categoryId: string) => {
+    try {
+      console.log('🔍 Stocktake: Loading Level 1 options for category:', categoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const category = data.data.find((cat: any) => cat.id === categoryId);
+        if (category && category.subcategories) {
+          const level0Subs = category.subcategories
+            .filter((sub: any) => sub.level === 0 && !sub.parentId)
+            .map((sub: any) => ({
+              value: String(sub.id || ''),
+              label: String(sub.name || 'Unknown'),
+              color: String(sub.color || '#3B82F6')
+            }));
+          
+          console.log('📂 Stocktake: Found Level 1 options:', level0Subs.map(o => o.label));
+          setStockLevel1Options(level0Subs);
+        } else {
+          setStockLevel1Options([]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load stocktake level 1 options:', error);
+      setStockLevel1Options([]);
+    }
+  };
+
+  const loadStocktakeLevel2Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 Stocktake: Loading Level 2 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        let level1Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level1Children.push(...children);
+          }
+        }
+        
+        console.log('📂 Stocktake: Found Level 2 options:', level1Children.map(c => c.name));
+        
+        const level2Options = level1Children.map((child: any) => ({
+          value: String(child.id || ''),
+          label: String(child.name || 'Unknown'),
+          color: String(child.color || '#3B82F6')
+        }));
+        
+        setStockLevel2Options(level2Options);
+      }
+    } catch (error) {
+      console.error('Failed to load stocktake level 2 options:', error);
+      setStockLevel2Options([]);
+    }
+  };
+
+  const loadStocktakeLevel3Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 Stocktake: Loading Level 3 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        let level2Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level2Children.push(...children);
+          }
+        }
+        
+        console.log('📂 Stocktake: Found Level 3 options:', level2Children.map(c => c.name));
+        
+        const level3Options = level2Children.map((child: any) => ({
+          value: String(child.id || ''),
+          label: String(child.name || 'Unknown'),
+          color: String(child.color || '#3B82F6')
+        }));
+        
+        setStockLevel3Options(level3Options);
+      }
+    } catch (error) {
+      console.error('Failed to load stocktake level 3 options:', error);
+      setStockLevel3Options([]);
+    }
+  };
 
   const loadStocktakeSession = async () => {
     setLoading(true);
@@ -171,7 +305,13 @@ const StocktakeSessionPage: React.FC = () => {
     
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     
-    return matchesSearch && matchesStatus;
+    // Apply category filtering
+    const matchesCategory = !selectedCategoryId || 
+      item.category.toLowerCase().includes(
+        categories.find(cat => cat.id === selectedCategoryId)?.name?.toLowerCase() || ''
+      );
+    
+    return matchesSearch && matchesStatus && matchesCategory;
   });
 
   const openCountModal = (item: StocktakeItem) => {
@@ -348,8 +488,8 @@ const StocktakeSessionPage: React.FC = () => {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="flex gap-4 items-center">
-            <div className="flex-1">
+          <div className="flex gap-4 items-center flex-wrap">
+            <div className="flex-1 min-w-80">
               <div className="relative">
                 <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                 <input
@@ -360,6 +500,88 @@ const StocktakeSessionPage: React.FC = () => {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
+            </div>
+
+            {/* Category Filter Dropdowns */}
+            <div className="flex items-center gap-2">
+              {/* Main Category Dropdown */}
+              <CustomDropdown
+                label=""
+                value={selectedCategoryId}
+                placeholder="All Categories"
+                options={categories.map(cat => ({
+                  value: cat.id,
+                  label: cat.name,
+                  color: cat.color
+                }))}
+                onChange={(value) => {
+                  console.log('Stocktake: Main category selected:', value);
+                  setSelectedCategoryId(value);
+                  setSelectedSubcategoryId('');
+                  setSelectedSubSubcategoryId('');
+                  setSelectedSubSubSubcategoryId('');
+                  setStockLevel1Options([]);
+                  setStockLevel2Options([]);
+                  setStockLevel3Options([]);
+                  if (value) {
+                    loadStocktakeLevel1Options(value);
+                  }
+                }}
+              />
+
+              {/* Level 1 Subcategory Dropdown */}
+              {selectedCategoryId && stockLevel1Options.length > 0 && (
+                <CustomDropdown
+                  label=""
+                  value={selectedSubcategoryId}
+                  placeholder="Subcategory..."
+                  options={stockLevel1Options}
+                  onChange={(value) => {
+                    console.log('Stocktake: Level 1 selected:', value);
+                    setSelectedSubcategoryId(value);
+                    setSelectedSubSubcategoryId('');
+                    setSelectedSubSubSubcategoryId('');
+                    setStockLevel2Options([]);
+                    setStockLevel3Options([]);
+                    if (value) {
+                      loadStocktakeLevel2Options(value);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Level 2 Sub-Subcategory Dropdown */}
+              {selectedSubcategoryId && stockLevel2Options.length > 0 && (
+                <CustomDropdown
+                  label=""
+                  value={selectedSubSubcategoryId}
+                  placeholder="Type..."
+                  options={stockLevel2Options}
+                  onChange={(value) => {
+                    console.log('Stocktake: Level 2 selected:', value);
+                    setSelectedSubSubcategoryId(value);
+                    setSelectedSubSubSubcategoryId('');
+                    setStockLevel3Options([]);
+                    if (value) {
+                      loadStocktakeLevel3Options(value);
+                    }
+                  }}
+                />
+              )}
+
+              {/* Level 3 Final Category Dropdown */}
+              {selectedSubSubcategoryId && stockLevel3Options.length > 0 && (
+                <CustomDropdown
+                  label=""
+                  value={selectedSubSubSubcategoryId}
+                  placeholder="Specification..."
+                  options={stockLevel3Options}
+                  onChange={(value) => {
+                    console.log('Stocktake: Level 3 selected:', value);
+                    setSelectedSubSubSubcategoryId(value);
+                  }}
+                />
+              )}
             </div>
             
             <div className="flex gap-2">
