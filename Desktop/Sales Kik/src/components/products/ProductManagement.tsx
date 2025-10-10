@@ -12,6 +12,7 @@ import {
   ChevronUpDownIcon
 } from '@heroicons/react/24/outline';
 import { dataService } from '../../services/api.service';
+// Using custom sequential dropdowns instead of CascadingCategoryDropdown
 
 
 // Product interface matching your software structure
@@ -187,8 +188,21 @@ export default function ProductManagement() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  
+  // Sequential cascading dropdown state
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string>('');
+  const [selectedSubSubcategoryId, setSelectedSubSubcategoryId] = useState<string>('');
+  const [selectedSubSubSubcategoryId, setSelectedSubSubSubcategoryId] = useState<string>('');
+  
+  // Available options for each level
+  const [level1Options, setLevel1Options] = useState<any[]>([]);
+  const [level2Options, setLevel2Options] = useState<any[]>([]);
+  const [level3Options, setLevel3Options] = useState<any[]>([]);
+  
+  // Keep the legacy subcategory path for backward compatibility
   const [selectedSubcategoryPath, setSelectedSubcategoryPath] = useState<SubcategoryPath[]>([]);
+  
   const [showActiveOnly, setShowActiveOnly] = useState(true);
   const [showProductForm, setShowProductForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -257,89 +271,69 @@ export default function ProductManagement() {
 
   const loadData = async () => {
     try {
-      // Load categories
-      // Load categories with API-first approach
+      setLoading(true);
+      
+      // Load categories from database
       const categoriesData = await dataService.categories.getAll();
       setCategories(categoriesData);
+      console.log('📂 ProductManagement: Loaded categories:', categoriesData.length);
 
-      // Load locations
-      // Load locations with API-first approach
-      const locationsData = await dataService.locations.getAll();
-      const activeLocations = locationsData.filter((loc: any) => loc.isActive);
-      setLocations(activeLocations);
-
-      // Load products with API-first approach
-      const productsData = await dataService.products.getAll();
-      if (productsData.length > 0) {
-        const parsedProducts = productsData.map((product: any) => ({
-          ...product,
-          createdAt: new Date(product.createdAt),
-          updatedAt: new Date(product.updatedAt)
-        }));
-        setProducts(parsedProducts);
-      } else {
-        // Create sample data matching your software structure
-        const sampleProducts: Product[] = [
-          {
-            id: '1',
-            code: '12F-100',
-            productType: 'Frameless Pool Fencing Glass',
-            name: '12mm Clear Toughened Glass',
-            size: '1175 x 100 mm',
-            weight: 0.00,
-            cost: 5.17,
-            priceT1: 6.82,
-            priceT2: 7.29,
-            priceT3: 10.00,
-            priceN: 11.00,
-            categoryId: 'cat1',
-            categoryName: 'Pool Fencing',
-            subcategoryPath: [
-              { id: 'sub1', name: 'Frameless Pool Fencing', level: 0, color: '#3B82F6' }
-            ],
-            inventory: {
-              currentStock: 45,
-              reorderPoint: 10,
-              supplier: 'Premium Glass Co',
-              primaryLocation: 'Main Warehouse'
-            },
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          },
-          {
-            id: '2',
-            code: '12F-150',
-            productType: 'Frameless Pool Fencing Glass',
-            name: '12mm Clear Toughened Glass',
-            size: '1175 x 150 mm',
-            weight: 0.00,
-            cost: 7.76,
-            priceT1: 10.22,
-            priceT2: 10.93,
-            priceT3: 13.00,
-            priceN: 15.00,
-            categoryId: 'cat1',
-            categoryName: 'Pool Fencing',
-            subcategoryPath: [
-              { id: 'sub1', name: 'Frameless Pool Fencing', level: 0, color: '#3B82F6' }
-            ],
-            inventory: {
-              currentStock: 32,
-              reorderPoint: 8,
-              supplier: 'Premium Glass Co',
-              primaryLocation: 'Main Warehouse'
-            },
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        ];
-        setProducts(sampleProducts);
-        await dataService.products.save(sampleProducts);
+      // Load locations (with fallback)
+      try {
+        const locationsData = await dataService.locations.getAll();
+        const activeLocations = locationsData.filter((loc: any) => loc.isActive);
+        setLocations(activeLocations);
+      } catch (error) {
+        console.log('📍 Using fallback locations');
+        setLocations([{ id: 'main', name: 'Main Warehouse', isActive: true }]);
       }
+
+      // Load products from database
+      const productsData = await dataService.products.getAll();
+      console.log('📦 ProductManagement: Loaded products from database:', productsData.length);
+      
+      // Simple transformation - minimal changes to avoid errors
+      const parsedProducts = productsData.map((product: any) => ({
+        ...product,
+        // Map database fields to frontend expected fields
+        categoryId: product.category_id,
+        categoryName: product.category?.name || 'Unknown',
+        productType: product.category?.name || 'Unknown', 
+        size: product.dimensions || '',
+        subcategoryPath: [],
+        inventory: {
+          currentStock: 0,
+          reorderPoint: 10,
+          supplier: 'Unknown',
+          primaryLocation: 'Main Warehouse'
+        },
+        // Map pricing fields if they exist
+        cost: product.pricing?.[0]?.cost_price || 0,
+        priceT1: product.pricing?.[0]?.tier_1 || 0,
+        priceT2: product.pricing?.[0]?.tier_2 || 0,
+        priceT3: product.pricing?.[0]?.tier_3 || 0,
+        priceN: product.pricing?.[0]?.retail || 0,
+        isActive: product.is_active,
+        createdAt: new Date(product.created_at || new Date()),
+        updatedAt: new Date(product.updated_at || new Date())
+      }));
+      
+      console.log('📋 ProductManagement: Transformed products:', parsedProducts.length);
+      if (parsedProducts.length > 0) {
+        console.log('📋 First product:', parsedProducts[0].code, parsedProducts[0].name);
+      }
+      
+      setProducts(parsedProducts);
+      
+      if (productsData.length === 0) {
+        console.log('📝 ProductManagement: No products in database - showing empty table');
+      } else {
+        console.log('✅ ProductManagement: Showing', productsData.length, 'products from database');
+      }
+      
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ Error loading data:', error);
+      setProducts([]); // Show empty table on error
     } finally {
       setLoading(false);
     }
@@ -359,6 +353,118 @@ export default function ProductManagement() {
     await dataService.products.save(updatedProducts);
   };
 
+  // Sequential cascading dropdown loading functions
+  const loadLevel1Options = async (categoryId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const category = data.data.find((cat: any) => cat.id === categoryId);
+        if (category && category.subcategories) {
+          // Get only level 0 subcategories (direct children of main category)
+          const level0Subs = category.subcategories
+            .filter((sub: any) => sub.level === 0 && !sub.parent_id)
+            .map((sub: any) => ({
+              value: sub.id,
+              label: sub.name,
+              color: sub.color
+            }));
+          setLevel1Options(level0Subs);
+        } else {
+          setLevel1Options([]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load level 1 options:', error);
+      setLevel1Options([]);
+    }
+  };
+
+  const loadLevel2Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 Filter: Loading Level 2 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level1Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level1Children.push(...children);
+          }
+        }
+        
+        console.log('📂 Filter: Found Level 2 options:', level1Children.map(c => c.name));
+        
+        const level2Options = level1Children.map((child: any) => ({
+          value: child.id,
+          label: child.name,
+          color: child.color
+        }));
+        
+        setLevel2Options(level2Options);
+      }
+    } catch (error) {
+      console.error('Failed to load level 2 options:', error);
+      setLevel2Options([]);
+    }
+  };
+
+  const loadLevel3Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 Filter: Loading Level 3 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level2Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level2Children.push(...children);
+          }
+        }
+        
+        console.log('📂 Filter: Found Level 3 options:', level2Children.map(c => c.name));
+        
+        const level3Options = level2Children.map((child: any) => ({
+          value: child.id,
+          label: child.name,
+          color: child.color
+        }));
+        
+        setLevel3Options(level3Options);
+      }
+    } catch (error) {
+      console.error('Failed to load level 3 options:', error);
+      setLevel3Options([]);
+    }
+  };
+
+  // Helper function to find subcategory by ID in nested structure
+  const findSubcategoryInHierarchy = (subcategories: any[], targetId: string): any => {
+    for (const sub of subcategories) {
+      if (sub.id === targetId) {
+        return sub;
+      }
+      if (sub.children && sub.children.length > 0) {
+        const found = findSubcategoryInHierarchy(sub.children, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
   // Filter products
   const filteredProducts = products.filter(product => {
     const matchesSearch = !searchKeyword || 
@@ -366,12 +472,13 @@ export default function ProductManagement() {
       product.code.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       product.productType.toLowerCase().includes(searchKeyword.toLowerCase());
     
-    const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
+    const matchesCategory = !selectedCategoryId || product.category_id === selectedCategoryId;
     
-    const matchesSubcategory = selectedSubcategoryPath.length === 0 || 
-      selectedSubcategoryPath.every(filterPath => 
-        product.subcategoryPath.some(productPath => productPath.id === filterPath.id)
-      );
+    // Enhanced subcategory filtering with database structure
+    const matchesSubcategory = (!selectedSubcategoryId && !selectedSubSubcategoryId && !selectedSubSubSubcategoryId) || 
+      (selectedSubcategoryId && (product.subcategory_id === selectedSubcategoryId || product.category_id === selectedSubcategoryId)) ||
+      (selectedSubSubcategoryId && (product.subcategory_id === selectedSubSubcategoryId || product.category_id === selectedSubSubcategoryId)) ||
+      (selectedSubSubSubcategoryId && (product.subcategory_id === selectedSubSubSubcategoryId || product.category_id === selectedSubSubSubcategoryId));
     
     const matchesStatus = showInactiveProducts ? true : product.isActive;
     
@@ -477,35 +584,101 @@ export default function ProductManagement() {
           <div className="flex items-center justify-between gap-6">
             {/* Category and Subcategory Filters */}
             <div className="flex items-center gap-2 flex-wrap flex-1 min-h-16">
-              <div className="flex items-center gap-4">
-                <label className="text-base font-bold text-gray-700">Category:</label>
-                <CustomDropdown
-                  label=""
-                  value={selectedCategory}
-                  placeholder="All Categories"
-                  options={Array.isArray(categories) ? categories.map(cat => ({
-                    value: cat.id,
-                    label: cat.name,
-                    color: cat.color
-                  })) : []}
-                  onChange={(value) => {
-                    console.log('Category selected:', value);
-                    setSelectedCategory(value);
-                    setSelectedSubcategoryPath([]);
-                  }}
-                  disabled={false}
-                  isLast={false}
-                />
-              </div>
+              <div className="flex items-center gap-4 flex-wrap">
+                {/* Main Category Dropdown */}
+                <div className="flex items-center gap-2">
+                  <label className="text-base font-bold text-gray-700">Category:</label>
+                  <CustomDropdown
+                    label=""
+                    value={selectedCategoryId}
+                    placeholder="All Categories"
+                    options={Array.isArray(categories) ? categories.map(cat => ({
+                      value: cat.id,
+                      label: cat.name,
+                      color: cat.color
+                    })) : []}
+                    onChange={(value) => {
+                      console.log('Main category selected:', value);
+                      setSelectedCategoryId(value);
+                      // Reset subsequent selections
+                      setSelectedSubcategoryId('');
+                      setSelectedSubSubcategoryId('');
+                      setSelectedSubSubSubcategoryId('');
+                      setLevel1Options([]);
+                      setLevel2Options([]);
+                      setLevel3Options([]);
+                      // Load next level if category selected
+                      if (value) {
+                        loadLevel1Options(value);
+                      }
+                    }}
+                  />
+                </div>
 
-              {/* Inline Subcategory Filters */}
-              {selectedCategory && (
-                <SubcategoryBreadcrumbFilter 
-                  category={categories.find(c => c.id === selectedCategory)}
-                  selectedPath={selectedSubcategoryPath}
-                  onPathChange={setSelectedSubcategoryPath}
-                />
-              )}
+                {/* Level 1 Subcategory Dropdown - Only show if main category selected and has options */}
+                {selectedCategoryId && level1Options.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <CustomDropdown
+                      label=""
+                      value={selectedSubcategoryId}
+                      placeholder="Select subcategory..."
+                      options={level1Options}
+                      onChange={(value) => {
+                        console.log('Level 1 subcategory selected:', value);
+                        setSelectedSubcategoryId(value);
+                        // Reset subsequent selections
+                        setSelectedSubSubcategoryId('');
+                        setSelectedSubSubSubcategoryId('');
+                        setLevel2Options([]);
+                        setLevel3Options([]);
+                        // Load next level if subcategory selected
+                        if (value) {
+                          loadLevel2Options(value);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Level 2 Sub-Subcategory Dropdown - Only show if level 1 selected and has options */}
+                {selectedSubcategoryId && level2Options.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <CustomDropdown
+                      label=""
+                      value={selectedSubSubcategoryId}
+                      placeholder="Select sub-subcategory..."
+                      options={level2Options}
+                      onChange={(value) => {
+                        console.log('Level 2 sub-subcategory selected:', value);
+                        setSelectedSubSubcategoryId(value);
+                        // Reset subsequent selections
+                        setSelectedSubSubSubcategoryId('');
+                        setLevel3Options([]);
+                        // Load next level if sub-subcategory selected
+                        if (value) {
+                          loadLevel3Options(value);
+                        }
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Level 3 Sub-Sub-Subcategory Dropdown - Only show if level 2 selected and has options */}
+                {selectedSubSubcategoryId && level3Options.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <CustomDropdown
+                      label=""
+                      value={selectedSubSubSubcategoryId}
+                      placeholder="Select final category..."
+                      options={level3Options}
+                      onChange={(value) => {
+                        console.log('Level 3 final category selected:', value);
+                        setSelectedSubSubSubcategoryId(value);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Toggle */}
@@ -710,9 +883,24 @@ export default function ProductManagement() {
                             <button
                               onClick={async () => {
                                 if (confirm(`Delete "${product.name}"? This cannot be undone.`)) {
-                                  const updatedProducts = products.filter(p => p.id !== product.id);
-                                  setProducts(updatedProducts);
-                                  await dataService.products.save(updatedProducts);
+                                  try {
+                                    console.log('🗑️ Deleting product from database:', product.id);
+                                    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products/${product.id}`, {
+                                      method: 'DELETE'
+                                    });
+                                    
+                                    if (response.ok) {
+                                      console.log('✅ Product deleted from database');
+                                      // Refresh products list from database
+                                      loadData();
+                                    } else {
+                                      console.error('❌ Failed to delete product');
+                                      alert('Failed to delete product. Please try again.');
+                                    }
+                                  } catch (error) {
+                                    console.error('❌ Error deleting product:', error);
+                                    alert('Error deleting product. Please try again.');
+                                  }
                                 }
                               }}
                               className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -821,20 +1009,60 @@ export default function ProductManagement() {
           locations={locations}
           pricingTierNames={pricingTierNames}
           onSave={async (product) => {
-            if (editingProduct) {
-              const updatedProducts = products.map(p => 
-                p.id === editingProduct.id ? { ...product, id: editingProduct.id, updatedAt: new Date() } : p
-              );
-              setProducts(updatedProducts);
-              await dataService.products.save(updatedProducts);
-            } else {
-              const newProduct = { ...product, id: Date.now().toString(), createdAt: new Date(), updatedAt: new Date() };
-              const updatedProducts = [...products, newProduct];
-              setProducts(updatedProducts);
-              await dataService.products.save(updatedProducts);
+            try {
+              console.log('💾 Saving product to database:', product);
+              
+              if (editingProduct) {
+                // Update existing product
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products/${editingProduct.id}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(product)
+                });
+                
+                if (response.ok) {
+                  console.log('✅ Product updated in database');
+                  // Refresh products list from database
+                  loadData();
+                } else {
+                  console.error('❌ Failed to update product');
+                }
+              } else {
+                // Create new product
+                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    code: product.code,
+                    name: product.name,
+                    description: product.description,
+                    categoryId: product.categoryId,
+                    // Remove subcategoryId to avoid constraint errors
+                    weight: product.weight,
+                    cost: product.cost,
+                    priceT1: product.priceT1,
+                    priceT2: product.priceT2,
+                    priceT3: product.priceT3,
+                    priceN: product.priceN,
+                    currentStock: product.inventory?.currentStock || 0
+                  })
+                });
+                
+                if (response.ok) {
+                  const result = await response.json();
+                  console.log('✅ Product created in database:', result);
+                  // Refresh products list from database
+                  loadData();
+                } else {
+                  console.error('❌ Failed to create product');
+                }
+              }
+              
+              setShowProductForm(false);
+              setEditingProduct(null);
+            } catch (error) {
+              console.error('❌ Error saving product:', error);
             }
-            setShowProductForm(false);
-            setEditingProduct(null);
           }}
           onCancel={() => {
             setShowProductForm(false);
@@ -880,9 +1108,131 @@ function ProductFormStructured({ product, categories, locations, pricingTierName
     isActive: product?.isActive ?? true
   });
 
+  // Sequential cascading dropdown state for form
+  const [formSelectedCategoryId, setFormSelectedCategoryId] = useState<string>(product?.categoryId || '');
+  const [formSelectedSubcategoryId, setFormSelectedSubcategoryId] = useState<string>('');
+  const [formSelectedSubSubcategoryId, setFormSelectedSubSubcategoryId] = useState<string>('');
+  const [formSelectedSubSubSubcategoryId, setFormSelectedSubSubSubcategoryId] = useState<string>('');
+  
+  // Available options for each level in form
+  const [formLevel1Options, setFormLevel1Options] = useState<any[]>([]);
+  const [formLevel2Options, setFormLevel2Options] = useState<any[]>([]);
+  const [formLevel3Options, setFormLevel3Options] = useState<any[]>([]);
+  
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     product ? categories.find(c => c.id === product.categoryId) || null : null
   );
+
+  // Form cascading dropdown loading functions
+  const loadFormLevel1Options = async (categoryId: string) => {
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const category = data.data.find((cat: any) => cat.id === categoryId);
+        if (category && category.subcategories) {
+          const level0Subs = category.subcategories
+            .filter((sub: any) => sub.level === 0 && !sub.parent_id)
+            .map((sub: any) => ({
+              value: sub.id,
+              label: sub.name,
+              color: sub.color
+            }));
+          setFormLevel1Options(level0Subs);
+        } else {
+          setFormLevel1Options([]);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load form level 1 options:', error);
+      setFormLevel1Options([]);
+    }
+  };
+
+  // Helper function for form
+  const findFormSubcategoryInHierarchy = (subcategories: any[], targetId: string): any => {
+    for (const sub of subcategories) {
+      if (sub.id === targetId) {
+        return sub;
+      }
+      if (sub.children && sub.children.length > 0) {
+        const found = findFormSubcategoryInHierarchy(sub.children, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  const loadFormLevel2Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 Loading Level 2 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level1Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level1Children.push(...children);
+          }
+        }
+        
+        console.log('📂 Found Level 2 options:', level1Children.map(c => c.name));
+        
+        const level2Options = level1Children.map((child: any) => ({
+          value: child.id,
+          label: child.name,
+          color: child.color
+        }));
+        
+        setFormLevel2Options(level2Options);
+      }
+    } catch (error) {
+      console.error('Failed to load form level 2 options:', error);
+      setFormLevel2Options([]);
+    }
+  };
+
+  const loadFormLevel3Options = async (subcategoryId: string) => {
+    try {
+      console.log('🔍 Loading Level 3 options for parent:', subcategoryId);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      if (data.success) {
+        // Find all subcategories with this parentId (using flat structure)
+        let level2Children: any[] = [];
+        for (const category of data.data) {
+          if (category.subcategories) {
+            const children = category.subcategories.filter((sub: any) => 
+              sub.parentId === subcategoryId
+            );
+            level2Children.push(...children);
+          }
+        }
+        
+        console.log('📂 Found Level 3 options:', level2Children.map(c => c.name));
+        
+        const level3Options = level2Children.map((child: any) => ({
+          value: child.id,
+          label: child.name,
+          color: child.color
+        }));
+        
+        setFormLevel3Options(level3Options);
+      }
+    } catch (error) {
+      console.error('Failed to load form level 3 options:', error);
+      setFormLevel3Options([]);
+    }
+  };
 
   const handleSave = () => {
     if (!formData.code || !formData.name || !formData.categoryId) {
@@ -942,11 +1292,11 @@ function ProductFormStructured({ product, categories, locations, pricingTierName
               <div className="bg-blue-50 rounded-2xl p-6 border-2 border-blue-100">
                 <h4 className="text-lg font-bold text-blue-900 mb-4">Select Category Path</h4>
                 
-                {/* Cascading Category Filters */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                {/* Sequential Cascading Category Dropdowns */}
+                <div className="flex items-center gap-4 flex-wrap">
                   <CustomDropdown
-                    label="Main Category"
-                    value={formData.categoryId}
+                    label="Category"
+                    value={formSelectedCategoryId}
                     placeholder="Choose a category..."
                     options={Array.isArray(categories) ? categories.map(cat => ({
                       value: cat.id,
@@ -954,6 +1304,16 @@ function ProductFormStructured({ product, categories, locations, pricingTierName
                       color: cat.color
                     })) : []}
                     onChange={(value) => {
+                      console.log('Form: Main category selected:', value);
+                      setFormSelectedCategoryId(value);
+                      // Reset subsequent selections
+                      setFormSelectedSubcategoryId('');
+                      setFormSelectedSubSubcategoryId('');
+                      setFormSelectedSubSubSubcategoryId('');
+                      setFormLevel1Options([]);
+                      setFormLevel2Options([]);
+                      setFormLevel3Options([]);
+                      // Update form data and selected category
                       const category = categories.find(c => c.id === value);
                       setSelectedCategory(category || null);
                       setFormData(prev => ({ 
@@ -962,43 +1322,73 @@ function ProductFormStructured({ product, categories, locations, pricingTierName
                         selectedSubcategoryPath: [],
                         subcategoryId: ''
                       }));
+                      // Load next level if category selected
+                      if (value) {
+                        loadFormLevel1Options(value);
+                      }
                     }}
                     required={true}
                   />
                   
-                  {selectedCategory && (selectedCategory.subcategories?.length || 0) > 0 && (
+                  {/* Level 1 Dropdown - appears after category selection */}
+                  {formSelectedCategoryId && formLevel1Options.length > 0 && (
                     <CustomDropdown
-                      label="Subcategory"
-                      value={formData.subcategoryId || ''}
-                      placeholder="Choose a subcategory..."
-                      options={selectedCategory.subcategories?.map((sub: any) => ({
-                        value: sub.id,
-                        label: sub.name,
-                        color: sub.color
-                      })) || []}
+                      label=""
+                      value={formSelectedSubcategoryId}
+                      placeholder="Select subcategory..."
+                      options={formLevel1Options}
                       onChange={(value) => {
-                        setFormData(prev => ({ 
-                          ...prev, 
-                          subcategoryId: value
-                        }));
+                        console.log('Form: Level 1 subcategory selected:', value);
+                        setFormSelectedSubcategoryId(value);
+                        // Reset subsequent selections
+                        setFormSelectedSubSubcategoryId('');
+                        setFormSelectedSubSubSubcategoryId('');
+                        setFormLevel2Options([]);
+                        setFormLevel3Options([]);
+                        // Load next level if subcategory selected
+                        if (value) {
+                          loadFormLevel2Options(value);
+                        }
+                      }}
+                    />
+                  )}
+                  
+                  {/* Level 2 Dropdown - appears after level 1 selection */}
+                  {formSelectedSubcategoryId && formLevel2Options.length > 0 && (
+                    <CustomDropdown
+                      label=""
+                      value={formSelectedSubSubcategoryId}
+                      placeholder="Select option..."
+                      options={formLevel2Options}
+                      onChange={(value) => {
+                        console.log('Form: Level 2 selected:', value);
+                        setFormSelectedSubSubcategoryId(value);
+                        // Reset subsequent selections
+                        setFormSelectedSubSubSubcategoryId('');
+                        setFormLevel3Options([]);
+                        // Load next level if selected
+                        if (value) {
+                          loadFormLevel3Options(value);
+                        }
+                      }}
+                    />
+                  )}
+                  
+                  {/* Level 3 Dropdown - appears after level 2 selection */}
+                  {formSelectedSubSubcategoryId && formLevel3Options.length > 0 && (
+                    <CustomDropdown
+                      label=""
+                      value={formSelectedSubSubSubcategoryId}
+                      placeholder="Select final option..."
+                      options={formLevel3Options}
+                      onChange={(value) => {
+                        console.log('Form: Level 3 selected:', value);
+                        setFormSelectedSubSubSubcategoryId(value);
+                        // Load level 4 if needed (though level 3 is usually the deepest)
                       }}
                     />
                   )}
                 </div>
-
-                {/* Dynamic Subcategory Levels */}
-                {selectedCategory && (
-                  <div>
-                    <DynamicSubcategorySelector 
-                      category={selectedCategory}
-                      selectedPath={formData.selectedSubcategoryPath}
-                      onPathChange={(path) => setFormData(prev => ({ 
-                        ...prev, 
-                        selectedSubcategoryPath: path 
-                      }))}
-                    />
-                  </div>
-                )}
               </div>
 
               {/* Product Details */}
