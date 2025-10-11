@@ -36,3 +36,28 @@ Instead of complex nested structures, implement simpler visual feedback:
 - CategoryEditor.broken.tsx (complex version with JSX issues)
 - CategoryEditor.backup2.tsx (another attempt)
 - BACKUP_20250816_013150/ (working foundation)
+
+## CRITICAL WARNING - Database Schema:
+⚠️ **NEVER USE `npx prisma db pull --force`** ⚠️
+- This command overwrites our custom Prisma schema with the raw database schema
+- It breaks all model names (converts to snake_case) and corrupts TypeScript types  
+- It destroys custom relationships and naming conventions
+- Always use our existing schema.prisma file which is carefully configured
+- If database sync is needed, use `npx prisma db push` instead
+- This command caused major breakage on 2025-10-10 and required full rollback
+
+## Recovery Notes:
+If database connection fails, do NOT use `prisma db pull`. Instead:
+1. Check Supabase dashboard for connection issues
+2. Restart development server: `npm run dev`  
+3. If needed, use `npx prisma generate` to regenerate client only
+4. Our schema.prisma is the source of truth, not the database schema
+
+## CRITICAL WARNING - Database Schema:
+⚠️ **NEVER USE `npx prisma db pull --force`** ⚠️
+- This command overwrites our custom Prisma schema with the raw database schema
+- It breaks all model names (converts to snake_case) and corrupts TypeScript types
+- It destroys custom relationships and naming conventions 
+- Always use our existing schema.prisma file which is carefully configured
+- If database sync is needed, use `npx prisma db push` instead
+- This command caused major breakage on 2025-10-10 and required full rollback
