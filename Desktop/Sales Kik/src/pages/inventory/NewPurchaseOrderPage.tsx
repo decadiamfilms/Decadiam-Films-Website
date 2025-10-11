@@ -365,26 +365,69 @@ export default function NewPurchaseOrderPage() {
     loadCategories();
   }, []);
 
-  const loadCategories = () => {
+  const loadCategories = async () => {
     try {
-      const savedCategories = localStorage.getItem('saleskik-categories');
-      if (savedCategories) {
-        const parsed = JSON.parse(savedCategories);
-        setCategories(parsed);
+      console.log('🔍 PurchaseOrder: Loading categories from database...');
+      
+      // Use direct API call like other pages
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      console.log('📡 PurchaseOrder: API response:', data);
+      
+      if (data.success && data.data) {
+        const categoriesData = data.data;
+        console.log('📂 PurchaseOrder: Categories data:', categoriesData);
+        console.log('📊 PurchaseOrder: Categories count:', categoriesData.length);
+        
+        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
+          // Use the database categories directly
+          const parsedCategories = categoriesData.map((cat: any) => ({
+            ...cat,
+            createdAt: new Date(cat.createdAt || new Date()),
+            updatedAt: new Date(cat.updatedAt || new Date())
+          }));
+          
+          // Add custom glass category if user has access to glass module
+          const categoriesWithGlass = [...parsedCategories];
+          
+          // Check if custom-glass category already exists
+          const hasGlassCategory = categoriesWithGlass.some(cat => cat.id === 'custom-glass');
+          
+          // Add glass category if not present (user has glass module access)
+          if (!hasGlassCategory) {
+            categoriesWithGlass.push({
+              id: 'custom-glass',
+              name: 'Custom Glass 🪟',
+              color: '#10B981',
+              isActive: true,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              subcategories: [],
+              isGlassModule: true
+            });
+          }
+          
+          setCategories(categoriesWithGlass);
+          console.log('PurchaseOrder page: Loaded categories from database API + glass module:', categoriesWithGlass.length, 'categories');
+          console.log('📂 PurchaseOrder: Category names:', categoriesWithGlass.map(c => c.name));
+        } else {
+          // Fallback to basic categories if no database data
+          const fallbackCategories = [
+            {
+              id: 'custom-glass',
+              name: 'Custom Glass 🪟',
+              color: '#10B981',
+              subcategories: [],
+              isGlassModule: true
+            }
+          ];
+          setCategories(fallbackCategories);
+          console.log('PurchaseOrder page: No API categories found - using glass fallback');
+        }
       } else {
-        const defaultCategories = [
-          {
-            id: 'hardware',
-            name: 'Hardware',
-            color: '#3B82F6',
-            subcategories: []
-          },
-          {
-            id: 'glass',
-            name: 'Glass Products',
-            color: '#8B5CF6',
-            subcategories: []
-          },
+        console.warn('PurchaseOrder: API call failed or returned no success');
+        const fallbackCategories = [
           {
             id: 'custom-glass',
             name: 'Custom Glass 🪟',
@@ -393,8 +436,11 @@ export default function NewPurchaseOrderPage() {
             isGlassModule: true
           }
         ];
-        setCategories(defaultCategories);
+        setCategories(fallbackCategories);
       }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+      setCategories([]);
     } finally {
       setCategoriesLoading(false);
     }
@@ -727,6 +773,72 @@ export default function NewPurchaseOrderPage() {
                           color: sub.color
                         }))}
                         onChange={(value) => handleSubcategorySelectionAtLevel(0, value)}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Level 1 Dropdown */}
+                {selectedPath[0] && (() => {
+                  const level1Options = getSubcategoriesAtLevel(1, selectedPath[0]?.id);
+                  
+                  if (level1Options.length > 0) {
+                    return (
+                      <CustomDropdown
+                        label="Type"
+                        value={selectedPath[1]?.id || ''}
+                        placeholder="Select type..."
+                        options={level1Options.map((sub: any) => ({
+                          value: sub.id,
+                          label: sub.name,
+                          color: sub.color
+                        }))}
+                        onChange={(value) => handleSubcategorySelectionAtLevel(1, value)}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Level 2 Dropdown */}
+                {selectedPath[1] && (() => {
+                  const level2Options = getSubcategoriesAtLevel(2, selectedPath[1]?.id);
+                  
+                  if (level2Options.length > 0) {
+                    return (
+                      <CustomDropdown
+                        label="Specification"
+                        value={selectedPath[2]?.id || ''}
+                        placeholder="Select specification..."
+                        options={level2Options.map((sub: any) => ({
+                          value: sub.id,
+                          label: sub.name,
+                          color: sub.color
+                        }))}
+                        onChange={(value) => handleSubcategorySelectionAtLevel(2, value)}
+                      />
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Level 3 Dropdown */}
+                {selectedPath[2] && (() => {
+                  const level3Options = getSubcategoriesAtLevel(3, selectedPath[2]?.id);
+                  
+                  if (level3Options.length > 0) {
+                    return (
+                      <CustomDropdown
+                        label="Option"
+                        value={selectedPath[3]?.id || ''}
+                        placeholder="Select option..."
+                        options={level3Options.map((sub: any) => ({
+                          value: sub.id,
+                          label: sub.name,
+                          color: sub.color
+                        }))}
+                        onChange={(value) => handleSubcategorySelectionAtLevel(3, value)}
                       />
                     );
                   }
