@@ -21,6 +21,12 @@ interface Customer {
   phone: string;
   email: string;
   primaryContact: CustomerContact;
+  locationDetails: {
+    locationType: string;
+    mailingAddress: CustomerAddress;
+    billingAddress: CustomerAddress;
+    deliveryAddress: CustomerAddress;
+  };
   locations: CustomerLocation[];
   additionalContacts: CustomerContact[];
   priceLists: PriceListItem[];
@@ -38,6 +44,16 @@ interface CustomerContact {
   landline?: string;
   fax?: string;
   mobile?: string;
+}
+
+interface CustomerAddress {
+  unit: string;
+  streetNumber: string;
+  streetName: string;
+  city: string;
+  state: string;
+  postcode: string;
+  country: string;
 }
 
 interface CustomerLocation {
@@ -121,6 +137,36 @@ export function CustomerManagement() {
       landline: '',
       fax: '',
       mobile: ''
+    },
+    locationDetails: {
+      locationType: 'Main',
+      mailingAddress: {
+        unit: '',
+        streetNumber: '',
+        streetName: '',
+        city: '',
+        state: '',
+        postcode: '',
+        country: 'Australia'
+      },
+      billingAddress: {
+        unit: '',
+        streetNumber: '',
+        streetName: '',
+        city: '',
+        state: '',
+        postcode: '',
+        country: 'Australia'
+      },
+      deliveryAddress: {
+        unit: '',
+        streetNumber: '',
+        streetName: '',
+        city: '',
+        state: '',
+        postcode: '',
+        country: 'Australia'
+      }
     },
     locations: [] as any[],
     additionalContacts: [] as any[],
@@ -671,6 +717,7 @@ export function CustomerManagement() {
         fax: formData.primaryContact.fax,
         mobile: formData.primaryContact.mobile
       },
+      locationDetails: formData.locationDetails,
       locations: formData.locations,
       additionalContacts: formData.additionalContacts,
       priceLists: formData.priceLists,

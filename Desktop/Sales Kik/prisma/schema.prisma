@@ -162,9 +162,18 @@ model Customer {
   primary_contact_mobile     String? @map("primary_contact_mobile")    // Mobile
   
   // Location Details
+  location_type    String?  @default("Main") @map("location_type") // Main, Branch, etc.
+  
+  // Address Types (separate fields for clarity)
+  mailing_address  Json?    @map("mailing_address")  // Mailing address
+  billing_address  Json?    @map("billing_address")  // Billing address  
+  delivery_address Json?    @map("delivery_address") // Delivery address
+  
+  // Legacy address field (for backward compatibility)
   address          Json?    // Location details as JSON
   
   // Account Details
+  invoice_type     String?  @default("Account") @map("invoice_type") // Account, Cash, etc.
   accounting_terms String?  @map("accounting_terms") // Accounting Terms
   payment_terms    String?  @map("payment_terms")    // Payment Terms
   payment_due_days Int?     @default(30) @map("payment_due_days") // Due X days after invoice
