@@ -152,6 +152,7 @@ export default function OrdersPage() {
   const navigate = useNavigate();
   const [showSidebar, setShowSidebar] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter states
@@ -199,6 +200,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     loadOrders();
+    loadCustomers();
     loadCustomStatuses();
 
     // Listen for changes to custom statuses
@@ -224,19 +226,49 @@ export default function OrdersPage() {
 
   const loadOrders = async () => {
     try {
-      // Try API first for multi-user support, fallback to localStorage (NON-DISRUPTIVE)
-      const ordersData = await dataService.orders.getAll();
-      const parsedOrders = ordersData.map((order: any) => ({
-        ...order,
-        orderDate: new Date(order.orderDate),
-        createdAt: new Date(order.createdAt),
-        updatedAt: new Date(order.updatedAt)
-      }));
-      setOrders(parsedOrders);
+      console.log('🔍 Orders: Loading orders from database...');
       
-      // Sync successful API data to localStorage for offline capability
-      if (parsedOrders.length > 0) {
-        localStorage.setItem('saleskik-orders', JSON.stringify(parsedOrders));
+      // Use direct API call to our orders endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/orders`);
+      const data = await response.json();
+      
+      console.log('📡 Orders: API response:', data);
+      
+      if (data.success && data.data) {
+        const ordersData = data.data;
+        console.log('📂 Orders: Found', ordersData.length, 'orders in database');
+        
+        if (Array.isArray(ordersData) && ordersData.length > 0) {
+          const parsedOrders = ordersData.map((order: any) => ({
+            ...order,
+            orderDate: new Date(order.createdAt),
+            createdAt: new Date(order.createdAt),
+            updatedAt: new Date(order.updatedAt)
+          }));
+          
+          setOrders(parsedOrders);
+          console.log('✅ Orders: Loaded database orders with customers:', parsedOrders.length);
+          console.log('📂 Orders: Customer names in orders:', parsedOrders.map(o => o.customerName));
+          
+          // Sync to localStorage for offline capability
+          localStorage.setItem('saleskik-orders', JSON.stringify(parsedOrders));
+        } else {
+          console.warn('⚠️ Orders: No orders found in database');
+          setOrders([]);
+        }
+      } else {
+        console.warn('⚠️ Orders: API call failed or returned no success');
+        // Fall back to existing localStorage logic
+        const savedOrders = localStorage.getItem('saleskik-orders');
+        if (savedOrders) {
+          const parsedOrders = JSON.parse(savedOrders).map((order: any) => ({
+            ...order,
+            orderDate: new Date(order.orderDate),
+            createdAt: new Date(order.createdAt),
+            updatedAt: new Date(order.updatedAt)
+          }));
+          setOrders(parsedOrders);
+        }
       }
     } catch (error) {
       // If API fails, use localStorage (preserves existing behavior)
@@ -324,6 +356,38 @@ export default function OrdersPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCustomers = async () => {
+    try {
+      console.log('🔍 Orders: Loading customers from database...');
+      
+      // Use direct API call to our customers endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
+      const data = await response.json();
+      
+      console.log('📡 Orders: Customers API response:', data);
+      
+      if (data.success && data.data) {
+        const customersData = data.data;
+        console.log('📂 Orders: Found', customersData.length, 'customers in database');
+        
+        if (Array.isArray(customersData) && customersData.length > 0) {
+          setCustomers(customersData);
+          console.log('✅ Orders: Loaded database customers for filtering:', customersData.length);
+          console.log('📂 Orders: Customer names:', customersData.map(c => c.name));
+        } else {
+          console.warn('⚠️ Orders: No customers found in database');
+          setCustomers([]);
+        }
+      } else {
+        console.warn('⚠️ Orders: Customer API failed');
+        setCustomers([]);
+      }
+    } catch (error) {
+      console.error('❌ Orders: Error loading customers:', error);
+      setCustomers([]);
     }
   };
 

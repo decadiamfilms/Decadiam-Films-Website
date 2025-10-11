@@ -139,6 +139,7 @@ export default function QuotesPage() {
   const navigate = useNavigate();
   const [showSidebar, setShowSidebar] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter states
@@ -185,6 +186,7 @@ export default function QuotesPage() {
 
   useEffect(() => {
     loadQuotes();
+    loadCustomers();
     loadCustomStatuses();
 
     // Listen for changes to custom statuses
@@ -210,19 +212,49 @@ export default function QuotesPage() {
 
   const loadQuotes = async () => {
     try {
-      // Try API first for multi-user support, fallback to localStorage (NON-DISRUPTIVE)
-      const quotesData = await dataService.quotes.getAll();
-      const parsedQuotes = quotesData.map((quote: any) => ({
-        ...quote,
-        quoteDate: new Date(quote.quoteDate),
-        createdAt: new Date(quote.createdAt),
-        updatedAt: new Date(quote.updatedAt)
-      }));
-      setQuotes(parsedQuotes);
+      console.log('🔍 Quotes: Loading quotes from database...');
       
-      // Sync successful API data to localStorage for offline capability
-      if (parsedQuotes.length > 0) {
-        localStorage.setItem('saleskik-quotes', JSON.stringify(parsedQuotes));
+      // Use direct API call to our quotes endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/quotes`);
+      const data = await response.json();
+      
+      console.log('📡 Quotes: API response:', data);
+      
+      if (data.success && data.data) {
+        const quotesData = data.data;
+        console.log('📂 Quotes: Found', quotesData.length, 'quotes in database');
+        
+        if (Array.isArray(quotesData) && quotesData.length > 0) {
+          const parsedQuotes = quotesData.map((quote: any) => ({
+            ...quote,
+            quoteDate: new Date(quote.createdAt),
+            createdAt: new Date(quote.createdAt),
+            updatedAt: new Date(quote.updatedAt)
+          }));
+          
+          setQuotes(parsedQuotes);
+          console.log('✅ Quotes: Loaded database quotes with customers:', parsedQuotes.length);
+          console.log('📂 Quotes: Customer names in quotes:', parsedQuotes.map(q => q.customerName));
+          
+          // Sync to localStorage for offline capability
+          localStorage.setItem('saleskik-quotes', JSON.stringify(parsedQuotes));
+        } else {
+          console.warn('⚠️ Quotes: No quotes found in database');
+          setQuotes([]);
+        }
+      } else {
+        console.warn('⚠️ Quotes: API call failed or returned no success');
+        // Fall back to existing localStorage logic
+        const savedQuotes = localStorage.getItem('saleskik-quotes');
+        if (savedQuotes) {
+          const parsedQuotes = JSON.parse(savedQuotes).map((quote: any) => ({
+            ...quote,
+            quoteDate: new Date(quote.quoteDate),
+            createdAt: new Date(quote.createdAt),
+            updatedAt: new Date(quote.updatedAt)
+          }));
+          setQuotes(parsedQuotes);
+        }
       }
     } catch (error) {
       // If API fails, use localStorage (preserves existing behavior)
@@ -304,6 +336,38 @@ export default function QuotesPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCustomers = async () => {
+    try {
+      console.log('🔍 Quotes: Loading customers from database...');
+      
+      // Use direct API call to our customers endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
+      const data = await response.json();
+      
+      console.log('📡 Quotes: Customers API response:', data);
+      
+      if (data.success && data.data) {
+        const customersData = data.data;
+        console.log('📂 Quotes: Found', customersData.length, 'customers in database');
+        
+        if (Array.isArray(customersData) && customersData.length > 0) {
+          setCustomers(customersData);
+          console.log('✅ Quotes: Loaded database customers for filtering:', customersData.length);
+          console.log('📂 Quotes: Customer names:', customersData.map(c => c.name));
+        } else {
+          console.warn('⚠️ Quotes: No customers found in database');
+          setCustomers([]);
+        }
+      } else {
+        console.warn('⚠️ Quotes: Customer API failed');
+        setCustomers([]);
+      }
+    } catch (error) {
+      console.error('❌ Quotes: Error loading customers:', error);
+      setCustomers([]);
     }
   };
 

@@ -272,27 +272,40 @@ export default function CustomPricelistsPage() {
 
   const loadCustomers = async () => {
     try {
-      // Use the same dataService as the customers page (API first, localStorage fallback)
-      const customersData = await dataService.customers.getAll();
+      console.log('🔍 PriceList: Loading customers from database...');
       
-      // Handle different response formats
-      let customersList = customersData;
-      if (customersData && customersData.data) {
-        customersList = customersData.data;
-      } else if (!Array.isArray(customersData)) {
-        console.log('Unexpected customers data format:', customersData);
-        customersList = [];
+      // Use direct API call like other pages
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
+      const data = await response.json();
+      
+      console.log('📡 PriceList: API response:', data);
+      
+      if (data.success && data.data) {
+        const customersData = data.data;
+        console.log('📂 PriceList: Customers data:', customersData.length);
+        
+        if (Array.isArray(customersData) && customersData.length > 0) {
+          const parsedCustomers = customersData.map((customer: any) => ({
+            id: customer.id,
+            name: customer.name,
+            email: customer.email,
+            phone: customer.phone,
+            salesRepName: customer.sales_rep_name || customer.salesRepName,
+            createdAt: customer.created_at ? new Date(customer.created_at) : new Date(),
+            customPricesCount: 0 // Will be calculated from price lists
+          }));
+          
+          setCustomers(parsedCustomers);
+          console.log('✅ PriceList: Loaded database customers:', parsedCustomers.length, 'customers');
+          console.log('📂 PriceList: Customer names:', parsedCustomers.map(c => c.name));
+        } else {
+          console.warn('⚠️ PriceList: No customers found in database');
+          setCustomers([]);
+        }
+      } else {
+        console.warn('⚠️ PriceList: API call failed or returned no success');
+        setCustomers([]);
       }
-      
-      const parsedCustomers = customersList.map((customer: any) => ({
-        ...customer,
-        createdAt: customer.createdAt ? new Date(customer.createdAt) : new Date(),
-        // Add customPricesCount if available from the API response
-        customPricesCount: customer.customPricesCount || 0
-      }));
-      
-      setCustomers(parsedCustomers);
-      console.log('Loaded customers for price lists:', parsedCustomers.length, 'customers');
     } catch (error) {
       console.error('Error loading customers:', error);
       // If both API and localStorage fail, set empty array

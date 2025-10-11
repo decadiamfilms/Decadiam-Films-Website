@@ -416,6 +416,222 @@ app.put('/api/customers/:id', async (req, res) => {
   }
 });
 
+// Delete customer endpoint
+app.delete('/api/customers/:id', async (req, res) => {
+  try {
+    console.log('🗑️ Customers API: Deleting customer:', req.params.id);
+    
+    const customerId = req.params.id;
+    const companyId = '0e573687-3b53-498a-9e78-f198f16f8bcb';
+    
+    // Delete customer and related data
+    await prisma.customerPriceList.deleteMany({
+      where: { customer_id: customerId }
+    });
+    
+    await prisma.customerContact.deleteMany({
+      where: { customer_id: customerId }
+    });
+    
+    await prisma.customer.delete({
+      where: { 
+        id: customerId,
+        company_id: companyId 
+      }
+    });
+
+    console.log('✅ Customer deleted successfully:', customerId);
+    
+    res.json({
+      success: true,
+      message: 'Customer deleted successfully'
+    });
+  } catch (error: any) {
+    console.error('❌ Customer deletion error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Cleanup duplicate customers endpoint
+app.post('/api/customers/cleanup-duplicates', async (_req, res) => {
+  try {
+    console.log('🧹 Cleaning up duplicate customers...');
+    
+    const customers = await prisma.customer.findMany({
+      where: { company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb' },
+      orderBy: { created_at: 'desc' }
+    });
+    
+    const seen = new Set();
+    const duplicates = [];
+    
+    for (const customer of customers) {
+      if (seen.has(customer.name)) {
+        duplicates.push(customer.id);
+      } else {
+        seen.add(customer.name);
+      }
+    }
+    
+    console.log('Found', duplicates.length, 'duplicate customers to delete');
+    
+    for (const id of duplicates) {
+      await prisma.customerPriceList.deleteMany({ where: { customer_id: id } });
+      await prisma.customerContact.deleteMany({ where: { customer_id: id } });
+      await prisma.customer.delete({ where: { id } });
+    }
+    
+    console.log('✅ Cleaned up', duplicates.length, 'duplicate customers');
+    
+    res.json({
+      success: true,
+      message: `Removed ${duplicates.length} duplicate customers`
+    });
+  } catch (error: any) {
+    console.error('❌ Cleanup error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Quotes API endpoints
+app.get('/api/quotes', async (_req, res) => {
+  try {
+    console.log('📄 Quotes API: Fetching quotes from database');
+    
+    const quotes = await prisma.quote.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb'
+      },
+      include: {
+        customer: true
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    console.log('✅ Quotes API: Found', quotes.length, 'quotes');
+
+    // Transform to frontend format
+    const transformedQuotes = quotes.map(quote => ({
+      id: quote.id,
+      quoteNumber: quote.quote_number,
+      customerId: quote.customer_id,
+      customerName: quote.customer.name,
+      customerEmail: quote.customer.email,
+      customerPhone: quote.customer.phone,
+      status: quote.status,
+      total: quote.total,
+      createdAt: quote.created_at,
+      updatedAt: quote.updated_at
+    }));
+
+    res.json({
+      success: true,
+      data: transformedQuotes
+    });
+  } catch (error: any) {
+    console.error('❌ Quotes API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Orders API endpoints  
+app.get('/api/orders', async (_req, res) => {
+  try {
+    console.log('📦 Orders API: Fetching orders from database');
+    
+    const orders = await prisma.order.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb'
+      },
+      include: {
+        customer: true
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    console.log('✅ Orders API: Found', orders.length, 'orders');
+
+    // Transform to frontend format
+    const transformedOrders = orders.map(order => ({
+      id: order.id,
+      orderNumber: order.order_number,
+      customerId: order.customer_id,
+      customerName: order.customer.name,
+      customerEmail: order.customer.email,
+      customerPhone: order.customer.phone,
+      status: order.status,
+      total: order.total,
+      createdAt: order.created_at,
+      updatedAt: order.updated_at
+    }));
+
+    res.json({
+      success: true,
+      data: transformedOrders
+    });
+  } catch (error: any) {
+    console.error('❌ Orders API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Invoices API endpoints
+app.get('/api/invoices', async (_req, res) => {
+  try {
+    console.log('🧾 Invoices API: Fetching invoices from database');
+    
+    const invoices = await prisma.invoice.findMany({
+      where: { 
+        companyId: '0e573687-3b53-498a-9e78-f198f16f8bcb'
+      },
+      include: {
+        customer: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    console.log('✅ Invoices API: Found', invoices.length, 'invoices');
+
+    // Transform to frontend format
+    const transformedInvoices = invoices.map(invoice => ({
+      id: invoice.id,
+      invoiceNumber: invoice.invoice_number,
+      customerId: invoice.customerId,
+      customerName: invoice.customer.name,
+      customerEmail: invoice.customer.email,
+      customerPhone: invoice.customer.phone,
+      status: invoice.status,
+      total: invoice.total,
+      dueDate: invoice.due_date,
+      createdAt: invoice.createdAt,
+      updatedAt: invoice.updatedAt
+    }));
+
+    res.json({
+      success: true,
+      data: transformedInvoices
+    });
+  } catch (error: any) {
+    console.error('❌ Invoices API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Minimal Categories & Customers Server running on port ${PORT}`);
   console.log('📝 Environment: development');

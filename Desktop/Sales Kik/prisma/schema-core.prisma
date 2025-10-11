@@ -1,0 +1,171 @@
+// Core SalesKik Schema for Supabase - Working Models Only
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Core Company Model
+model Company {
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  phone       String?
+  address     Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Working Relations
+  users       User[]
+  customers   Customer[]
+  quotes      Quote[]
+  orders      Order[]
+  invoices    Invoice[]
+  locations   Location[]
+  suppliers   Supplier[]
+  products    Product[]
+  
+  @@map("companies")
+}
+
+// User Management
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  name        String
+  role        String   @default("USER")
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("users")
+}
+
+// Product Catalog
+model Product {
+  id          String   @id @default(uuid())
+  code        String
+  name        String
+  description String?
+  costPrice   Float    @default(0)
+  unitPrice   Float    @default(0)
+  currentStock Int     @default(0)
+  categoryId  String?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("products")
+}
+
+// Customer Management
+model Customer {
+  id          String   @id @default(uuid())
+  name        String
+  email       String?
+  phone       String?
+  address     Json?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  quotes      Quote[]
+  orders      Order[]
+  invoices    Invoice[]
+  
+  @@map("customers")
+}
+
+// Quote System
+model Quote {
+  id          String   @id @default(uuid())
+  quoteNumber String
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  status      String   @default("DRAFT")
+  total       Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  orders      Order[]
+  
+  @@map("quotes")
+}
+
+// Order System
+model Order {
+  id          String   @id @default(uuid())
+  orderNumber String
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  quoteId     String?
+  quote       Quote?   @relation(fields: [quoteId], references: [id])
+  status      String   @default("PENDING")
+  total       Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  invoices    Invoice[]
+  
+  @@map("orders")
+}
+
+// Invoice System
+model Invoice {
+  id            String   @id @default(uuid())
+  invoiceNumber String
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id])
+  status        String   @default("DRAFT")
+  total         Float    @default(0)
+  dueDate       DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@map("invoices")
+}
+
+// Location Management
+model Location {
+  id          String   @id @default(uuid())
+  name        String
+  address     Json?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("locations")
+}
+
+// Supplier Management
+model Supplier {
+  id          String   @id @default(uuid())
+  name        String
+  email       String?
+  phone       String?
+  address     Json?
+  companyId   String
+  company     Company  @relation(fields: [companyId], references: [id])
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("suppliers")
+}

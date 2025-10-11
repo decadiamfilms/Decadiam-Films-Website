@@ -208,18 +208,68 @@ function CustomerSearch({ value, onChange }: CustomerSearchProps) {
     // Load customers using same dataService pattern as other pages
     const loadCustomersFromManagement = async () => {
       try {
-        // Use dataService pattern (API first, localStorage fallback)
-        const customersData = await dataService.customers.getAll();
-        const parsedCustomers = customersData.map((customer: any) => ({
-          ...customer,
-          createdAt: new Date(customer.createdAt),
-          priceTier: customer.priceTier || (customer.accountDetails?.paymentTerms <= 15 ? 'T1' : 
-                    customer.accountDetails?.paymentTerms <= 30 ? 'T2' : 'T3') // Auto-assign tier
-        }));
-        setCustomers(parsedCustomers);
-        console.log('Order page: Loaded customers from API (same as CustomerManagement):', parsedCustomers.length, 'customers');
+        console.log('🔍 NewOrder: Loading customers from database...');
+        
+        // Use direct API call to our customers endpoint
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
+        const data = await response.json();
+        
+        console.log('📡 NewOrder: Customers API response:', data);
+        
+        if (data.success && data.data) {
+          const customersData = data.data;
+          console.log('📂 NewOrder: Found', customersData.length, 'customers in database');
+          
+          if (Array.isArray(customersData) && customersData.length > 0) {
+            // Transform database customers to frontend format
+            const transformedCustomers = customersData.map((customer: any) => ({
+              id: customer.id,
+              name: customer.name,
+              accountingId: customer.accounting_id || '',
+              salesRepId: customer.sales_rep_id || '',
+              salesRepName: customer.sales_rep_name || '',
+              abnNumber: customer.abn_number || '',
+              phone: customer.phone || '',
+              email: customer.email || '',
+              primaryContact: {
+                id: customer.id + '_contact',
+                firstName: customer.primary_contact_first_name || '',
+                lastName: customer.primary_contact_last_name || '',
+                email: customer.primary_contact_email || customer.email || '',
+                landline: customer.primary_contact_landline || '',
+                fax: customer.primary_contact_fax || '',
+                mobile: customer.primary_contact_mobile || customer.phone || ''
+              },
+              accountDetails: {
+                accountingTerms: customer.accounting_terms || '',
+                paymentTerms: customer.payment_due_days || 30,
+                paymentPeriod: 'days' as const,
+                creditLimit: customer.credit_limit || 0,
+                availableLimit: customer.available_limit || 0,
+                invoiceType: customer.invoice_type || 'Account' as const
+              },
+              locations: [],
+              additionalContacts: [],
+              priceLists: [],
+              status: customer.status || 'active' as const,
+              createdAt: new Date(customer.created_at || new Date()),
+              notes: customer.notes || '',
+              priceTier: customer.payment_due_days <= 15 ? 'T1' : customer.payment_due_days <= 30 ? 'T2' : 'T3'
+            }));
+            
+            setCustomers(transformedCustomers);
+            console.log('✅ NewOrder: Loaded database customers:', transformedCustomers.length);
+            console.log('📂 NewOrder: Customer names:', transformedCustomers.map(c => c.name));
+          } else {
+            console.warn('⚠️ NewOrder: No customers found in database');
+            setCustomers([]);
+          }
+        } else {
+          console.warn('⚠️ NewOrder: Customer API failed');
+          setCustomers([]);
+        }
       } catch (error) {
-        console.error('Error loading customers for orders:', error);
+        console.error('❌ NewOrder: Error loading database customers:', error);
         setCustomers([]);
       }
     };

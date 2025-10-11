@@ -153,6 +153,7 @@ export default function InvoicesPage() {
   const navigate = useNavigate();
   const [showSidebar, setShowSidebar] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter states
@@ -206,12 +207,21 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     loadInvoices();
+    loadCustomers();
   }, []);
 
   const loadInvoices = async () => {
     try {
-      // Use same dataService pattern as other pages (API first, localStorage fallback)
-      const invoicesData = await dataService.invoices.getAll();
+      console.log('🔍 Invoices: Loading invoices from database...');
+      
+      // Use direct API call to our invoices endpoint
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/invoices`);
+      const data = await response.json();
+      
+      console.log('📡 Invoices: API response:', data);
+      
+      if (data.success && data.data) {
+        const invoicesData = data.data;
       
       if (invoicesData.length > 0) {
         const parsedInvoices = invoicesData.map((invoice: any) => ({
@@ -222,10 +232,16 @@ export default function InvoicesPage() {
           updatedAt: new Date(invoice.updatedAt)
         }));
         setInvoices(parsedInvoices);
-        console.log('Invoices page: Loaded invoices from API (same as other pages):', parsedInvoices.length, 'invoices');
+        console.log('✅ Invoices: Loaded database invoices with customers:', parsedInvoices.length);
+        console.log('📂 Invoices: Customer names in invoices:', parsedInvoices.map(i => i.customerName));
       } else {
-        // Sample data
-        const sampleInvoices: Invoice[] = [
+        console.warn('⚠️ Invoices: No invoices found in database');
+        setInvoices([]);
+      }
+    } else {
+      console.warn('⚠️ Invoices: API call failed or returned no success');
+      // Fall back to sample data
+      const sampleInvoices: Invoice[] = [
           {
             id: '1',
             customerId: 'cust-1',

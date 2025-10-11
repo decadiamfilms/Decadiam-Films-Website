@@ -206,25 +206,67 @@ function CustomerSearch({ value, onChange }: CustomerSearchProps) {
   useEffect(() => {
     // Load customers from localStorage (same as CustomerManagement saves)
     const loadCustomersFromManagement = async () => {
-      // First try to load from localStorage
-      // Load customers with API-first approach
-      const customersData = await dataService.customers.getAll();
-      if (customersData.length > 0) {
-        try {
-          const parsedCustomers = customersData;
-          // Convert date strings back to Date objects and add priceTier fallback
-          const customersWithDates = parsedCustomers.map((customer: any) => ({
-            ...customer,
-            createdAt: new Date(customer.createdAt),
-            priceTier: customer.priceTier || (customer.accountDetails.paymentTerms <= 15 ? 'T1' : 
-                      customer.accountDetails.paymentTerms <= 30 ? 'T2' : 'T3') // Auto-assign tier
-          }));
-          setCustomers(customersWithDates);
-          console.log('Quote page: Loaded customers from localStorage:', customersWithDates.length, 'customers');
-          return;
-        } catch (error) {
-          console.error('Error parsing saved customers for quotes:', error);
+      try {
+        console.log('🔍 NewQuote: Loading customers from database...');
+        
+        // Use direct API call to our customers endpoint
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
+        const data = await response.json();
+        
+        console.log('📡 NewQuote: Customers API response:', data);
+        
+        if (data.success && data.data) {
+          const customersData = data.data;
+          console.log('📂 NewQuote: Found', customersData.length, 'customers in database');
+          
+          if (Array.isArray(customersData) && customersData.length > 0) {
+            // Transform database customers to frontend format
+            const transformedCustomers = customersData.map((customer: any) => ({
+              id: customer.id,
+              name: customer.name,
+              accountingId: customer.accounting_id || '',
+              salesRepId: customer.sales_rep_id || '',
+              salesRepName: customer.sales_rep_name || '',
+              abnNumber: customer.abn_number || '',
+              phone: customer.phone || '',
+              email: customer.email || '',
+              primaryContact: {
+                id: customer.id + '_contact',
+                firstName: customer.primary_contact_first_name || '',
+                lastName: customer.primary_contact_last_name || '',
+                email: customer.primary_contact_email || customer.email || '',
+                landline: customer.primary_contact_landline || '',
+                fax: customer.primary_contact_fax || '',
+                mobile: customer.primary_contact_mobile || customer.phone || ''
+              },
+              accountDetails: {
+                accountingTerms: customer.accounting_terms || '',
+                paymentTerms: customer.payment_due_days || 30,
+                paymentPeriod: 'days' as const,
+                creditLimit: customer.credit_limit || 0,
+                availableLimit: customer.available_limit || 0,
+                invoiceType: customer.invoice_type || 'Account' as const
+              },
+              locations: [],
+              additionalContacts: [],
+              priceLists: [],
+              status: customer.status || 'active' as const,
+              createdAt: new Date(customer.created_at || new Date()),
+              notes: customer.notes || '',
+              priceTier: customer.payment_due_days <= 15 ? 'T1' : customer.payment_due_days <= 30 ? 'T2' : 'T3'
+            }));
+            
+            setCustomers(transformedCustomers);
+            console.log('✅ NewQuote: Loaded database customers:', transformedCustomers.length);
+            console.log('📂 NewQuote: Customer names:', transformedCustomers.map(c => c.name));
+            return;
+          }
         }
+        
+        console.warn('⚠️ NewQuote: No customers found in database');
+        setCustomers([]);
+      } catch (error) {
+        console.error('❌ NewQuote: Error loading database customers:', error);
       }
 
       // If no saved customers, use initial sample data
