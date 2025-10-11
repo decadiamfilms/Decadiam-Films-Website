@@ -721,24 +721,78 @@ export function CustomerManagement() {
       locations: formData.locations,
       additionalContacts: formData.additionalContacts,
       priceLists: formData.priceLists,
-      accountDetails: formData.accountDetails,
+      accountDetails: {
+        ...formData.accountDetails,
+        paymentTerms: `Net ${formData.accountDetails.paymentTerms}` // Convert to string format
+      },
       status: editingCustomer?.status || 'active',
       createdAt: editingCustomer?.createdAt || new Date(),
       notes: formData.notes
     };
 
-    if (editingCustomer) {
-      // Update existing customer
-      const updatedCustomers = customers.map(customer => 
-        customer.id === editingCustomer.id ? customerData : customer
-      );
-      setCustomers(updatedCustomers);
-      await saveCustomersToStorage(updatedCustomers);
-    } else {
-      // Add new customer
-      const updatedCustomers = [...customers, customerData];
-      setCustomers(updatedCustomers);
-      await saveCustomersToStorage(updatedCustomers);
+    try {
+      // Save to database first
+      console.log('💾 Customer: Saving to database...', customerData.name);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(customerData)
+      });
+      
+      const result = await response.json();
+      console.log('📡 Customer: Save response:', result);
+      
+      if (result.success) {
+        console.log('✅ Customer: Saved to database successfully!');
+        
+        // Update frontend state after successful database save
+        if (editingCustomer) {
+          const updatedCustomers = customers.map(customer => 
+            customer.id === editingCustomer.id ? customerData : customer
+          );
+          setCustomers(updatedCustomers);
+        } else {
+          setCustomers([...customers, customerData]);
+        }
+        
+        // Also save to localStorage as backup
+        await saveCustomersToStorage([...customers, customerData]);
+        
+        alert(editingCustomer ? 'Customer updated successfully in database!' : 'Customer saved to database successfully!');
+      } else {
+        console.warn('⚠️ Customer: Database save failed, saving to localStorage only');
+        // Fallback to localStorage only
+        if (editingCustomer) {
+          const updatedCustomers = customers.map(customer => 
+            customer.id === editingCustomer.id ? customerData : customer
+          );
+          setCustomers(updatedCustomers);
+          await saveCustomersToStorage(updatedCustomers);
+        } else {
+          const updatedCustomers = [...customers, customerData];
+          setCustomers(updatedCustomers);
+          await saveCustomersToStorage(updatedCustomers);
+        }
+        alert('Customer saved to localStorage (database unavailable)');
+      }
+    } catch (error) {
+      console.error('❌ Customer: Database save error:', error);
+      // Fallback to localStorage
+      if (editingCustomer) {
+        const updatedCustomers = customers.map(customer => 
+          customer.id === editingCustomer.id ? customerData : customer
+        );
+        setCustomers(updatedCustomers);
+        await saveCustomersToStorage(updatedCustomers);
+      } else {
+        const updatedCustomers = [...customers, customerData];
+        setCustomers(updatedCustomers);
+        await saveCustomersToStorage(updatedCustomers);
+      }
+      alert('Customer saved to localStorage (database error)');
     }
 
     setShowAddCustomerModal(false);

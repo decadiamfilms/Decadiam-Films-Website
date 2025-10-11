@@ -197,7 +197,138 @@ app.delete('/api/categories/:id', async (req, res) => {
   }
 });
 
+// Customer API endpoints
+app.get('/api/customers', async (_req, res) => {
+  try {
+    console.log('👥 Customers API: Fetching customers from database');
+    
+    const customers = await prisma.customer.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb'
+      },
+      include: {
+        additional_contacts: true,
+        price_lists: {
+          include: {
+            category: true
+          }
+        }
+      },
+      orderBy: { created_at: 'desc' }
+    });
+
+    console.log('✅ Customers API: Found', customers.length, 'customers');
+
+    res.json({
+      success: true,
+      data: customers
+    });
+  } catch (error: any) {
+    console.error('❌ Customers API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.post('/api/customers', async (req, res) => {
+  try {
+    console.log('👥 Customers API: Creating customer:', req.body.name);
+    
+    const customerData = req.body;
+    const companyId = '0e573687-3b53-498a-9e78-f198f16f8bcb';
+    
+    // Create customer with all fields
+    const customer = await prisma.customer.create({
+      data: {
+        name: customerData.name,
+        accounting_id: customerData.accountingId,
+        sales_rep_id: customerData.salesRepId,
+        sales_rep_name: customerData.salesRepName,
+        abn_number: customerData.abnNumber,
+        phone: customerData.phone,
+        email: customerData.email,
+        
+        // Primary contact
+        primary_contact_first_name: customerData.primaryContact?.firstName,
+        primary_contact_last_name: customerData.primaryContact?.lastName,
+        primary_contact_email: customerData.primaryContact?.email,
+        primary_contact_landline: customerData.primaryContact?.landline,
+        primary_contact_fax: customerData.primaryContact?.fax,
+        primary_contact_mobile: customerData.primaryContact?.mobile,
+        
+        // Location details
+        location_type: customerData.locationDetails?.locationType || 'Main',
+        mailing_address: customerData.locationDetails?.mailingAddress,
+        billing_address: customerData.locationDetails?.billingAddress,
+        delivery_address: customerData.locationDetails?.deliveryAddress,
+        
+        // Account details
+        accounting_terms: customerData.accountDetails?.accountingTerms,
+        payment_terms: `Net ${customerData.accountDetails?.paymentTerms || 30}`,
+        payment_due_days: parseInt(String(customerData.accountDetails?.paymentTerms || 30)),
+        credit_limit: customerData.accountDetails?.creditLimit,
+        available_limit: customerData.accountDetails?.availableLimit,
+        invoice_type: customerData.accountDetails?.invoiceType || 'Account',
+        
+        // General
+        status: customerData.status || 'active',
+        notes: customerData.notes,
+        company_id: companyId
+      }
+    });
+
+    // Create additional contacts
+    if (customerData.additionalContacts && customerData.additionalContacts.length > 0) {
+      for (const contact of customerData.additionalContacts) {
+        await prisma.customerContact.create({
+          data: {
+            customer_id: customer.id,
+            first_name: contact.firstName,
+            last_name: contact.lastName,
+            email: contact.email,
+            landline: contact.landline,
+            fax: contact.fax,
+            mobile: contact.mobile
+          }
+        });
+      }
+    }
+
+    // Create price lists
+    if (customerData.priceLists && customerData.priceLists.length > 0) {
+      for (const priceList of customerData.priceLists) {
+        if (priceList.isSelected && priceList.selectedTier) {
+          await prisma.customerPriceList.create({
+            data: {
+              customer_id: customer.id,
+              category_id: priceList.id,
+              tier_name: priceList.selectedTier,
+              markup: priceList.markupDiscount || 0,
+              is_active: true
+            }
+          });
+        }
+      }
+    }
+
+    console.log('✅ Customer created successfully:', customer.id);
+    
+    res.status(201).json({
+      success: true,
+      data: customer
+    });
+  } catch (error: any) {
+    console.error('❌ Customer creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log(`🚀 Minimal Categories Server running on port ${PORT}`);
+  console.log(`🚀 Minimal Categories & Customers Server running on port ${PORT}`);
   console.log('📝 Environment: development');
 });
