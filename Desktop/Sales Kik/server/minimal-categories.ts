@@ -328,6 +328,94 @@ app.post('/api/customers', async (req, res) => {
   }
 });
 
+// Update customer endpoint
+app.put('/api/customers/:id', async (req, res) => {
+  try {
+    console.log('👥 Customers API: Updating customer:', req.params.id, req.body.name);
+    
+    const customerData = req.body;
+    const customerId = req.params.id;
+    const companyId = '0e573687-3b53-498a-9e78-f198f16f8bcb';
+    
+    // Update customer with all fields
+    const customer = await prisma.customer.update({
+      where: { 
+        id: customerId,
+        company_id: companyId 
+      },
+      data: {
+        name: customerData.name,
+        accounting_id: customerData.accountingId,
+        sales_rep_id: customerData.salesRepId,
+        sales_rep_name: customerData.salesRepName,
+        abn_number: customerData.abnNumber,
+        phone: customerData.phone,
+        email: customerData.email,
+        
+        // Primary contact
+        primary_contact_first_name: customerData.primaryContact?.firstName,
+        primary_contact_last_name: customerData.primaryContact?.lastName,
+        primary_contact_email: customerData.primaryContact?.email,
+        primary_contact_landline: customerData.primaryContact?.landline,
+        primary_contact_fax: customerData.primaryContact?.fax,
+        primary_contact_mobile: customerData.primaryContact?.mobile,
+        
+        // Location details
+        location_type: customerData.locationDetails?.locationType || 'Main',
+        mailing_address: customerData.locationDetails?.mailingAddress,
+        billing_address: customerData.locationDetails?.billingAddress,
+        delivery_address: customerData.locationDetails?.deliveryAddress,
+        
+        // Account details
+        accounting_terms: customerData.accountDetails?.accountingTerms,
+        payment_terms: `Net ${customerData.accountDetails?.paymentTerms || 30}`,
+        payment_due_days: parseInt(String(customerData.accountDetails?.paymentTerms || 30)),
+        credit_limit: customerData.accountDetails?.creditLimit,
+        available_limit: customerData.accountDetails?.availableLimit,
+        invoice_type: customerData.accountDetails?.invoiceType || 'Account',
+        
+        // General
+        status: customerData.status || 'active',
+        notes: customerData.notes
+      }
+    });
+
+    // Update price lists (delete and recreate)
+    await prisma.customerPriceList.deleteMany({
+      where: { customer_id: customerId }
+    });
+    
+    if (customerData.priceLists && customerData.priceLists.length > 0) {
+      for (const priceList of customerData.priceLists) {
+        if (priceList.isSelected && priceList.selectedTier) {
+          await prisma.customerPriceList.create({
+            data: {
+              customer_id: customerId,
+              category_id: priceList.id,
+              tier_name: priceList.selectedTier,
+              markup: priceList.markupDiscount || 0,
+              is_active: true
+            }
+          });
+        }
+      }
+    }
+
+    console.log('✅ Customer updated successfully:', customer.id);
+    
+    res.json({
+      success: true,
+      data: customer
+    });
+  } catch (error: any) {
+    console.error('❌ Customer update error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Minimal Categories & Customers Server running on port ${PORT}`);
   console.log('📝 Environment: development');

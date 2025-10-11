@@ -206,6 +206,9 @@ export function CustomerManagement() {
     loadCustomers();
     loadDatabaseCategories(); // Load from database instead of localStorage
     
+    // Start automatic database sync checker
+    startDatabaseSyncChecker();
+    
     // Load accounting terms (mock for now - replace with real API call)
     setAccountingTerms([
       'Net 30',
@@ -362,6 +365,73 @@ export function CustomerManagement() {
       { id: '2', firstName: 'Sarah', lastName: 'Johnson', hasSalesPermission: true },
       { id: '3', firstName: 'Mike', lastName: 'Chen', hasSalesPermission: true },
     ]);
+  };
+
+  // Automatic database sync when connection restored
+  const startDatabaseSyncChecker = () => {
+    console.log('🔄 Starting automatic database sync checker...');
+    
+    const syncInterval = setInterval(async () => {
+      try {
+        // Check if database is available by testing API
+        const testResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+        
+        if (testResponse.ok) {
+          console.log('✅ Database connection restored - checking for localStorage data to sync...');
+          
+          // Check if there are customers in localStorage that need syncing
+          const localCustomers = localStorage.getItem('saleskik-customers');
+          if (localCustomers) {
+            const parsedCustomers = JSON.parse(localCustomers);
+            console.log('📦 Found', parsedCustomers.length, 'customers in localStorage - syncing to database...');
+            
+            // Sync each customer to database
+            for (const customer of parsedCustomers) {
+              try {
+                // Check if customer already exists in database
+                const checkResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
+                const existingData = await checkResponse.json();
+                const exists = existingData.success && existingData.data.some((c: any) => c.name === customer.name);
+                
+                if (!exists) {
+                  // Create in database
+                  const syncResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(customer)
+                  });
+                  
+                  if (syncResponse.ok) {
+                    console.log('✅ Synced customer to database:', customer.name);
+                  }
+                }
+              } catch (syncError) {
+                console.warn('⚠️ Failed to sync customer:', customer.name);
+              }
+            }
+            
+            console.log('🎉 Database sync complete! All localStorage customers synced.');
+            // Clear localStorage after successful sync
+            localStorage.removeItem('saleskik-customers');
+          }
+          
+          // Stop checking once sync is complete
+          clearInterval(syncInterval);
+        }
+      } catch (error) {
+        // Database still unavailable - keep checking
+        console.log('🔍 Database check - still unavailable, will retry...');
+      }
+    }, 10000); // Check every 10 seconds
+    
+    // Stop checking after 5 minutes to prevent infinite loops
+    setTimeout(() => {
+      clearInterval(syncInterval);
+      console.log('⏰ Database sync checker stopped after 5 minutes');
+    }, 300000);
   };
 
   // Load categories from database for price lists
@@ -621,22 +691,43 @@ export function CustomerManagement() {
   const handleEditCustomer = (customer: Customer) => {
     setEditingCustomer(customer);
     
-    // Pre-fill form with existing customer data
+    // Pre-fill form with existing customer data (with safety checks)
     setFormData({
       customerDetails: {
-        name: customer.name,
-        accountingId: customer.accountingId,
-        salesRepId: customer.salesRepId,
-        abnNumber: customer.abnNumber,
-        phone: customer.phone,
-        email: customer.email
+        name: customer.name || '',
+        accountingId: customer.accountingId || '',
+        salesRepId: customer.salesRepId || '',
+        abnNumber: customer.abnNumber || '',
+        phone: customer.phone || '',
+        email: customer.email || ''
       },
-      primaryContact: customer.primaryContact,
-      locations: customer.locations,
-      additionalContacts: customer.additionalContacts,
-      priceLists: customer.priceLists,
-      accountDetails: customer.accountDetails,
-      notes: customer.notes,
+      primaryContact: customer.primaryContact || {
+        id: '',
+        firstName: '',
+        lastName: '',
+        email: '',
+        landline: '',
+        fax: '',
+        mobile: ''
+      },
+      locationDetails: customer.locationDetails || {
+        locationType: 'Main',
+        mailingAddress: { unit: '', streetNumber: '', streetName: '', city: '', state: '', postcode: '', country: 'Australia' },
+        billingAddress: { unit: '', streetNumber: '', streetName: '', city: '', state: '', postcode: '', country: 'Australia' },
+        deliveryAddress: { unit: '', streetNumber: '', streetName: '', city: '', state: '', postcode: '', country: 'Australia' }
+      },
+      locations: customer.locations || [],
+      additionalContacts: customer.additionalContacts || [],
+      priceLists: customer.priceLists || [],
+      accountDetails: customer.accountDetails || {
+        accountingTerms: '',
+        paymentTerms: 30,
+        paymentPeriod: 'days' as const,
+        creditLimit: 0,
+        availableLimit: 0,
+        invoiceType: 'Account' as const
+      },
+      notes: customer.notes || '',
       newLocation: {},
       newContact: {}
     });
@@ -693,37 +784,37 @@ export function CustomerManagement() {
 
   const handleSaveCustomer = async () => {
     // Validate required fields
-    if (!formData.customerDetails.name || !formData.primaryContact.firstName || !formData.primaryContact.lastName) {
+    if (!formData.customerDetails?.name || !formData.primaryContact?.firstName || !formData.primaryContact?.lastName) {
       alert('Please fill in all required fields');
       return;
     }
 
     const customerData: Customer = {
       id: editingCustomer?.id || Date.now().toString(),
-      name: formData.customerDetails.name,
-      accountingId: formData.customerDetails.accountingId,
-      salesRepId: formData.customerDetails.salesRepId,
-      salesRepName: employees.find(e => e.id === formData.customerDetails.salesRepId)?.firstName + ' ' + 
-                    employees.find(e => e.id === formData.customerDetails.salesRepId)?.lastName || '',
-      abnNumber: formData.customerDetails.abnNumber,
-      phone: formData.customerDetails.phone,
-      email: formData.customerDetails.email,
+      name: formData.customerDetails?.name || '',
+      accountingId: formData.customerDetails?.accountingId || '',
+      salesRepId: formData.customerDetails?.salesRepId || '',
+      salesRepName: employees.find(e => e.id === formData.customerDetails?.salesRepId)?.firstName + ' ' + 
+                    employees.find(e => e.id === formData.customerDetails?.salesRepId)?.lastName || '',
+      abnNumber: formData.customerDetails?.abnNumber || '',
+      phone: formData.customerDetails?.phone || '',
+      email: formData.customerDetails?.email || '',
       primaryContact: {
-        id: formData.primaryContact.id || Date.now().toString(),
-        firstName: formData.primaryContact.firstName,
-        lastName: formData.primaryContact.lastName,
-        email: formData.primaryContact.email,
-        landline: formData.primaryContact.landline,
-        fax: formData.primaryContact.fax,
-        mobile: formData.primaryContact.mobile
+        id: formData.primaryContact?.id || Date.now().toString(),
+        firstName: formData.primaryContact?.firstName || '',
+        lastName: formData.primaryContact?.lastName || '',
+        email: formData.primaryContact?.email || '',
+        landline: formData.primaryContact?.landline || '',
+        fax: formData.primaryContact?.fax || '',
+        mobile: formData.primaryContact?.mobile || ''
       },
-      locationDetails: formData.locationDetails,
-      locations: formData.locations,
-      additionalContacts: formData.additionalContacts,
-      priceLists: formData.priceLists,
+      locationDetails: formData.locationDetails || {},
+      locations: formData.locations || [],
+      additionalContacts: formData.additionalContacts || [],
+      priceLists: formData.priceLists || [],
       accountDetails: {
-        ...formData.accountDetails,
-        paymentTerms: `Net ${formData.accountDetails.paymentTerms}` // Convert to string format
+        ...(formData.accountDetails || {}),
+        paymentTerms: `Net ${formData.accountDetails?.paymentTerms || 30}` // Convert to string format
       },
       status: editingCustomer?.status || 'active',
       createdAt: editingCustomer?.createdAt || new Date(),
@@ -734,8 +825,14 @@ export function CustomerManagement() {
       // Save to database first
       console.log('💾 Customer: Saving to database...', customerData.name);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`, {
-        method: 'POST',
+      const apiUrl = editingCustomer 
+        ? `${import.meta.env.VITE_API_URL}/api/customers/${editingCustomer.id}`
+        : `${import.meta.env.VITE_API_URL}/api/customers`;
+      
+      const method = editingCustomer ? 'PUT' : 'POST';
+      
+      const response = await fetch(apiUrl, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -1226,10 +1323,10 @@ export function CustomerManagement() {
                     </label>
                     <input
                       type="text"
-                      value={formData.primaryContact.firstName}
+                      value={formData.primaryContact?.firstName || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        primaryContact: { ...prev.primaryContact, firstName: e.target.value }
+                        primaryContact: { ...(prev.primaryContact || {}), firstName: e.target.value }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       required
@@ -1242,10 +1339,10 @@ export function CustomerManagement() {
                     </label>
                     <input
                       type="text"
-                      value={formData.primaryContact.lastName}
+                      value={formData.primaryContact?.lastName || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        primaryContact: { ...prev.primaryContact, lastName: e.target.value }
+                        primaryContact: { ...(prev.primaryContact || {}), lastName: e.target.value }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       required
@@ -1256,10 +1353,10 @@ export function CustomerManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                     <input
                       type="email"
-                      value={formData.primaryContact.email}
+                      value={formData.primaryContact?.email || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        primaryContact: { ...prev.primaryContact, email: e.target.value }
+                        primaryContact: { ...(prev.primaryContact || {}), email: e.target.value }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -1269,10 +1366,10 @@ export function CustomerManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Landline</label>
                     <input
                       type="tel"
-                      value={formData.primaryContact.landline}
+                      value={formData.primaryContact?.landline || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        primaryContact: { ...prev.primaryContact, landline: e.target.value }
+                        primaryContact: { ...(prev.primaryContact || {}), landline: e.target.value }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -1282,10 +1379,10 @@ export function CustomerManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Fax</label>
                     <input
                       type="tel"
-                      value={formData.primaryContact.fax}
+                      value={formData.primaryContact?.fax || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        primaryContact: { ...prev.primaryContact, fax: e.target.value }
+                        primaryContact: { ...(prev.primaryContact || {}), fax: e.target.value }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -1295,10 +1392,10 @@ export function CustomerManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
                     <input
                       type="tel"
-                      value={formData.primaryContact.mobile}
+                      value={formData.primaryContact?.mobile || ''}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        primaryContact: { ...prev.primaryContact, mobile: e.target.value }
+                        primaryContact: { ...(prev.primaryContact || {}), mobile: e.target.value }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -1319,7 +1416,7 @@ export function CustomerManagement() {
                   </button>
                 </div>
                 
-                {formData.locations.length === 0 ? (
+                {(formData.locations || []).length === 0 ? (
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                     <MapPinIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-500">No locations added yet</p>
@@ -1373,7 +1470,7 @@ export function CustomerManagement() {
                   </button>
                 </div>
                 
-                {formData.additionalContacts.length === 0 ? (
+                {(formData.additionalContacts || []).length === 0 ? (
                   <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
                     <UserIcon className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-500">No additional contacts added yet</p>
@@ -1417,7 +1514,7 @@ export function CustomerManagement() {
                       Loading categories...
                     </div>
                   )}
-                  {!categoriesLoading && formData.priceLists.length === 0 && (
+                  {!categoriesLoading && (formData.priceLists || []).length === 0 && (
                     <span className="text-sm text-amber-600 bg-amber-50 px-3 py-1 rounded-full">
                       No categories found - Set up categories first
                     </span>
@@ -1437,7 +1534,7 @@ export function CustomerManagement() {
                       </tr>
                     </thead>
                     <tbody>
-                      {formData.priceLists.map((priceList, index) => (
+                      {(formData.priceLists || []).map((priceList, index) => (
                         <tr key={priceList.id} className="border-b border-gray-100 hover:bg-blue-50 transition-colors">
                           <td className="px-4 py-4 font-medium text-gray-900">{priceList.category}</td>
                           <td className="px-4 py-3 text-center">
@@ -1584,8 +1681,8 @@ export function CustomerManagement() {
                       onClick={() => setShowAccountingTermsDropdown(!showAccountingTermsDropdown)}
                       className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm hover:border-gray-400 focus:ring-2 focus:ring-blue-500"
                     >
-                      <span className={formData.accountDetails.accountingTerms ? 'text-gray-900' : 'text-gray-500'}>
-                        {formData.accountDetails.accountingTerms || 'Select Accounting Terms'}
+                      <span className={formData.accountDetails?.accountingTerms ? 'text-gray-900' : 'text-gray-500'}>
+                        {formData.accountDetails?.accountingTerms || 'Select Accounting Terms'}
                       </span>
                       <ChevronDownIcon className={`w-4 h-4 transition-transform ${showAccountingTermsDropdown ? 'rotate-180' : ''}`} />
                     </button>
@@ -1628,10 +1725,10 @@ export function CustomerManagement() {
                       <span className="text-sm text-gray-600">Due</span>
                       <input
                         type="number"
-                        value={formData.accountDetails.paymentTerms}
+                        value={formData.accountDetails?.paymentTerms || 30}
                         onChange={(e) => setFormData(prev => ({
                           ...prev,
-                          accountDetails: { ...prev.accountDetails, paymentTerms: parseInt(e.target.value) || 0 }
+                          accountDetails: { ...(prev.accountDetails || {}), paymentTerms: parseInt(e.target.value) || 0 }
                         }))}
                         className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       />
@@ -1641,7 +1738,7 @@ export function CustomerManagement() {
                           className="flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm hover:border-gray-400 focus:ring-2 focus:ring-blue-500 min-w-[200px]"
                         >
                           <span className="text-gray-900">
-                            {formData.accountDetails.paymentPeriod === 'days' 
+                            {formData.accountDetails?.paymentPeriod === 'days' 
                               ? 'day(s) after the invoice date' 
                               : 'month(s) after the invoice date'
                             }
@@ -1685,10 +1782,10 @@ export function CustomerManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.accountDetails.creditLimit}
+                      value={formData.accountDetails?.creditLimit || 0}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        accountDetails: { ...prev.accountDetails, creditLimit: parseFloat(e.target.value) || 0 }
+                        accountDetails: { ...(prev.accountDetails || {}), creditLimit: parseFloat(e.target.value) || 0 }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -1699,10 +1796,10 @@ export function CustomerManagement() {
                     <input
                       type="number"
                       step="0.01"
-                      value={formData.accountDetails.availableLimit}
+                      value={formData.accountDetails?.availableLimit || 0}
                       onChange={(e) => setFormData(prev => ({
                         ...prev,
-                        accountDetails: { ...prev.accountDetails, availableLimit: parseFloat(e.target.value) || 0 }
+                        accountDetails: { ...(prev.accountDetails || {}), availableLimit: parseFloat(e.target.value) || 0 }
                       }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
@@ -1714,7 +1811,7 @@ export function CustomerManagement() {
                       onClick={() => setShowInvoiceTypeDropdown(!showInvoiceTypeDropdown)}
                       className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm hover:border-gray-400 focus:ring-2 focus:ring-blue-500"
                     >
-                      <span className="text-gray-900">{formData.accountDetails.invoiceType}</span>
+                      <span className="text-gray-900">{formData.accountDetails?.invoiceType || 'Account'}</span>
                       <ChevronDownIcon className={`w-4 h-4 transition-transform ${showInvoiceTypeDropdown ? 'rotate-180' : ''}`} />
                     </button>
                     {showInvoiceTypeDropdown && (
