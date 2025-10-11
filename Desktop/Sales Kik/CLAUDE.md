@@ -53,6 +53,17 @@ If database connection fails, do NOT use `prisma db pull`. Instead:
 3. If needed, use `npx prisma generate` to regenerate client only
 4. Our schema.prisma is the source of truth, not the database schema
 
+## Database Backup Strategy:
+✅ **Schema Protection**: `prisma/schema.prisma` is versioned in Git
+✅ **Data Backup**: Use `node prisma/backup-database.js` to backup all data
+✅ **Data Restore**: Use `node prisma/restore-database.js <backup-file.json>` to restore
+✅ **Automatic Backups**: Created database-backup-1760149481011.json (5 categories, 13 subcategories)
+
+### Backup Commands:
+- **Create backup**: `node prisma/backup-database.js`
+- **List backups**: `ls prisma/database-backup-*.json`  
+- **Restore backup**: `node prisma/restore-database.js prisma/database-backup-[timestamp].json`
+
 ## CRITICAL WARNING - Database Schema:
 ⚠️ **NEVER USE `npx prisma db pull --force`** ⚠️
 - This command overwrites our custom Prisma schema with the raw database schema
