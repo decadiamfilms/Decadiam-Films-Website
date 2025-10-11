@@ -158,16 +158,7 @@ export function CustomerManagement() {
     // Load mock data
     loadEmployees();
     loadCustomers();
-    
-    // Load real categories from localStorage (same as ProductManagement)
-    const savedCategories = localStorage.getItem('saleskik-categories');
-    if (savedCategories) {
-      const categories = JSON.parse(savedCategories);
-      console.log('Loaded real categories from localStorage:', categories);
-      setRealCategories(categories);
-    } else {
-      console.log('No categories found in localStorage');
-    }
+    loadDatabaseCategories(); // Load from database instead of localStorage
     
     // Load accounting terms (mock for now - replace with real API call)
     setAccountingTerms([
@@ -327,39 +318,50 @@ export function CustomerManagement() {
     ]);
   };
 
-  // Get main categories - use localStorage first (same as ProductManagement)
+  // Load categories from database for price lists
+  const loadDatabaseCategories = async () => {
+    try {
+      console.log('🔍 Customer: Loading categories from database for price lists...');
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      console.log('📡 Customer: API response:', data);
+      
+      if (data.success && data.data) {
+        const categoriesData = data.data;
+        console.log('📂 Customer: Categories for price lists:', categoriesData.length);
+        
+        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
+          setRealCategories(categoriesData);
+          console.log('✅ Customer: Loaded database categories for price lists:', categoriesData.map(c => c.name));
+        } else {
+          console.warn('⚠️ Customer: No categories found in database');
+          setRealCategories([]);
+        }
+      } else {
+        console.warn('⚠️ Customer: API call failed or returned no success');
+        setRealCategories([]);
+      }
+    } catch (error) {
+      console.error('❌ Customer: Error loading database categories:', error);
+      setRealCategories([]);
+    }
+  };
+
+  // Get main categories - use database categories for price lists
   const getMainCategories = () => {
-    // First try to use real categories from localStorage
+    // Use database categories from realCategories state
     if (realCategories && realCategories.length > 0) {
-      console.log('Using real categories from localStorage:', realCategories);
+      console.log('🎯 Customer: Using database categories for price lists:', realCategories.length);
       return realCategories.map(category => ({
         id: category.id,
         name: category.name
       }));
     }
     
-    // Fallback to category structure API if localStorage is empty
-    if (!categoryStructure.columns || categoryStructure.columns.length === 0) {
-      console.log('No categories found in localStorage or API');
-      return [];
-    }
-    
-    console.log('Falling back to category structure API');
-    
-    // Get the first column which should be the main categories
-    const mainCategoryColumn = categoryStructure.columns.find(col => 
-      col.title.toLowerCase().includes('category') && 
-      !col.title.toLowerCase().includes('sub')
-    ) || categoryStructure.columns[0];
-    
-    const categories = mainCategoryColumn?.items.filter(item => item.isActive).map(item => ({
-      id: item.id,
-      name: item.label
-    })) || [];
-    
-    console.log('Categories from API fallback:', categories);
-    
-    return categories;
+    console.log('⚠️ Customer: No database categories found for price lists');
+    return [];
   };
 
   const loadCustomers = async () => {
