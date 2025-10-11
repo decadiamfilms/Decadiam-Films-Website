@@ -645,19 +645,50 @@ export default function NewOrderPage() {
 
   const loadCategories = async () => {
     try {
-      // Use same dataService pattern as ProductManagement and InventoryBuilder
-      const categoriesData = await dataService.categories.getAll();
+      console.log('🔍 Order: Loading categories from database...');
       
-      if (categoriesData.length > 0) {
-        // Parse categories exactly like InventoryBuilder does
+      // Use direct API call like other pages
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const data = await response.json();
+      
+      console.log('📡 Order: API response:', data);
+      
+      if (data.success && data.data) {
+        const categoriesData = data.data;
+        console.log('📂 Order: Categories data:', categoriesData);
+        console.log('📊 Order: Categories count:', categoriesData.length);
+      
+        if (Array.isArray(categoriesData) && categoriesData.length > 0) {
+        // Use the database categories directly
         const parsedCategories = categoriesData.map((cat: any) => ({
           ...cat,
-          createdAt: new Date(cat.createdAt),
-          updatedAt: new Date(cat.updatedAt)
+          createdAt: new Date(cat.createdAt || new Date()),
+          updatedAt: new Date(cat.updatedAt || new Date())
         }));
         
-        setCategories(parsedCategories);
-        console.log('Order page: Loaded categories from API (same as InventoryBuilder):', parsedCategories.length, 'categories');
+        // Add custom glass category if user has access to glass module
+        const categoriesWithGlass = [...parsedCategories];
+        
+        // Check if custom-glass category already exists
+        const hasGlassCategory = categoriesWithGlass.some(cat => cat.id === 'custom-glass');
+        
+        // Add glass category if not present (user has glass module access)
+        if (!hasGlassCategory) {
+          categoriesWithGlass.push({
+            id: 'custom-glass',
+            name: 'Custom Glass',
+            description: 'Custom glass products and configurations',
+            color: '#10B981',
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subcategories: []
+          });
+        }
+        
+        setCategories(categoriesWithGlass);
+        console.log('Order page: Loaded categories from database API + glass module:', categoriesWithGlass.length, 'categories');
+        console.log('📂 Order: Category names:', categoriesWithGlass.map(c => c.name));
       } else {
         // Restore user's EXACT categories from backup template service
         const exactUserCategories = [
@@ -696,6 +727,10 @@ export default function NewOrderPage() {
         localStorage.setItem('saleskik-categories', JSON.stringify(exactUserCategories));
         console.log('Order page: Restored user\'s EXACT categories from backup template service:', exactUserCategories.length, 'categories');
       }
+    } else {
+      console.warn('Order: API call failed or returned no success');
+      setCategories([]);
+    }
     } catch (error) {
       console.error('Error loading categories:', error);
       setCategories([]);
@@ -1460,6 +1495,72 @@ export default function NewOrderPage() {
                             color: sub.color
                           }))}
                           onChange={(value) => handleSubcategorySelectionAtLevel(0, value)}
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Level 1 Dropdown */}
+                  {selectedPath[0] && (() => {
+                    const level1Options = getSubcategoriesAtLevel(1, selectedPath[0]?.id);
+                    
+                    if (level1Options.length > 0) {
+                      return (
+                        <CustomDropdown
+                          label="Type"
+                          value={selectedPath[1]?.id || ''}
+                          placeholder="Select type..."
+                          options={level1Options.map((sub: any) => ({
+                            value: sub.id,
+                            label: sub.name,
+                            color: sub.color
+                          }))}
+                          onChange={(value) => handleSubcategorySelectionAtLevel(1, value)}
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Level 2 Dropdown */}
+                  {selectedPath[1] && (() => {
+                    const level2Options = getSubcategoriesAtLevel(2, selectedPath[1]?.id);
+                    
+                    if (level2Options.length > 0) {
+                      return (
+                        <CustomDropdown
+                          label="Specification"
+                          value={selectedPath[2]?.id || ''}
+                          placeholder="Select specification..."
+                          options={level2Options.map((sub: any) => ({
+                            value: sub.id,
+                            label: sub.name,
+                            color: sub.color
+                          }))}
+                          onChange={(value) => handleSubcategorySelectionAtLevel(2, value)}
+                        />
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Level 3 Dropdown */}
+                  {selectedPath[2] && (() => {
+                    const level3Options = getSubcategoriesAtLevel(3, selectedPath[2]?.id);
+                    
+                    if (level3Options.length > 0) {
+                      return (
+                        <CustomDropdown
+                          label="Option"
+                          value={selectedPath[3]?.id || ''}
+                          placeholder="Select option..."
+                          options={level3Options.map((sub: any) => ({
+                            value: sub.id,
+                            label: sub.name,
+                            color: sub.color
+                          }))}
+                          onChange={(value) => handleSubcategorySelectionAtLevel(3, value)}
                         />
                       );
                     }
