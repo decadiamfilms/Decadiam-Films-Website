@@ -89,6 +89,72 @@ app.get('/api/categories', async (_req, res) => {
   }
 });
 
+// Alternative route for dataService compatibility
+app.get('/api/category/structure', async (_req, res) => {
+  try {
+    console.log('🔍 CategoryStructure: Loading categories for company: 0e573687-3b53-498a-9e78-f198f16f8bcb');
+    
+    const categories = await prisma.category.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb',
+        is_active: true 
+      },
+      include: {
+        subcategories: {
+          where: { is_visible: true },
+          orderBy: [
+            { level: 'asc' },
+            { sort_order: 'asc' }
+          ]
+        }
+      },
+      orderBy: { sort_order: 'asc' }
+    });
+
+    console.log('📋 CategoryStructure: Raw categories from database:', categories.length);
+
+    const frontendCategories = categories.map(category => {
+      console.log(`🔍 Processing category: ${category.name} with ${category.subcategories.length} subcategories`);
+      
+      const subcategories = category.subcategories.map(sub => ({
+        id: sub.id,
+        name: sub.name,
+        categoryId: category.id,
+        parentId: sub.parent_id,
+        color: sub.color,
+        isVisible: sub.is_visible,
+        sortOrder: sub.sort_order,
+        level: sub.level,
+        options: [],
+        linkedFinalProducts: []
+      }));
+
+      return {
+        id: category.id,
+        name: category.name,
+        color: category.color,
+        isActive: category.is_active,
+        isStructureComplete: category.is_structure_complete,
+        subcategories,
+        specialItems: [],
+        createdBy: 'database',
+        createdAt: category.created_at,
+        updatedAt: category.updated_at
+      };
+    });
+
+    console.log('✅ CategoryStructure: Successfully transformed', frontendCategories.length, 'categories');
+    if (frontendCategories.length > 0) {
+      console.log('📂 CategoryStructure: Categories:', frontendCategories.map(c => c.name).join(', '));
+    }
+
+    res.json(frontendCategories);
+  } catch (error) {
+    console.error('❌ CategoryStructure: Error loading categories:', error);
+    res.status(500).json({ error: 'Failed to load categories' });
+  }
+});
+
 app.post('/api/categories', async (req, res) => {
   try {
     const companyId = '0e573687-3b53-498a-9e78-f198f16f8bcb';
