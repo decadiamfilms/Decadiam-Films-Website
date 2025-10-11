@@ -698,6 +698,233 @@ app.get('/api/invoices', async (_req, res) => {
   }
 });
 
+// System Modules API - Get available modules for onboarding
+app.get('/api/modules', async (_req, res) => {
+  try {
+    console.log('🧩 Modules API: Fetching system modules');
+    
+    const modules = await prisma.systemModule.findMany({
+      where: { is_active: true },
+      orderBy: [
+        { is_core: 'desc' }, // Core modules first
+        { category: 'asc' },
+        { name: 'asc' }
+      ]
+    });
+
+    console.log('✅ Modules API: Found', modules.length, 'modules');
+
+    const transformedModules = modules.map(module => ({
+      id: module.id,
+      name: module.name,
+      description: module.description,
+      category: module.category,
+      isCore: module.is_core,
+      pricingTier: module.pricing_tier,
+      isActive: module.is_active
+    }));
+
+    res.json({
+      success: true,
+      data: transformedModules
+    });
+  } catch (error: any) {
+    console.error('❌ Modules API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Company Modules API - Get modules for a specific company
+app.get('/api/companies/:companyId/modules', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    console.log('🏢 Company Modules API: Fetching for company', companyId);
+    
+    const companyModules = await prisma.companyModule.findMany({
+      where: { 
+        company_id: companyId,
+        is_active: true 
+      },
+      include: {
+        module: true
+      }
+    });
+
+    console.log('✅ Company Modules API: Found', companyModules.length, 'active modules');
+
+    const transformedModules = companyModules.map(cm => ({
+      id: cm.module.id,
+      name: cm.module.name,
+      description: cm.module.description,
+      category: cm.module.category,
+      isCore: cm.module.is_core,
+      pricingTier: cm.module.pricing_tier,
+      activatedAt: cm.activated_at,
+      isActive: cm.is_active
+    }));
+
+    res.json({
+      success: true,
+      data: transformedModules
+    });
+  } catch (error: any) {
+    console.error('❌ Company Modules API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Company Settings API - Get/Set company settings
+app.get('/api/companies/:companyId/settings', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    console.log('⚙️ Settings API: Fetching for company', companyId);
+    
+    const settings = await prisma.companySetting.findMany({
+      where: { company_id: companyId }
+    });
+
+    console.log('✅ Settings API: Found', settings.length, 'settings');
+
+    // Transform to key-value object
+    const settingsObj = settings.reduce((acc, setting) => {
+      acc[setting.setting_key] = setting.setting_value;
+      return acc;
+    }, {} as any);
+
+    res.json({
+      success: true,
+      data: settingsObj
+    });
+  } catch (error: any) {
+    console.error('❌ Settings API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.put('/api/companies/:companyId/settings', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const settings = req.body;
+    
+    console.log('💾 Settings API: Updating settings for company', companyId);
+
+    // Update each setting
+    for (const [key, value] of Object.entries(settings)) {
+      await prisma.companySetting.upsert({
+        where: {
+          company_id_setting_key: {
+            company_id: companyId,
+            setting_key: key
+          }
+        },
+        update: { setting_value: value as any },
+        create: {
+          company_id: companyId,
+          setting_key: key,
+          setting_value: value as any
+        }
+      });
+    }
+
+    console.log('✅ Settings API: Updated', Object.keys(settings).length, 'settings');
+
+    res.json({
+      success: true,
+      message: 'Settings updated successfully'
+    });
+  } catch (error: any) {
+    console.error('❌ Settings API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Onboarding Progress API - Track onboarding steps
+app.get('/api/onboarding/progress/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    console.log('🎯 Onboarding API: Fetching progress for company', companyId);
+    
+    const progress = await prisma.onboardingProgress.findUnique({
+      where: { company_id: companyId }
+    });
+
+    if (!progress) {
+      // Create initial progress record
+      const newProgress = await prisma.onboardingProgress.create({
+        data: {
+          company_id: companyId,
+          current_step: 0,
+          completed_steps: [],
+          selected_modules: [],
+          payment_profiles: []
+        }
+      });
+
+      res.json({
+        success: true,
+        data: newProgress
+      });
+      return;
+    }
+
+    console.log('✅ Onboarding API: Progress found, step', progress.current_step);
+
+    res.json({
+      success: true,
+      data: progress
+    });
+  } catch (error: any) {
+    console.error('❌ Onboarding API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.put('/api/onboarding/progress/:companyId', async (req, res) => {
+  try {
+    const { companyId } = req.params;
+    const updateData = req.body;
+    
+    console.log('📝 Onboarding API: Updating progress for company', companyId);
+
+    const progress = await prisma.onboardingProgress.upsert({
+      where: { company_id: companyId },
+      update: updateData,
+      create: {
+        company_id: companyId,
+        ...updateData
+      }
+    });
+
+    console.log('✅ Onboarding API: Progress updated to step', progress.current_step);
+
+    res.json({
+      success: true,
+      data: progress
+    });
+  } catch (error: any) {
+    console.error('❌ Onboarding Progress Update Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Minimal Categories & Customers Server running on port ${PORT}`);
   console.log('📝 Environment: development');

@@ -33,6 +33,12 @@ model Company {
   userGroups  UserGroup[]
   categories  Category[]
   
+  // New Onboarding Relations
+  settings            CompanySetting[]
+  modules             CompanyModule[]
+  onboarding_progress OnboardingProgress?
+  notifications       Notification[]
+  
   @@map("companies")
 }
 
@@ -55,6 +61,7 @@ model User {
   // Relations
   authSessions AuthSession[]
   groupMemberships UserGroupMembership[]
+  notifications Notification[]
   
   @@map("users")
 }
@@ -491,4 +498,106 @@ model Subcategory {
   updated_at      DateTime   @updatedAt @map("updated_at")
   
   @@map("subcategories")
+}
+
+// Company Settings - Store key-value configuration for each company
+model CompanySetting {
+  id          String   @id @default(uuid())
+  company_id  String   @map("company_id")
+  company     Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  setting_key String   @map("setting_key")
+  setting_value Json?  @map("setting_value")
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+  
+  @@unique([company_id, setting_key])
+  @@map("company_settings")
+}
+
+// System Modules - Available features/modules in the system
+model SystemModule {
+  id            String   @id @default(uuid())
+  name          String   @unique
+  description   String?
+  category      String?  // 'TRADIES', 'SME', 'UNIVERSAL'
+  is_core       Boolean  @default(false) @map("is_core")
+  pricing_tier  String   @default("BASIC") @map("pricing_tier")
+  is_active     Boolean  @default(true) @map("is_active")
+  created_at    DateTime @default(now()) @map("created_at")
+  updated_at    DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  company_modules CompanyModule[]
+  
+  @@map("system_modules")
+}
+
+// Company Module Subscriptions - Which modules each company has activated
+model CompanyModule {
+  id           String       @id @default(uuid())
+  company_id   String       @map("company_id")
+  company      Company      @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  module_id    String       @map("module_id")
+  module       SystemModule @relation(fields: [module_id], references: [id], onDelete: Cascade)
+  is_active    Boolean      @default(true) @map("is_active")
+  activated_at DateTime     @default(now()) @map("activated_at")
+  created_at   DateTime     @default(now()) @map("created_at")
+  updated_at   DateTime     @updatedAt @map("updated_at")
+  
+  @@unique([company_id, module_id])
+  @@map("company_modules")
+}
+
+// Onboarding Progress - Track company onboarding steps
+model OnboardingProgress {
+  id                String   @id @default(uuid())
+  company_id        String   @unique @map("company_id")
+  company           Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  current_step      Int      @default(0) @map("current_step")
+  completed_steps   Json     @default("[]") @map("completed_steps")
+  target_market     String?  @map("target_market") // 'TRADIES', 'SME'
+  industry_type     String?  @map("industry_type")
+  team_size         String?  @map("team_size")
+  selected_modules  Json     @default("[]") @map("selected_modules")
+  payment_profiles  Json     @default("[]") @map("payment_profiles")
+  is_completed      Boolean  @default(false) @map("is_completed")
+  completed_at      DateTime? @map("completed_at")
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+  
+  @@map("onboarding_progress")
+}
+
+// Email Templates - Store system email templates
+model EmailTemplate {
+  id            String   @id @default(uuid())
+  template_key  String   @unique @map("template_key")
+  subject       String
+  html_content  String?  @map("html_content")
+  text_content  String?  @map("text_content")
+  variables     Json?    @default("{}") // Store template variables
+  is_active     Boolean  @default(true) @map("is_active")
+  created_at    DateTime @default(now()) @map("created_at")
+  updated_at    DateTime @updatedAt @map("updated_at")
+  
+  @@map("email_templates")
+}
+
+// Notifications - System notifications for users
+model Notification {
+  id         String   @id @default(uuid())
+  company_id String?  @map("company_id")
+  company    Company? @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user_id    String?  @map("user_id")
+  user       User?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  type       String   // 'welcome', 'trial_expiring', 'module_activated', etc.
+  title      String
+  message    String?
+  data       Json?    @default("{}")
+  is_read    Boolean  @default(false) @map("is_read")
+  read_at    DateTime? @map("read_at")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  
+  @@map("notifications")
 }
