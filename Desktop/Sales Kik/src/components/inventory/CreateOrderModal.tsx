@@ -3,6 +3,7 @@ import {
   XMarkIcon, PlusIcon, TrashIcon, MagnifyingGlassIcon,
   DocumentArrowUpIcon, ExclamationTriangleIcon, CheckCircleIcon
 } from '@heroicons/react/24/outline';
+import { dataService } from '../../services/api.service';
 
 interface LineItem {
   id: string;
@@ -16,10 +17,18 @@ interface LineItem {
 
 interface Supplier {
   id: string;
-  supplierName: string;
-  emailAddress: string;
-  isLocalGlassSupplier: boolean;
-  performanceRating: number;
+  name: string; // Database uses 'name' not 'supplierName'
+  email: string;
+  supplierType?: string;
+  status: string;
+  supplierProducts?: any[];
+  primaryContact?: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
+  isLocalGlassSupplier?: boolean; // Keep for backward compatibility
+  performanceRating?: number; // Keep for backward compatibility
 }
 
 interface Customer {
@@ -50,6 +59,10 @@ export function CreateOrderModal({ isOpen, onClose, onSubmit }: CreateOrderModal
   const [customerSearch, setCustomerSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [approvalRequired, setApprovalRequired] = useState(false);
+  
+  // Real suppliers from database
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
 
   // Mock data
   const mockCustomers: Customer[] = [
@@ -59,12 +72,31 @@ export function CreateOrderModal({ isOpen, onClose, onSubmit }: CreateOrderModal
     { id: '4', customerName: 'Residential Homes Ltd' }
   ];
 
-  const mockSuppliers: Supplier[] = [
-    { id: '1', supplierName: 'Sydney Glass Co', emailAddress: 'orders@sydneyglass.com.au', isLocalGlassSupplier: true, performanceRating: 4.8 },
-    { id: '2', supplierName: 'Premium Glass Solutions', emailAddress: 'sales@premiumglass.com', isLocalGlassSupplier: true, performanceRating: 4.5 },
-    { id: '3', supplierName: 'Hardware Direct', emailAddress: 'orders@hardwaredirect.com.au', isLocalGlassSupplier: false, performanceRating: 4.2 },
-    { id: '4', supplierName: 'Steel Works Ltd', emailAddress: 'purchasing@steelworks.com', isLocalGlassSupplier: false, performanceRating: 4.6 }
-  ];
+  // Load suppliers from database
+  const loadSuppliers = async () => {
+    try {
+      console.log('📦 CreateOrderModal: Loading suppliers from database...');
+      const suppliersData = await dataService.suppliers.getAll();
+      console.log('✅ CreateOrderModal: Loaded suppliers:', suppliersData.length);
+      
+      // Transform suppliers to include backward compatibility fields
+      const transformedSuppliers = suppliersData
+        .filter(supplier => supplier.status === 'active') // Only active suppliers
+        .map(supplier => ({
+          ...supplier,
+          isLocalGlassSupplier: supplier.supplierType === 'Manufacturer' || supplier.supplierType === 'Wholesaler',
+          performanceRating: 4.5 // Default rating - could be enhanced later
+        }));
+      
+      setSuppliers(transformedSuppliers);
+      setLoadingSuppliers(false);
+      console.log('✅ CreateOrderModal: Suppliers ready for selection');
+    } catch (error) {
+      console.error('❌ CreateOrderModal: Failed to load suppliers:', error);
+      setLoadingSuppliers(false);
+      // Keep empty array - user can still create orders without supplier selection
+    }
+  };
 
   const mockProducts = [
     { id: '1', name: '10mm Tempered Glass Panel', sku: 'GLASS-10MM-TEMP', price: 285.00, isCustomGlass: true },
@@ -91,16 +123,23 @@ export function CreateOrderModal({ isOpen, onClose, onSubmit }: CreateOrderModal
     setApprovalRequired(totalAmount > 2000);
   }, [totalAmount]);
 
+  // Load suppliers when modal opens
+  useEffect(() => {
+    if (isOpen && suppliers.length === 0 && loadingSuppliers) {
+      loadSuppliers();
+    }
+  }, [isOpen]);
+
   // Auto-detect glass supplier when custom glass is added
   useEffect(() => {
     const hasCustomGlass = orderData.lineItems.some(item => item.customModuleFlag);
-    if (hasCustomGlass && !orderData.supplier) {
-      const glassSupplier = mockSuppliers.find(s => s.isLocalGlassSupplier);
+    if (hasCustomGlass && !orderData.supplier && suppliers.length > 0) {
+      const glassSupplier = suppliers.find(s => s.isLocalGlassSupplier);
       if (glassSupplier) {
         setOrderData(prev => ({ ...prev, supplier: glassSupplier }));
       }
     }
-  }, [orderData.lineItems]);
+  }, [orderData.lineItems, suppliers]);
 
   const addLineItem = (product: any) => {
     const newItem: LineItem = {
@@ -394,20 +433,64 @@ export function CreateOrderModal({ isOpen, onClose, onSubmit }: CreateOrderModal
                 </div>
               )}
 
-              {/* Supplier Auto-detection */}
-              {orderData.supplier && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <CheckCircleIcon className="w-5 h-5 text-blue-600 mt-1" />
-                    <div>
-                      <div className="font-medium text-blue-900">Custom glass item detected - local supplier auto-selected</div>
-                      <div className="text-sm text-blue-800 mt-1">
-                        <strong>{orderData.supplier.supplierName}</strong> - {orderData.supplier.performanceRating}/5 stars
+              {/* Supplier Selection */}
+              <div>
+                <h4 className="text-md font-semibold text-gray-900 mb-3">Supplier Selection</h4>
+                
+                {loadingSuppliers ? (
+                  <div className="text-sm text-gray-600">Loading suppliers...</div>
+                ) : suppliers.length === 0 ? (
+                  <div className="text-sm text-amber-600">No active suppliers found. Orders will need supplier assignment later.</div>
+                ) : (
+                  <div className="space-y-3">
+                    {/* Current selected supplier */}
+                    {orderData.supplier && (
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="flex items-start gap-3">
+                          <CheckCircleIcon className="w-5 h-5 text-green-600 mt-1" />
+                          <div className="flex-1">
+                            <div className="font-medium text-green-900">Selected: {orderData.supplier.name}</div>
+                            <div className="text-sm text-green-700 mt-1">
+                              {orderData.supplier.email} • {orderData.supplier.performanceRating}/5 stars
+                            </div>
+                            {orderData.lineItems.some(item => item.customModuleFlag) && (
+                              <div className="text-xs text-blue-600 mt-1">Auto-selected for custom glass items</div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setOrderData(prev => ({ ...prev, supplier: null }))}
+                            className="text-green-600 hover:text-green-800 text-sm underline"
+                          >
+                            Change
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
+                    
+                    {/* Supplier selection dropdown when none selected */}
+                    {!orderData.supplier && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Choose Supplier *</label>
+                        <div className="grid gap-2 max-h-48 overflow-y-auto">
+                          {suppliers.map((supplier) => (
+                            <div
+                              key={supplier.id}
+                              onClick={() => setOrderData(prev => ({ ...prev, supplier }))}
+                              className="p-3 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 cursor-pointer transition-colors"
+                            >
+                              <div className="font-medium text-gray-900">{supplier.name}</div>
+                              <div className="text-sm text-gray-600">{supplier.email}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                {supplier.supplierType} • {supplier.performanceRating}/5 stars
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               <div className="flex justify-between">
                 <button
