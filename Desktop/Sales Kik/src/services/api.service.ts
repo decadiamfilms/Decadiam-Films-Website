@@ -823,6 +823,32 @@ export const dataService = {
       }
     },
 
+    update: async (id: string, supplierData: any) => {
+      try {
+        console.log('📝 Updating supplier via API:', id, supplierData.name);
+        const response = await fetch(`${API_BASE}/api/suppliers/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(supplierData)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Supplier updated successfully:', result.data.id);
+          return result.data;
+        } else {
+          const error = await response.json();
+          console.error('❌ Failed to update supplier:', error);
+          throw new Error(error.error || 'Failed to update supplier');
+        }
+      } catch (error) {
+        console.error('❌ Supplier update error:', error);
+        throw error;
+      }
+    },
+
     delete: async (id: string) => {
       try {
         console.log('🗑️ Deleting supplier:', id);

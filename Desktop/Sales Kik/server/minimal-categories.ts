@@ -1137,6 +1137,127 @@ app.post('/api/suppliers', async (req, res) => {
   }
 });
 
+app.put('/api/suppliers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supplierData = req.body;
+    
+    console.log('📝 Updating supplier:', id, supplierData.name);
+
+    // Update supplier with all fields
+    const updatedSupplier = await prisma.supplier.update({
+      where: { id },
+      data: {
+        name: supplierData.name,
+        mobile: supplierData.mobile,
+        email: supplierData.email,
+        accounting_id: supplierData.accountingId,
+        
+        // Primary contact
+        primary_contact_first_name: supplierData.primaryContact?.firstName,
+        primary_contact_last_name: supplierData.primaryContact?.lastName,
+        primary_contact_position: supplierData.primaryContact?.position,
+        primary_contact_email: supplierData.primaryContact?.email,
+        primary_contact_landline: supplierData.primaryContact?.landline,
+        primary_contact_fax: supplierData.primaryContact?.fax,
+        primary_contact_mobile: supplierData.primaryContact?.mobile,
+        
+        // Addresses
+        mailing_address: supplierData.mailingAddress,
+        billing_address: supplierData.billingAddress,
+        delivery_address: supplierData.deliveryAddress,
+        
+        // Category
+        primary_category_id: supplierData.primaryCategoryId,
+        
+        is_active: supplierData.isActive ?? true
+      },
+      include: {
+        primary_category: true,
+        additional_contacts: true,
+        addresses: true
+      }
+    });
+
+    // Update additional contacts - delete and recreate
+    await prisma.supplierContact.deleteMany({
+      where: { supplier_id: id }
+    });
+    
+    if (supplierData.additionalContacts && Array.isArray(supplierData.additionalContacts)) {
+      for (const contact of supplierData.additionalContacts) {
+        await prisma.supplierContact.create({
+          data: {
+            supplier_id: id,
+            first_name: contact.firstName,
+            last_name: contact.lastName,
+            position: contact.position,
+            email: contact.email,
+            landline: contact.landline,
+            fax: contact.fax,
+            mobile: contact.mobile
+          }
+        });
+      }
+    }
+
+    // Update additional addresses - delete and recreate  
+    await prisma.supplierAddress.deleteMany({
+      where: { supplier_id: id }
+    });
+    
+    if (supplierData.addresses && Array.isArray(supplierData.addresses)) {
+      for (const address of supplierData.addresses) {
+        await prisma.supplierAddress.create({
+          data: {
+            supplier_id: id,
+            address_type: address.addressType,
+            usage_type: address.usageType,
+            unit_number: address.unitNumber,
+            street_number: address.streetNumber,
+            street_name: address.streetName,
+            city: address.city,
+            state: address.state,
+            postcode: address.postcode,
+            country: address.country || 'Australia',
+            is_primary: address.isPrimary || false
+          }
+        });
+      }
+    }
+
+    // Update supplier products - delete and recreate
+    await prisma.supplierProduct.deleteMany({
+      where: { supplier_id: id }
+    });
+    
+    if (supplierData.selectedProducts && Array.isArray(supplierData.selectedProducts)) {
+      for (const productId of supplierData.selectedProducts) {
+        await prisma.supplierProduct.create({
+          data: {
+            supplier_id: id,
+            product_id: productId,
+            is_active: true
+          }
+        });
+      }
+    }
+
+    console.log('✅ Supplier updated successfully:', updatedSupplier.id);
+
+    res.json({
+      success: true,
+      data: updatedSupplier
+    });
+  } catch (error: any) {
+    console.error('❌ Suppliers UPDATE Error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 app.delete('/api/suppliers/:id', async (req, res) => {
   try {
     const { id } = req.params;
