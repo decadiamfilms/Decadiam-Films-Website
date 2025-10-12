@@ -1109,16 +1109,30 @@ app.post('/api/suppliers', async (req, res) => {
       }
     }
 
-    // Link to products if specified
+    // Link to products if specified - with validation
     if (supplierData.selectedProducts && Array.isArray(supplierData.selectedProducts)) {
       for (const productId of supplierData.selectedProducts) {
-        await prisma.supplierProduct.create({
-          data: {
-            supplier_id: newSupplier.id,
-            product_id: productId,
-            is_active: true
+        try {
+          // Check if product exists before creating relationship
+          const productExists = await prisma.product.findUnique({
+            where: { id: productId }
+          });
+          
+          if (productExists) {
+            await prisma.supplierProduct.create({
+              data: {
+                supplier_id: newSupplier.id,
+                product_id: productId,
+                is_active: true
+              }
+            });
+            console.log('✅ Linked supplier to product:', productExists.name);
+          } else {
+            console.warn('⚠️ Product not found, skipping:', productId);
           }
-        });
+        } catch (error) {
+          console.error('❌ Error linking product to supplier:', error);
+        }
       }
     }
 
@@ -1226,20 +1240,34 @@ app.put('/api/suppliers/:id', async (req, res) => {
       }
     }
 
-    // Update supplier products - delete and recreate
+    // Update supplier products - delete and recreate with validation
     await prisma.supplierProduct.deleteMany({
       where: { supplier_id: id }
     });
     
     if (supplierData.selectedProducts && Array.isArray(supplierData.selectedProducts)) {
       for (const productId of supplierData.selectedProducts) {
-        await prisma.supplierProduct.create({
-          data: {
-            supplier_id: id,
-            product_id: productId,
-            is_active: true
+        try {
+          // Check if product exists before creating relationship
+          const productExists = await prisma.product.findUnique({
+            where: { id: productId }
+          });
+          
+          if (productExists) {
+            await prisma.supplierProduct.create({
+              data: {
+                supplier_id: id,
+                product_id: productId,
+                is_active: true
+              }
+            });
+            console.log('✅ Updated supplier-product link:', productExists.name);
+          } else {
+            console.warn('⚠️ Product not found for supplier update, skipping:', productId);
           }
-        });
+        } catch (error) {
+          console.error('❌ Error updating supplier-product link:', error);
+        }
       }
     }
 
