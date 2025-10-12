@@ -962,19 +962,19 @@ app.get('/api/suppliers', async (_req, res) => {
       phone: supplier.mobile || '',
       email: supplier.email || '',
       
-      // Primary Contact - matching SupplierContact interface
+      // Primary Contact - matching SupplierContact interface with full null checking
       primaryContact: {
         id: supplier.id + '-primary',
-        firstName: supplier.primary_contact_first_name || '',
-        lastName: supplier.primary_contact_last_name || '',
-        email: supplier.primary_contact_email || '',
+        firstName: supplier.primary_contact_first_name || supplier.name?.split(' ')[0] || '',
+        lastName: supplier.primary_contact_last_name || supplier.name?.split(' ')[1] || '',
+        email: supplier.primary_contact_email || supplier.email || '',
         landline: supplier.primary_contact_landline || '',
         fax: supplier.primary_contact_fax || '',
-        mobile: supplier.primary_contact_mobile || ''
+        mobile: supplier.primary_contact_mobile || supplier.mobile || ''
       },
       
-      // Locations from addresses - convert to SupplierLocation format
-      locations: supplier.addresses.map(addr => ({
+      // Locations from addresses - convert to SupplierLocation format with null checking
+      locations: (supplier.addresses || []).map(addr => ({
         id: addr.id,
         type: addr.address_type as any,
         isMailingAddress: addr.address_type === 'Mailing',
@@ -989,11 +989,11 @@ app.get('/api/suppliers', async (_req, res) => {
         country: addr.country || 'Australia'
       })),
       
-      // Additional contacts - convert to SupplierContact format
-      additionalContacts: supplier.additional_contacts.map(contact => ({
+      // Additional contacts - convert to SupplierContact format with null checking
+      additionalContacts: (supplier.additional_contacts || []).map(contact => ({
         id: contact.id,
-        firstName: contact.first_name,
-        lastName: contact.last_name,
+        firstName: contact.first_name || '',
+        lastName: contact.last_name || '',
         email: contact.email || '',
         landline: contact.landline || '',
         fax: contact.fax || '',
