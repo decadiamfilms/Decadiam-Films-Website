@@ -724,5 +724,121 @@ export const dataService = {
         return updated.find((t: any) => t.id === id);
       }
     }
+  },
+
+  suppliers: {
+    getAll: async () => {
+      try {
+        console.log('🏭 dataService: Fetching suppliers from database API...');
+        const response = await fetch(`${API_BASE}/api/suppliers`);
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ dataService: Suppliers successfully received from database:', result.data?.length || 0, 'suppliers');
+          return result.data || [];
+        } else {
+          console.error('❌ dataService: Suppliers API response failed:', response.status, response.statusText);
+          throw new Error(`Failed to load suppliers: ${response.status}`);
+        }
+      } catch (error) {
+        console.warn('❌ dataService: Suppliers API call failed, checking localStorage fallback:', error);
+        const saved = localStorage.getItem('saleskik-suppliers');
+        if (saved) {
+          console.log('📁 dataService: Using localStorage fallback with', JSON.parse(saved).length, 'suppliers');
+          return JSON.parse(saved);
+        } else {
+          console.log('📁 dataService: No localStorage suppliers data found, returning empty array');
+          return [];
+        }
+      }
+    },
+
+    save: async (suppliers: any[]) => {
+      try {
+        console.log('💾 DataService: Saving suppliers (database-first):', suppliers.length, 'suppliers');
+        
+        // Always save to localStorage as backup first
+        localStorage.setItem('saleskik-suppliers', JSON.stringify(suppliers));
+        
+        // Try to sync to database
+        let successCount = 0;
+        for (const supplier of suppliers) {
+          if (supplier.id && !supplier.synced) {
+            try {
+              console.log('💾 Syncing supplier to database:', supplier.name);
+              const response = await fetch(`${API_BASE}/api/suppliers`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(supplier)
+              });
+              
+              if (response.ok) {
+                console.log('✅ Supplier synced to database successfully');
+                supplier.synced = true;
+                successCount++;
+              } else {
+                console.error('❌ Failed to sync supplier to database');
+              }
+            } catch (error) {
+              console.error('❌ Database sync error for supplier:', error);
+            }
+          }
+        }
+        
+        if (successCount > 0) {
+          console.log(`✅ Successfully synced ${successCount}/${suppliers.length} suppliers to database`);
+          // Update localStorage with synced status
+          localStorage.setItem('saleskik-suppliers', JSON.stringify(suppliers));
+        }
+      } catch (error) {
+        console.error('❌ Error saving suppliers:', error);
+      }
+    },
+
+    create: async (supplierData: any) => {
+      try {
+        console.log('🏭 Creating new supplier via API:', supplierData.name);
+        const response = await fetch(`${API_BASE}/api/suppliers`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(supplierData)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Supplier created successfully:', result.data.id);
+          return result.data;
+        } else {
+          const error = await response.json();
+          console.error('❌ Failed to create supplier:', error);
+          throw new Error(error.error || 'Failed to create supplier');
+        }
+      } catch (error) {
+        console.error('❌ Supplier creation error:', error);
+        throw error;
+      }
+    },
+
+    delete: async (id: string) => {
+      try {
+        console.log('🗑️ Deleting supplier:', id);
+        const response = await fetch(`${API_BASE}/api/suppliers/${id}`, {
+          method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to delete supplier');
+        }
+        
+        console.log('✅ Supplier deleted successfully');
+      } catch (error) {
+        console.error('❌ Error deleting supplier:', error);
+        throw error;
+      }
+    }
   }
 };
