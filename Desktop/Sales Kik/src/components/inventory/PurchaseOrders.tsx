@@ -21,6 +21,7 @@ import {
   CogIcon, ShieldExclamationIcon, TruckIcon, ArchiveBoxIcon,
   ExclamationCircleIcon, InformationCircleIcon
 } from '@heroicons/react/24/outline';
+import { dataService } from '../../services/api.service';
 
 interface PurchaseOrder {
   id: string;
@@ -67,7 +68,12 @@ export function PurchaseOrders() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [supplierFilter, setSupplierFilter] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Real suppliers for filtering
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(true);
   const [showNewOrderModal, setShowNewOrderModal] = useState(false);
   
   // Enterprise feature modals
@@ -85,6 +91,25 @@ export function PurchaseOrders() {
   
   // WebSocket for real-time updates
   const { connectionStatus, messages } = usePurchaseOrderWebSocket();
+
+  // Load suppliers from database for filtering
+  const loadSuppliers = async () => {
+    try {
+      console.log('📦 PurchaseOrders: Loading suppliers for filter dropdown...');
+      const suppliersData = await dataService.suppliers.getAll();
+      console.log('✅ PurchaseOrders: Loaded suppliers:', suppliersData.length);
+      
+      // Only include active suppliers
+      const activeSuppliers = suppliersData.filter(supplier => supplier.status === 'active');
+      setSuppliers(activeSuppliers);
+      setLoadingSuppliers(false);
+      console.log('✅ PurchaseOrders: Active suppliers ready for filtering:', activeSuppliers.length);
+    } catch (error) {
+      console.error('❌ PurchaseOrders: Failed to load suppliers:', error);
+      setLoadingSuppliers(false);
+      setSuppliers([]); // Empty array on error
+    }
+  };
 
   // Enhanced mock data following the user journey
   useEffect(() => {
@@ -170,6 +195,9 @@ export function PurchaseOrders() {
       setOrders(mockOrders);
       setLoading(false);
     }, 500);
+    
+    // Load suppliers for filtering
+    loadSuppliers();
   }, []);
   
   // Handle WebSocket messages for real-time updates
@@ -224,7 +252,8 @@ export function PurchaseOrders() {
                          (order.customerReference?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || order.priority === priorityFilter;
-    return matchesSearch && matchesStatus && matchesPriority;
+    const matchesSupplier = supplierFilter === 'all' || order.supplierName === supplierFilter;
+    return matchesSearch && matchesStatus && matchesPriority && matchesSupplier;
   });
 
   const getStatusBadge = (order: PurchaseOrder) => {
@@ -348,6 +377,42 @@ export function PurchaseOrders() {
                   <option value="RECEIVED">Received</option>
                   <option value="CANCELLED">Cancelled</option>
                 </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All Priorities</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Supplier</label>
+                {loadingSuppliers ? (
+                  <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500">
+                    Loading suppliers...
+                  </div>
+                ) : (
+                  <select
+                    value={supplierFilter}
+                    onChange={(e) => setSupplierFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="all">All Suppliers</option>
+                    {suppliers.map((supplier) => (
+                      <option key={supplier.id} value={supplier.name}>
+                        {supplier.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </div>

@@ -123,12 +123,25 @@ export function CreateOrderModal({ isOpen, onClose, onSubmit }: CreateOrderModal
     setApprovalRequired(totalAmount > 2000);
   }, [totalAmount]);
 
-  // Load suppliers when modal opens
+  // Load suppliers when modal opens - Enhanced debugging
   useEffect(() => {
+    console.log('🔍 CreateOrderModal: useEffect triggered', {
+      isOpen,
+      suppliersLength: suppliers.length,
+      loadingSuppliers
+    });
+    
     if (isOpen && suppliers.length === 0 && loadingSuppliers) {
+      console.log('🚀 CreateOrderModal: Conditions met, calling loadSuppliers()');
       loadSuppliers();
+    } else {
+      console.log('❌ CreateOrderModal: Conditions not met for loading suppliers', {
+        isOpen,
+        suppliersLength: suppliers.length, 
+        loadingSuppliers
+      });
     }
-  }, [isOpen]);
+  }, [isOpen, suppliers.length, loadingSuppliers]);
 
   // Auto-detect glass supplier when custom glass is added
   useEffect(() => {
