@@ -5,6 +5,7 @@ import UniversalHeader from '../../components/layout/UniversalHeader';
 import { useCategoryStructure } from '../../hooks/useCategoryStructure';
 import AdminConnectedGlassQuote from '../../components/glass/AdminConnectedGlassQuote';
 import PurchaseOrderModal from '../../components/inventory/PurchaseOrderModal';
+import { dataService } from '../../services/api.service';
 import { 
   PlusIcon, MagnifyingGlassIcon, XMarkIcon, BuildingOfficeIcon,
   ChevronDownIcon, InformationCircleIcon, CubeIcon,
@@ -238,41 +239,45 @@ function SupplierSearch({ value, onChange }: { value: Supplier | null; onChange:
   const [searchTerm, setSearchTerm] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
 
+  // Load real suppliers from database
+  const loadSuppliersFromDatabase = async () => {
+    try {
+      console.log('📦 SupplierSearch: Loading suppliers from database...');
+      const suppliersData = await dataService.suppliers.getAll();
+      console.log('✅ SupplierSearch: Loaded suppliers:', suppliersData.length);
+      
+      // Transform database suppliers to match expected interface format
+      const transformedSuppliers = suppliersData
+        .filter((supplier: any) => supplier.status === 'active')
+        .map((supplier: any) => ({
+          id: supplier.id,
+          supplierName: supplier.name,
+          supplierCode: supplier.accountingId || supplier.id.slice(0, 8).toUpperCase(),
+          contactPerson: supplier.primaryContact ? 
+            `${supplier.primaryContact.firstName} ${supplier.primaryContact.lastName}` : 
+            'Contact Available',
+          emailAddress: supplier.email,
+          phoneNumber: supplier.phone || supplier.primaryContact?.mobile || '',
+          paymentTerms: '30 days', // Default - could be enhanced later
+          isLocalGlassSupplier: supplier.supplierType === 'Manufacturer',
+          isApprovedSupplier: true, // All active suppliers are approved
+          performanceRating: 4.5, // Default rating
+          totalOrdersCount: 0, // Could be calculated later
+          status: 'active' as const,
+          notes: ''
+        }));
+      
+      setSuppliers(transformedSuppliers);
+      console.log('✅ SupplierSearch: Transformed suppliers ready:', transformedSuppliers.length);
+      console.log('📋 SupplierSearch: Supplier names:', transformedSuppliers.map(s => s.supplierName));
+    } catch (error) {
+      console.error('❌ SupplierSearch: Failed to load suppliers:', error);
+      setSuppliers([]); // Empty array on error
+    }
+  };
+
   useEffect(() => {
-    const mockSuppliers: Supplier[] = [
-      {
-        id: '1',
-        supplierName: 'Sydney Glass Co',
-        supplierCode: 'SYD001',
-        contactPerson: 'Tony Williams',
-        emailAddress: 'orders@sydneyglass.com.au',
-        phoneNumber: '+61 2 9555 0123',
-        paymentTerms: '30 days',
-        isLocalGlassSupplier: true,
-        isApprovedSupplier: true,
-        performanceRating: 4.8,
-        totalOrdersCount: 24,
-        status: 'active',
-        notes: 'Premium glass supplier'
-      },
-      {
-        id: '2',
-        supplierName: 'Hardware Direct',
-        supplierCode: 'HRD001',
-        contactPerson: 'Sarah Chen',
-        emailAddress: 'purchasing@hardwaredirect.com.au',
-        phoneNumber: '+61 2 9666 0456',
-        paymentTerms: '14 days',
-        isLocalGlassSupplier: false,
-        isApprovedSupplier: true,
-        performanceRating: 4.2,
-        totalOrdersCount: 18,
-        status: 'active',
-        notes: 'Reliable general hardware'
-      }
-    ];
-    
-    setSuppliers(mockSuppliers);
+    loadSuppliersFromDatabase();
   }, []);
 
   const filteredSuppliers = suppliers.filter(supplier =>
@@ -948,7 +953,7 @@ export default function NewPurchaseOrderPage() {
                             <td className="px-4 py-5 text-right">
                               <div className="text-right">
                                 <div className="text-2xl font-bold text-green-600">
-                                  ${product.costPrice.toFixed(2)}
+                                  ${(product.costPrice || 0).toFixed(2)}
                                 </div>
                                 <div className="text-base text-gray-500 bg-gray-100 px-3 py-2 rounded-full inline-block mt-1">
                                   Cost Price

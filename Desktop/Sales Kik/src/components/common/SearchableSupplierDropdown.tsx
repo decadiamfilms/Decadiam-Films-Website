@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlassIcon, ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { dataService } from '../../services/api.service';
 
 interface Supplier {
   id: string;
@@ -20,21 +21,33 @@ export function SearchableSupplierDropdown({ value, onChange, placeholder = "Sea
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Load real suppliers from database
+  const loadSuppliers = async () => {
+    try {
+      console.log('📦 SearchableSupplierDropdown: Loading suppliers from database...');
+      const suppliersData = await dataService.suppliers.getAll();
+      console.log('✅ SearchableSupplierDropdown: Loaded suppliers:', suppliersData.length);
+      
+      // Transform to match expected format and filter active only
+      const activeSuppliers = suppliersData
+        .filter((supplier: any) => supplier.status === 'active')
+        .map((supplier: any) => ({
+          id: supplier.id,
+          name: supplier.name,
+          email: supplier.email,
+          phone: supplier.phone || supplier.primaryContact?.mobile || ''
+        }));
+      
+      setSuppliers(activeSuppliers);
+      console.log('✅ SearchableSupplierDropdown: Active suppliers ready:', activeSuppliers.length);
+    } catch (error) {
+      console.error('❌ SearchableSupplierDropdown: Failed to load suppliers:', error);
+      setSuppliers([]); // Empty array on error
+    }
+  };
+
   useEffect(() => {
-    const mockSuppliers: Supplier[] = [
-      { id: '1', name: 'Sydney Glass Co', email: 'orders@sydneyglass.com.au', phone: '+61 2 9555 0123' },
-      { id: '2', name: 'Hardware Direct', email: 'purchasing@hardwaredirect.com.au', phone: '+61 2 9666 0456' },
-      { id: '3', name: 'Building Supplies Ltd', email: 'orders@buildingsupplies.com.au', phone: '+61 2 9777 0789' },
-      { id: '4', name: 'Steel Works Ltd.', email: 'orders@steelworks.com.au', phone: '+61 2 9888 0123' },
-      { id: '5', name: 'Custom Cabinet Co', email: 'orders@customcabinets.com.au', phone: '+61 2 9999 0456' },
-      { id: '6', name: 'Glass & Glazing Pro', email: 'orders@glassglazingpro.com.au', phone: '+61 2 9000 0789' },
-      { id: '7', name: 'Alternative Glass Solutions', email: 'info@altglass.com.au', phone: '+61 2 9111 0123' },
-      { id: '8', name: 'Metro Hardware Supply', email: 'sales@metrohardware.com.au', phone: '+61 2 9222 0456' },
-      { id: '9', name: 'Premium Building Materials', email: 'orders@premiumbuild.com.au', phone: '+61 2 9333 0789' },
-      { id: '10', name: 'Express Trade Supplies', email: 'orders@expresstrade.com.au', phone: '+61 2 9444 0123' }
-    ];
-    
-    setSuppliers(mockSuppliers);
+    loadSuppliers();
   }, []);
 
   // Close dropdown when clicking outside

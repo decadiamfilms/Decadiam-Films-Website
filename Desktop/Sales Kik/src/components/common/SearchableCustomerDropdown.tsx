@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlassIcon, ChevronDownIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { dataService } from '../../services/api.service';
 
 interface Customer {
   id: string;
@@ -21,21 +22,35 @@ export function SearchableCustomerDropdown({ value, onChange, placeholder = "Sea
   const [customers, setCustomers] = useState<Customer[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Load real customers from database
+  const loadCustomersFromDatabase = async () => {
+    try {
+      console.log('📦 SearchableCustomerDropdown: Loading customers from database...');
+      const customersData = await dataService.customers.getAll();
+      console.log('✅ SearchableCustomerDropdown: Loaded customers:', customersData.length);
+      
+      // Transform database customers to match expected format
+      const transformedCustomers = customersData
+        .filter((customer: any) => customer.status === 'active')
+        .map((customer: any) => ({
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          reference: customer.notes || ''
+        }));
+      
+      setCustomers(transformedCustomers);
+      console.log('✅ SearchableCustomerDropdown: Customers ready:', transformedCustomers.length);
+      console.log('📋 SearchableCustomerDropdown: Customer names:', transformedCustomers.map(c => c.name));
+    } catch (error) {
+      console.error('❌ SearchableCustomerDropdown: Failed to load customers:', error);
+      setCustomers([]); // Empty array on error
+    }
+  };
+
   useEffect(() => {
-    const mockCustomers: Customer[] = [
-      { id: '1', name: 'Johnson Construction', email: 'admin@johnsonconstruction.com.au', phone: '+61 2 9555 1001', reference: 'Site Office Glass Project' },
-      { id: '2', name: 'Metro Building Corp', email: 'projects@metrobuilding.com.au', phone: '+61 2 9555 1002', reference: 'Tower Project - Floor 15' },
-      { id: '3', name: 'Residential Homes Ltd', email: 'orders@residentialhomes.com.au', phone: '+61 2 9555 1003' },
-      { id: '4', name: 'Smith Kitchen Renovation', email: 'smith@email.com', phone: '+61 412 345 678', reference: 'Kitchen Project' },
-      { id: '5', name: 'Green Valley Homes', email: 'info@greenvalleyhomes.com.au', phone: '+61 2 9555 1005', reference: 'Unit 12A' },
-      { id: '6', name: 'Metro Developments', email: 'procurement@metrodev.com.au', phone: '+61 2 9555 1006', reference: 'Building C' },
-      { id: '7', name: 'Brown & Associates', email: 'orders@brownassoc.com.au', phone: '+61 2 9555 1007', reference: 'Project Alpha' },
-      { id: '8', name: 'City Commercial Projects', email: 'admin@citycommercial.com.au', phone: '+61 2 9555 1008' },
-      { id: '9', name: 'Heritage Restoration Co', email: 'info@heritagerestoration.com.au', phone: '+61 2 9555 1009' },
-      { id: '10', name: 'Modern Interiors Design', email: 'orders@moderninteriors.com.au', phone: '+61 2 9555 1010' }
-    ];
-    
-    setCustomers(mockCustomers);
+    loadCustomersFromDatabase();
   }, []);
 
   // Close dropdown when clicking outside

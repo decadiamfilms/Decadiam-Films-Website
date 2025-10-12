@@ -45,11 +45,11 @@ interface PurchaseOrder {
 
 interface Supplier {
   id: string;
-  supplierName: string;
-  supplierCode: string;
-  emailAddress: string;
-  isLocalGlassSupplier: boolean;
-  performanceRating: number;
+  name: string;
+  email: string;
+  status: string;
+  supplierType?: string;
+  supplierProducts?: any[];
 }
 
 interface LineItem {
@@ -96,14 +96,19 @@ export function PurchaseOrders() {
   const loadSuppliers = async () => {
     try {
       console.log('📦 PurchaseOrders: Loading suppliers for filter dropdown...');
+      console.log('📦 PurchaseOrders: Component mounted and calling loadSuppliers');
       const suppliersData = await dataService.suppliers.getAll();
       console.log('✅ PurchaseOrders: Loaded suppliers:', suppliersData.length);
+      console.log('🔍 PurchaseOrders: Raw suppliers data:', suppliersData);
       
       // Only include active suppliers
       const activeSuppliers = suppliersData.filter(supplier => supplier.status === 'active');
+      console.log('✅ PurchaseOrders: Active suppliers filtered:', activeSuppliers.length);
+      console.log('📋 PurchaseOrders: Active suppliers list:', activeSuppliers.map(s => ({ id: s.id, name: s.name, status: s.status })));
+      
       setSuppliers(activeSuppliers);
       setLoadingSuppliers(false);
-      console.log('✅ PurchaseOrders: Active suppliers ready for filtering:', activeSuppliers.length);
+      console.log('✅ PurchaseOrders: State updated - suppliers ready for filtering');
     } catch (error) {
       console.error('❌ PurchaseOrders: Failed to load suppliers:', error);
       setLoadingSuppliers(false);
@@ -191,13 +196,13 @@ export function PurchaseOrders() {
       }
     ];
     
+    // Load suppliers for filtering immediately
+    loadSuppliers();
+    
     setTimeout(() => {
       setOrders(mockOrders);
       setLoading(false);
     }, 500);
-    
-    // Load suppliers for filtering
-    loadSuppliers();
   }, []);
   
   // Handle WebSocket messages for real-time updates
@@ -405,10 +410,10 @@ export function PurchaseOrders() {
                     onChange={(e) => setSupplierFilter(e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   >
-                    <option value="all">All Suppliers</option>
+                    <option value="all">All Suppliers ({suppliers.length} loaded)</option>
                     {suppliers.map((supplier) => (
                       <option key={supplier.id} value={supplier.name}>
-                        {supplier.name}
+                        {supplier.name} (DB)
                       </option>
                     ))}
                   </select>
