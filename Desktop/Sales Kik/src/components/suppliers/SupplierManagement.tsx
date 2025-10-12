@@ -235,6 +235,48 @@ export function SupplierManagement() {
     }
   };
 
+  // Populate form data when editing a supplier
+  useEffect(() => {
+    if (editingSupplier) {
+      console.log('🏭 Populating form with supplier data:', editingSupplier.name);
+      setFormData({
+        supplierDetails: {
+          name: editingSupplier.name || '',
+          mobile: editingSupplier.phone || '',
+          email: editingSupplier.email || '',
+          accountingId: editingSupplier.accountingId || ''
+        },
+        primaryContact: {
+          firstName: editingSupplier.primaryContact?.firstName || '',
+          lastName: editingSupplier.primaryContact?.lastName || '',
+          position: '', // This field doesn't exist in the Supplier interface
+          email: editingSupplier.primaryContact?.email || '',
+          landline: editingSupplier.primaryContact?.landline || '',
+          fax: editingSupplier.primaryContact?.fax || '',
+          mobile: editingSupplier.primaryContact?.mobile || ''
+        },
+        locations: editingSupplier.locations || [],
+        additionalContacts: editingSupplier.additionalContacts || [],
+        supplierTypes: {
+          service: editingSupplier.supplierType === 'Service Provider',
+          product: editingSupplier.supplierType === 'Manufacturer' || editingSupplier.supplierType === 'Wholesaler' || editingSupplier.supplierType === 'Distributor',
+          courier: editingSupplier.supplierType === 'Courier'
+        },
+        selectedProducts: [] // This would need to be populated from a relationship table
+      });
+    } else {
+      // Reset form when not editing
+      setFormData({
+        supplierDetails: { name: '', mobile: '', email: '', accountingId: '' },
+        primaryContact: { firstName: '', lastName: '', position: '', email: '', landline: '', fax: '', mobile: '' },
+        locations: [],
+        additionalContacts: [],
+        supplierTypes: { service: false, product: false, courier: false },
+        selectedProducts: []
+      });
+    }
+  }, [editingSupplier]);
+
   // Load data on component mount
   useEffect(() => {
     loadData();
