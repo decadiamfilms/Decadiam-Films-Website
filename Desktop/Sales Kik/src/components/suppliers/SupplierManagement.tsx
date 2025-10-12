@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
+import { dataService } from '../../services/api.service';
 
 interface Supplier {
   id: string;
@@ -191,16 +192,29 @@ export function SupplierManagement() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
   const [selectedSubcategoryPath, setSelectedSubcategoryPath] = useState([]);
 
-  // Load data from localStorage (same as Product Management)
+  // Load data from database API
   const loadData = async () => {
     try {
-      // Load categories from localStorage (same as Product Management)
-      const savedCategories = localStorage.getItem('saleskik-categories');
-      if (savedCategories) {
-        setCategories(JSON.parse(savedCategories));
+      console.log('🏭 SupplierManagement: Loading suppliers from database...');
+      
+      // Load suppliers from database
+      const suppliersData = await dataService.suppliers.getAll();
+      console.log('✅ SupplierManagement: Loaded suppliers:', suppliersData.length);
+      setSuppliers(suppliersData);
+      
+      // Load categories from database (same as Product Management)
+      try {
+        const categoriesData = await dataService.categories.getAll();
+        setCategories(categoriesData);
+      } catch (error) {
+        console.warn('Categories API unavailable, using localStorage fallback');
+        const savedCategories = localStorage.getItem('saleskik-categories');
+        if (savedCategories) {
+          setCategories(JSON.parse(savedCategories));
+        }
       }
       
-      // Load accounting settings to check connection status
+      // Load accounting settings from localStorage
       const savedAccountingSettings = localStorage.getItem('saleskik-accounting-settings');
       if (savedAccountingSettings) {
         const parsedSettings = JSON.parse(savedAccountingSettings);
@@ -211,108 +225,21 @@ export function SupplierManagement() {
         });
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('❌ SupplierManagement: Error loading data:', error);
+      // Fallback to localStorage for suppliers if database fails
+      const savedSuppliers = localStorage.getItem('saleskik-suppliers');
+      if (savedSuppliers) {
+        console.log('📁 SupplierManagement: Using localStorage fallback for suppliers');
+        setSuppliers(JSON.parse(savedSuppliers));
+      }
     }
   };
 
-  // Load sample data
+  // Load data on component mount
   useEffect(() => {
     loadData();
-    const sampleSuppliers: Supplier[] = [
-      {
-        id: '1',
-        name: 'ABC Glass Supplies',
-        supplierType: 'Manufacturer',
-        accountingId: 'SUP001',
-        salesRepId: '1',
-        salesRepName: 'John Smith',
-        abnNumber: '12 345 678 901',
-        phone: '+61 2 9876 5432',
-        email: 'orders@abcglass.com.au',
-        primaryContact: {
-          id: '1',
-          firstName: 'Sarah',
-          lastName: 'Johnson',
-          email: 'sarah.johnson@abcglass.com.au',
-          landline: '+61 2 9876 5432',
-          mobile: '+61 400 123 456'
-        },
-        locations: [{
-          id: '1',
-          type: 'Main',
-          isMailingAddress: true,
-          isBillingAddress: true,
-          isDeliveryAddress: true,
-          unitNumber: '',
-          streetNumber: '123',
-          streetName: 'Industrial Drive',
-          city: 'Sydney',
-          state: 'NSW',
-          postcode: '2000',
-          country: 'Australia'
-        }],
-        additionalContacts: [],
-        priceLists: [],
-        accountDetails: {
-          accountingTerms: 'NET',
-          paymentTerms: 30,
-          paymentPeriod: 'days',
-          creditLimit: 50000,
-          availableLimit: 50000,
-          invoiceType: 'Account'
-        },
-        status: 'active',
-        createdAt: new Date('2024-01-15'),
-        notes: 'Primary glass supplier for custom projects'
-      },
-      {
-        id: '2',
-        name: 'XYZ Hardware Distributors',
-        supplierType: 'Wholesaler',
-        accountingId: 'SUP002',
-        salesRepId: '2',
-        salesRepName: 'Jane Doe',
-        abnNumber: '98 765 432 109',
-        phone: '+61 3 8765 4321',
-        email: 'sales@xyzhardware.com.au',
-        primaryContact: {
-          id: '2',
-          firstName: 'Michael',
-          lastName: 'Brown',
-          email: 'michael.brown@xyzhardware.com.au',
-          landline: '+61 3 8765 4321',
-          mobile: '+61 411 987 654'
-        },
-        locations: [{
-          id: '2',
-          type: 'Main',
-          isMailingAddress: true,
-          isBillingAddress: true,
-          isDeliveryAddress: true,
-          unitNumber: 'Unit 5',
-          streetNumber: '456',
-          streetName: 'Commerce Street',
-          city: 'Melbourne',
-          state: 'VIC',
-          postcode: '3000',
-          country: 'Australia'
-        }],
-        additionalContacts: [],
-        priceLists: [],
-        accountDetails: {
-          accountingTerms: 'COD',
-          paymentTerms: 0,
-          paymentPeriod: 'days',
-          creditLimit: 25000,
-          availableLimit: 25000,
-          invoiceType: 'Cash on Delivery'
-        },
-        status: 'active',
-        createdAt: new Date('2024-02-20'),
-        notes: 'Reliable hardware supplier with fast delivery'
-      }
-    ];
-
+    
+    // Set sample employees and products (these will be replaced with API calls later)
     const sampleEmployees: Employee[] = [
       { id: '1', firstName: 'John', lastName: 'Smith', hasSalesPermission: true },
       { id: '2', firstName: 'Jane', lastName: 'Doe', hasSalesPermission: true },
@@ -398,13 +325,9 @@ export function SupplierManagement() {
       }
     ];
 
-    setSuppliers(sampleSuppliers);
     setEmployees(sampleEmployees);
     setProducts(sampleProducts);
     setAccountingTerms(['NET', 'COD', 'CIA', 'CWO', 'EOM']);
-    
-    // Save suppliers to localStorage for purchase order integration
-    localStorage.setItem('saleskik-suppliers', JSON.stringify(sampleSuppliers));
   }, []);
 
   const filteredSuppliers = suppliers.filter(supplier => {
@@ -444,15 +367,23 @@ export function SupplierManagement() {
     }));
   };
 
-  const handleToggleStatus = (supplierId: string) => {
+  const handleToggleStatus = async (supplierId: string) => {
     const updatedSuppliers = suppliers.map(supplier => 
       supplier.id === supplierId 
         ? { ...supplier, status: supplier.status === 'active' ? 'inactive' : 'active' }
         : supplier
     );
     setSuppliers(updatedSuppliers);
-    // Save to localStorage for purchase order integration
-    localStorage.setItem('saleskik-suppliers', JSON.stringify(updatedSuppliers));
+    
+    // Save to database and localStorage
+    try {
+      await dataService.suppliers.save(updatedSuppliers);
+      console.log('✅ Supplier status updated successfully');
+    } catch (error) {
+      console.error('❌ Failed to update supplier status:', error);
+      // Revert on error
+      setSuppliers(suppliers);
+    }
   };
 
   const downloadSupplierList = () => {
@@ -1220,11 +1151,81 @@ export function SupplierManagement() {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  // TODO: Implement save functionality
-                  console.log('Saving supplier:', formData);
-                  setShowAddSupplierModal(false);
-                  setEditingSupplier(null);
+                onClick={async () => {
+                  try {
+                    console.log('🏭 Saving supplier:', formData.supplierDetails.name);
+                    
+                    // Create supplier object from form data
+                    const supplierData = {
+                      id: editingSupplier?.id || `supplier-${Date.now()}`,
+                      name: formData.supplierDetails.name,
+                      supplierType: 'Product', // Default type based on form
+                      accountingId: formData.supplierDetails.accountingId,
+                      salesRepId: '1', // Default sales rep
+                      salesRepName: 'John Smith',
+                      abnNumber: '',
+                      phone: formData.supplierDetails.mobile,
+                      email: formData.supplierDetails.email,
+                      primaryContact: {
+                        id: `contact-${Date.now()}`,
+                        firstName: formData.primaryContact.firstName,
+                        lastName: formData.primaryContact.lastName,
+                        email: formData.primaryContact.email,
+                        landline: formData.primaryContact.landline,
+                        fax: formData.primaryContact.fax,
+                        mobile: formData.primaryContact.mobile
+                      },
+                      locations: formData.locations,
+                      additionalContacts: formData.additionalContacts,
+                      priceLists: [],
+                      accountDetails: {
+                        accountingTerms: 'NET',
+                        paymentTerms: 30,
+                        paymentPeriod: 'days' as const,
+                        creditLimit: 50000,
+                        availableLimit: 50000,
+                        invoiceType: 'Account' as const
+                      },
+                      status: 'active' as const,
+                      createdAt: new Date(),
+                      notes: ''
+                    };
+
+                    if (editingSupplier) {
+                      // Update existing supplier
+                      const updatedSuppliers = suppliers.map(s => 
+                        s.id === editingSupplier.id ? { ...supplierData, id: editingSupplier.id } : s
+                      );
+                      setSuppliers(updatedSuppliers);
+                      await dataService.suppliers.save(updatedSuppliers);
+                      console.log('✅ Supplier updated successfully');
+                    } else {
+                      // Create new supplier
+                      const createdSupplier = await dataService.suppliers.create(supplierData);
+                      setSuppliers(prev => [createdSupplier, ...prev]);
+                      console.log('✅ Supplier created successfully');
+                    }
+                    
+                    // Refresh the suppliers list from database
+                    await loadData();
+                    
+                    setShowAddSupplierModal(false);
+                    setEditingSupplier(null);
+                    
+                    // Reset form
+                    setFormData({
+                      supplierDetails: { name: '', mobile: '', email: '', accountingId: '' },
+                      primaryContact: { firstName: '', lastName: '', position: '', email: '', landline: '', fax: '', mobile: '' },
+                      locations: [],
+                      additionalContacts: [],
+                      supplierTypes: { service: false, product: false, courier: false },
+                      selectedProducts: []
+                    });
+                    
+                  } catch (error) {
+                    console.error('❌ Failed to save supplier:', error);
+                    alert('Failed to save supplier. Please try again.');
+                  }
                 }}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
