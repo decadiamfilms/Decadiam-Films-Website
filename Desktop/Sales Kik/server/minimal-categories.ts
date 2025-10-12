@@ -1310,6 +1310,89 @@ app.delete('/api/suppliers/:id', async (req, res) => {
   }
 });
 
+// Products API endpoints - Basic support for supplier relationships
+app.get('/api/products', async (_req, res) => {
+  try {
+    console.log('📦 Products API: Fetching products from database');
+    
+    const products = await prisma.product.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb',
+        is_active: true 
+      },
+      include: {
+        category: true,
+        pricing: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    console.log('✅ Products API: Found', products.length, 'products');
+
+    // Transform to frontend format
+    const transformedProducts = products.map(product => ({
+      id: product.id,
+      code: product.code,
+      name: product.name,
+      description: product.description,
+      categoryId: product.category_id,
+      categoryName: product.category?.name,
+      weight: product.weight,
+      isActive: product.is_active,
+      createdAt: product.created_at,
+      updatedAt: product.updated_at
+    }));
+
+    res.json({
+      success: true,
+      data: transformedProducts
+    });
+  } catch (error: any) {
+    console.error('❌ Products API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.post('/api/products', async (req, res) => {
+  try {
+    const companyId = '0e573687-3b53-498a-9e78-f198f16f8bcb';
+    const productData = req.body;
+    
+    console.log('💾 Creating new product:', productData.name);
+
+    const newProduct = await prisma.product.create({
+      data: {
+        company_id: companyId,
+        code: productData.code,
+        name: productData.name,
+        description: productData.description,
+        category_id: productData.categoryId,
+        weight: productData.weight || 0,
+        is_active: productData.isActive ?? true
+      },
+      include: {
+        category: true
+      }
+    });
+
+    console.log('✅ Product created with ID:', newProduct.id);
+
+    res.json({
+      success: true,
+      data: newProduct
+    });
+  } catch (error: any) {
+    console.error('❌ Products CREATE Error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 // Mock onboarding status for dashboard compatibility
 app.get('/api/onboarding/status', async (_req, res) => {
   try {
