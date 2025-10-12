@@ -1010,6 +1010,16 @@ app.get('/api/suppliers', async (_req, res) => {
         availableLimit: 0
       },
       
+      // Supplier Products - Map database supplier_products to frontend format
+      supplierProducts: (supplier.supplier_products || []).map(sp => ({
+        id: sp.id,
+        productId: sp.product_id,
+        supplierId: sp.supplier_id,
+        productName: sp.product?.name,
+        productCode: sp.product?.code,
+        isActive: sp.is_active
+      })),
+      
       status: supplier.is_active ? 'active' : 'inactive' as const,
       createdAt: new Date(supplier.created_at),
       notes: ''
