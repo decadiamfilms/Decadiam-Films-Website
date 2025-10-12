@@ -410,21 +410,25 @@ export function SupplierManagement() {
   };
 
   const handleToggleStatus = async (supplierId: string) => {
-    const updatedSuppliers = suppliers.map(supplier => 
-      supplier.id === supplierId 
-        ? { ...supplier, status: supplier.status === 'active' ? 'inactive' : 'active' }
-        : supplier
-    );
-    setSuppliers(updatedSuppliers);
+    const targetSupplier = suppliers.find(s => s.id === supplierId);
+    if (!targetSupplier) return;
     
-    // Save to database and localStorage
+    const newStatus = targetSupplier.status === 'active' ? 'inactive' : 'active';
+    
     try {
-      await dataService.suppliers.save(updatedSuppliers);
+      // Update status using the UPDATE API call ONLY
+      console.log('📝 Updating supplier status:', supplierId, 'to', newStatus);
+      await dataService.suppliers.update(supplierId, {
+        ...targetSupplier,
+        status: newStatus
+      });
       console.log('✅ Supplier status updated successfully');
+      
+      // Refresh the suppliers list from database
+      await loadData();
     } catch (error) {
       console.error('❌ Failed to update supplier status:', error);
-      // Revert on error
-      setSuppliers(suppliers);
+      alert('Failed to update supplier status. Please try again.');
     }
   };
 
@@ -1234,21 +1238,18 @@ export function SupplierManagement() {
                     };
 
                     if (editingSupplier) {
-                      // Update existing supplier
-                      const updatedSuppliers = suppliers.map(s => 
-                        s.id === editingSupplier.id ? { ...supplierData, id: editingSupplier.id } : s
-                      );
-                      setSuppliers(updatedSuppliers);
-                      await dataService.suppliers.save(updatedSuppliers);
+                      // Update existing supplier - use UPDATE API call ONLY
+                      console.log('📝 Updating existing supplier:', editingSupplier.id);
+                      await dataService.suppliers.update(editingSupplier.id, supplierData);
                       console.log('✅ Supplier updated successfully');
                     } else {
-                      // Create new supplier
-                      const createdSupplier = await dataService.suppliers.create(supplierData);
-                      setSuppliers(prev => [createdSupplier, ...prev]);
+                      // Create new supplier - use CREATE API call ONLY
+                      console.log('➕ Creating new supplier');
+                      await dataService.suppliers.create(supplierData);
                       console.log('✅ Supplier created successfully');
                     }
                     
-                    // Refresh the suppliers list from database
+                    // Refresh the suppliers list from database ONCE
                     await loadData();
                     
                     setShowAddSupplierModal(false);
