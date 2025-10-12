@@ -1230,6 +1230,8 @@ export function SupplierManagement() {
                 onClick={async () => {
                   try {
                     console.log('🏭 Saving supplier:', formData.supplierDetails.name);
+                    console.log('📦 Selected products before save:', formData.selectedProducts);
+                    console.log('📝 EditingSupplier?', editingSupplier ? 'YES - ID: ' + editingSupplier.id : 'NO - New supplier');
                     
                     // Create supplier object from form data
                     const supplierData = {
@@ -1268,20 +1270,42 @@ export function SupplierManagement() {
                       selectedProducts: formData.selectedProducts // Include selected products
                     };
 
+                    console.log('🚀 SupplierData being sent to API:', {
+                      id: supplierData.id,
+                      name: supplierData.name,
+                      selectedProducts: supplierData.selectedProducts,
+                      selectedProductsCount: supplierData.selectedProducts.length
+                    });
+
                     if (editingSupplier) {
                       // Update existing supplier - use UPDATE API call ONLY
                       console.log('📝 Updating existing supplier:', editingSupplier.id);
-                      await dataService.suppliers.update(editingSupplier.id, supplierData);
-                      console.log('✅ Supplier updated successfully');
+                      console.log('🔄 Calling dataService.suppliers.update with:', {
+                        id: editingSupplier.id,
+                        supplierName: supplierData.name,
+                        selectedProductsCount: supplierData.selectedProducts.length,
+                        selectedProductIds: supplierData.selectedProducts
+                      });
+                      
+                      const result = await dataService.suppliers.update(editingSupplier.id, supplierData);
+                      console.log('✅ Supplier updated successfully. Result:', result);
                     } else {
                       // Create new supplier - use CREATE API call ONLY
                       console.log('➕ Creating new supplier');
-                      await dataService.suppliers.create(supplierData);
-                      console.log('✅ Supplier created successfully');
+                      console.log('🔄 Calling dataService.suppliers.create with:', {
+                        supplierName: supplierData.name,
+                        selectedProductsCount: supplierData.selectedProducts.length,
+                        selectedProductIds: supplierData.selectedProducts
+                      });
+                      
+                      const result = await dataService.suppliers.create(supplierData);
+                      console.log('✅ Supplier created successfully. Result:', result);
                     }
                     
                     // Refresh the suppliers list from database ONCE
+                    console.log('🔄 Refreshing suppliers list from database...');
                     await loadData();
+                    console.log('✅ Suppliers list refreshed');
                     
                     setShowAddSupplierModal(false);
                     setEditingSupplier(null);

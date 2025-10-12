@@ -825,7 +825,14 @@ export const dataService = {
 
     update: async (id: string, supplierData: any) => {
       try {
-        console.log('📝 Updating supplier via API:', id, supplierData.name);
+        console.log('📝 API Service: Updating supplier via API:', id, supplierData.name);
+        console.log('📦 API Service: selectedProducts in data:', {
+          hasSelectedProducts: !!supplierData.selectedProducts,
+          selectedProductsArray: supplierData.selectedProducts,
+          count: supplierData.selectedProducts?.length || 0
+        });
+        console.log('🌐 API Service: Full request body being sent:', JSON.stringify(supplierData, null, 2));
+        
         const response = await fetch(`${API_BASE}/api/suppliers/${id}`, {
           method: 'PUT',
           headers: {
@@ -836,15 +843,16 @@ export const dataService = {
         
         if (response.ok) {
           const result = await response.json();
-          console.log('✅ Supplier updated successfully:', result.data.id);
+          console.log('✅ API Service: Supplier updated successfully:', result.data.id);
+          console.log('🔍 API Service: Response from server:', result);
           return result.data;
         } else {
           const error = await response.json();
-          console.error('❌ Failed to update supplier:', error);
+          console.error('❌ API Service: Failed to update supplier:', error);
           throw new Error(error.error || 'Failed to update supplier');
         }
       } catch (error) {
-        console.error('❌ Supplier update error:', error);
+        console.error('❌ API Service: Supplier update error:', error);
         throw error;
       }
     },
