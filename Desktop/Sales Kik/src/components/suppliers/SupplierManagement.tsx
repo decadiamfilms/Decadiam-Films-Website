@@ -304,98 +304,57 @@ export function SupplierManagement() {
   }, [editingSupplier, showAddSupplierModal]);
 
 
+  // Load real products from database API
+  const loadProducts = async () => {
+    try {
+      console.log('📦 SupplierManagement: Loading products from database...');
+      
+      // Load products from database API
+      const productsData = await dataService.products.getAll();
+      console.log('✅ SupplierManagement: Loaded products:', productsData.length);
+      
+      // Transform products to match expected format
+      const transformedProducts = productsData.map(product => ({
+        id: product.id,
+        code: product.code,
+        name: product.name,
+        size: product.size || '-',
+        weight: product.weight || 0,
+        cost: product.cost || 0,
+        priceT1: product.priceT1 || 0,
+        priceT2: product.priceT2 || 0,
+        priceT3: product.priceT3 || 0,
+        priceN: product.priceN || 0,
+        categoryId: product.categoryId,
+        categoryName: product.categoryName || 'Unknown',
+        subcategoryPath: product.subcategoryPath || [],
+        inventory: product.inventory || { currentStock: 0, reorderPoint: 0, supplier: '' },
+        isActive: product.isActive ?? true,
+        createdAt: product.createdAt || new Date(),
+        updatedAt: product.updatedAt || new Date()
+      }));
+      
+      setProducts(transformedProducts);
+    } catch (error) {
+      console.warn('❌ SupplierManagement: Failed to load products from database:', error);
+      console.log('📁 SupplierManagement: Using empty products list');
+      setProducts([]);
+    }
+  };
+
   // Load data on component mount
   useEffect(() => {
     loadData();
+    loadProducts(); // Load real products from database
     
-    // Set sample employees and products (these will be replaced with API calls later)
+    // Set sample employees (these will be replaced with API calls later)
     const sampleEmployees: Employee[] = [
       { id: '1', firstName: 'John', lastName: 'Smith', hasSalesPermission: true },
       { id: '2', firstName: 'Jane', lastName: 'Doe', hasSalesPermission: true },
       { id: '3', firstName: 'Bob', lastName: 'Wilson', hasSalesPermission: false }
     ];
 
-    const sampleProducts = [
-      {
-        id: '1',
-        code: '12F-100',
-        name: '1175 x 100 mm - 12mm Clear Toughened Glass',
-        size: '1175 x 100 mm',
-        weight: 5.2,
-        cost: 45.00,
-        priceT1: 67.50,
-        priceT2: 58.50,
-        priceT3: 49.50,
-        priceN: 40.50,
-        categoryId: 'glass-pool',
-        categoryName: 'Pool Fencing Glass',
-        subcategoryPath: [{ id: 'frameless', name: 'Frameless', level: 0, color: '#3B82F6' }],
-        inventory: { currentStock: 25, reorderPoint: 5, supplier: 'ABC Glass Supplies' },
-        isActive: true,
-        createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-01-15')
-      },
-      {
-        id: '2', 
-        code: '15F-150',
-        name: '1500 x 150 mm - 15mm Clear Toughened Glass',
-        size: '1500 x 150 mm',
-        weight: 8.1,
-        cost: 72.00,
-        priceT1: 108.00,
-        priceT2: 93.60,
-        priceT3: 79.20,
-        priceN: 64.80,
-        categoryId: 'glass-pool',
-        categoryName: 'Pool Fencing Glass',
-        subcategoryPath: [{ id: 'frameless', name: 'Frameless', level: 0, color: '#3B82F6' }],
-        inventory: { currentStock: 18, reorderPoint: 3, supplier: 'ABC Glass Supplies' },
-        isActive: true,
-        createdAt: new Date('2024-01-20'),
-        updatedAt: new Date('2024-01-20')
-      },
-      {
-        id: '3',
-        code: 'HW-001',
-        name: 'Stainless Steel Pool Gate Hinge',
-        size: 'Standard',
-        weight: 0.5,
-        cost: 15.00,
-        priceT1: 22.50,
-        priceT2: 19.50,
-        priceT3: 16.50,
-        priceN: 13.50,
-        categoryId: 'hardware',
-        categoryName: 'Hardware',
-        subcategoryPath: [{ id: 'hinges', name: 'Hinges', level: 0, color: '#10B981' }],
-        inventory: { currentStock: 50, reorderPoint: 10, supplier: 'XYZ Hardware Distributors' },
-        isActive: true,
-        createdAt: new Date('2024-02-01'),
-        updatedAt: new Date('2024-02-01')
-      },
-      {
-        id: '4',
-        code: 'HW-002',
-        name: 'Gate Latch Self-Closing',
-        size: 'Standard',
-        weight: 0.3,
-        cost: 25.00,
-        priceT1: 37.50,
-        priceT2: 32.50,
-        priceT3: 27.50,
-        priceN: 22.50,
-        categoryId: 'hardware',
-        categoryName: 'Hardware',
-        subcategoryPath: [{ id: 'latches', name: 'Latches', level: 0, color: '#10B981' }],
-        inventory: { currentStock: 35, reorderPoint: 8, supplier: 'XYZ Hardware Distributors' },
-        isActive: true,
-        createdAt: new Date('2024-02-05'),
-        updatedAt: new Date('2024-02-05')
-      }
-    ];
-
     setEmployees(sampleEmployees);
-    setProducts(sampleProducts);
     setAccountingTerms(['NET', 'COD', 'CIA', 'CWO', 'EOM']);
   }, []);
 
