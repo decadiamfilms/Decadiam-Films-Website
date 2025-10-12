@@ -950,54 +950,69 @@ app.get('/api/suppliers', async (_req, res) => {
 
     console.log('✅ Suppliers API: Found', suppliers.length, 'suppliers');
 
-    // Transform to frontend format
+    // Transform to frontend format matching SupplierManagement interface
     const transformedSuppliers = suppliers.map(supplier => ({
       id: supplier.id,
       name: supplier.name,
-      mobile: supplier.mobile,
-      email: supplier.email,
-      accountingId: supplier.accounting_id,
+      supplierType: 'Manufacturer', // Default value
+      accountingId: supplier.accounting_id || '',
+      salesRepId: '',
+      salesRepName: '',
+      abnNumber: '',
+      phone: supplier.mobile || '',
+      email: supplier.email || '',
       
-      // Primary Contact
+      // Primary Contact - matching SupplierContact interface
       primaryContact: {
-        firstName: supplier.primary_contact_first_name,
-        lastName: supplier.primary_contact_last_name,
-        position: supplier.primary_contact_position,
-        email: supplier.primary_contact_email,
-        landline: supplier.primary_contact_landline,
-        fax: supplier.primary_contact_fax,
-        mobile: supplier.primary_contact_mobile
+        id: supplier.id + '-primary',
+        firstName: supplier.primary_contact_first_name || '',
+        lastName: supplier.primary_contact_last_name || '',
+        email: supplier.primary_contact_email || '',
+        landline: supplier.primary_contact_landline || '',
+        fax: supplier.primary_contact_fax || '',
+        mobile: supplier.primary_contact_mobile || ''
       },
       
-      // Addresses
-      mailingAddress: supplier.mailing_address,
-      billingAddress: supplier.billing_address,
-      deliveryAddress: supplier.delivery_address,
-      
-      // Category
-      primaryCategoryId: supplier.primary_category_id,
-      primaryCategoryName: supplier.primary_category?.name,
-      
-      // Additional contacts and addresses
-      additionalContacts: supplier.additional_contacts,
-      addresses: supplier.addresses,
-      
-      // Products this supplier provides
-      supplierProducts: supplier.supplier_products.map(sp => ({
-        productId: sp.product_id,
-        productName: sp.product.name,
-        productCode: sp.product.code,
-        supplierProductCode: sp.supplier_product_code,
-        costPrice: sp.cost_price,
-        leadTimeDays: sp.lead_time_days,
-        minimumOrderQty: sp.minimum_order_qty,
-        isPreferred: sp.is_preferred,
-        isActive: sp.is_active
+      // Locations from addresses - convert to SupplierLocation format
+      locations: supplier.addresses.map(addr => ({
+        id: addr.id,
+        type: addr.address_type as any,
+        isMailingAddress: addr.address_type === 'Mailing',
+        isBillingAddress: addr.address_type === 'Billing', 
+        isDeliveryAddress: addr.address_type === 'Delivery',
+        unitNumber: addr.unit_number || '',
+        streetNumber: addr.street_number || '',
+        streetName: addr.street_name || '',
+        city: addr.city || '',
+        state: addr.state || '',
+        postcode: addr.postcode || '',
+        country: addr.country || 'Australia'
       })),
       
-      isActive: supplier.is_active,
-      createdAt: supplier.created_at,
-      updatedAt: supplier.updated_at
+      // Additional contacts - convert to SupplierContact format
+      additionalContacts: supplier.additional_contacts.map(contact => ({
+        id: contact.id,
+        firstName: contact.first_name,
+        lastName: contact.last_name,
+        email: contact.email || '',
+        landline: contact.landline || '',
+        fax: contact.fax || '',
+        mobile: contact.mobile || ''
+      })),
+      
+      // Default values for required fields
+      priceLists: [],
+      accountDetails: {
+        invoiceType: 'Account',
+        accountingTerms: '',
+        paymentTerms: '',
+        creditLimit: 0,
+        availableLimit: 0
+      },
+      
+      status: supplier.is_active ? 'active' : 'inactive' as const,
+      createdAt: new Date(supplier.created_at),
+      notes: ''
     }));
 
     res.json({
