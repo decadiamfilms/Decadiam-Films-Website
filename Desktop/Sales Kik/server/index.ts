@@ -310,7 +310,13 @@ app.get('/api/suppliers', async (req, res) => {
       },
       status: supplier.is_active ? 'active' as const : 'inactive' as const,
       createdAt: supplier.created_at,
-      notes: supplier.notes || ''
+      notes: supplier.notes || '',
+      supplierProducts: supplier.supplier_products.map(sp => ({
+        id: sp.id,
+        productId: sp.product_id,
+        supplierId: sp.supplier_id,
+        isActive: sp.is_active
+      }))
     }));
 
     res.json({
@@ -360,6 +366,24 @@ app.post('/api/suppliers', async (req, res) => {
 
     console.log('✅ SuppliersAPI: Supplier created successfully:', supplier.id);
 
+    // Handle supplier-product relationships if selectedProducts is provided
+    if (supplierData.selectedProducts && Array.isArray(supplierData.selectedProducts)) {
+      console.log('🔗 SuppliersAPI: Creating supplier-product relationships:', supplierData.selectedProducts.length, 'products');
+      
+      // Create relationships for selected products
+      for (const productId of supplierData.selectedProducts) {
+        await prisma.supplierProduct.create({
+          data: {
+            supplier_id: supplier.id,
+            product_id: productId,
+            is_active: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        });
+      }
+    }
+
     // Transform back to frontend format
     const frontendSupplier = {
       id: supplier.id,
@@ -402,6 +426,125 @@ app.post('/api/suppliers', async (req, res) => {
     });
   } catch (error: any) {
     console.error('❌ Suppliers POST Error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// PUT /api/suppliers/:id - Update supplier with product relationships
+app.put('/api/suppliers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const supplierData = req.body;
+
+    console.log('📝 SuppliersAPI: Updating supplier:', id, supplierData.name);
+
+    // Update the supplier basic information
+    const supplier = await prisma.supplier.update({
+      where: { id },
+      data: {
+        name: supplierData.name,
+        supplier_type: supplierData.supplierType || 'Product',
+        mobile: supplierData.phone,
+        email: supplierData.email,
+        accounting_id: supplierData.accountingId,
+        abn_number: supplierData.abnNumber,
+        primary_contact_first_name: supplierData.primaryContact?.firstName,
+        primary_contact_last_name: supplierData.primaryContact?.lastName,
+        primary_contact_email: supplierData.primaryContact?.email,
+        primary_contact_landline: supplierData.primaryContact?.landline,
+        primary_contact_fax: supplierData.primaryContact?.fax,
+        primary_contact_mobile: supplierData.primaryContact?.mobile,
+        accounting_terms: supplierData.accountDetails?.accountingTerms || 'NET',
+        payment_terms: supplierData.accountDetails?.paymentTerms || 30,
+        credit_limit: supplierData.accountDetails?.creditLimit || 50000,
+        available_limit: supplierData.accountDetails?.availableLimit || 50000,
+        invoice_type: supplierData.accountDetails?.invoiceType || 'Account',
+        notes: supplierData.notes || '',
+        updated_at: new Date()
+      }
+    });
+
+    // Handle supplier-product relationships if selectedProducts is provided
+    if (supplierData.selectedProducts && Array.isArray(supplierData.selectedProducts)) {
+      console.log('🔗 SuppliersAPI: Updating supplier-product relationships:', supplierData.selectedProducts.length, 'products');
+      
+      // First, deactivate all existing supplier-product relationships
+      await prisma.supplierProduct.updateMany({
+        where: { supplier_id: id },
+        data: { is_active: false }
+      });
+
+      // Then create/reactivate relationships for selected products
+      for (const productId of supplierData.selectedProducts) {
+        await prisma.supplierProduct.upsert({
+          where: {
+            supplier_id_product_id: {
+              supplier_id: id,
+              product_id: productId
+            }
+          },
+          update: {
+            is_active: true,
+            updated_at: new Date()
+          },
+          create: {
+            supplier_id: id,
+            product_id: productId,
+            is_active: true,
+            created_at: new Date(),
+            updated_at: new Date()
+          }
+        });
+      }
+    }
+
+    console.log('✅ SuppliersAPI: Supplier updated successfully:', supplier.id);
+
+    // Return the updated supplier in frontend format
+    const frontendSupplier = {
+      id: supplier.id,
+      name: supplier.name,
+      supplierType: supplier.supplier_type || 'Product',
+      accountingId: supplier.accounting_id || '',
+      salesRepId: '1', // Default
+      salesRepName: 'John Smith', // Default
+      abnNumber: supplier.abn_number || '',
+      phone: supplier.mobile || '',
+      email: supplier.email || '',
+      primaryContact: {
+        id: `contact-${supplier.id}`,
+        firstName: supplier.primary_contact_first_name || '',
+        lastName: supplier.primary_contact_last_name || '',
+        email: supplier.primary_contact_email || '',
+        landline: supplier.primary_contact_landline || '',
+        fax: supplier.primary_contact_fax || '',
+        mobile: supplier.primary_contact_mobile || ''
+      },
+      locations: [], // Would need to handle addresses separately
+      additionalContacts: [], // Would need to handle contacts separately
+      priceLists: [],
+      accountDetails: {
+        accountingTerms: supplier.accounting_terms || 'NET',
+        paymentTerms: supplier.payment_terms || 30,
+        paymentPeriod: 'days' as const,
+        creditLimit: supplier.credit_limit || 50000,
+        availableLimit: supplier.available_limit || 50000,
+        invoiceType: supplier.invoice_type as any || 'Account'
+      },
+      status: 'active' as const,
+      createdAt: supplier.created_at,
+      notes: supplier.notes || ''
+    };
+
+    res.json({
+      success: true,
+      data: frontendSupplier,
+    });
+  } catch (error: any) {
+    console.error('❌ Suppliers PUT Error:', error);
     res.status(400).json({
       success: false,
       error: error.message,

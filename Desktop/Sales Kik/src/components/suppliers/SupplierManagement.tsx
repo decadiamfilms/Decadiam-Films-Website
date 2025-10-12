@@ -29,6 +29,14 @@ interface Supplier {
   status: 'active' | 'inactive';
   createdAt: Date;
   notes: string;
+  supplierProducts?: SupplierProduct[];
+}
+
+interface SupplierProduct {
+  id: string;
+  productId: string;
+  supplierId: string;
+  isActive: boolean;
 }
 
 interface SupplierContact {
@@ -262,7 +270,11 @@ export function SupplierManagement() {
           product: editingSupplier.supplierType === 'Manufacturer' || editingSupplier.supplierType === 'Wholesaler' || editingSupplier.supplierType === 'Distributor',
           courier: editingSupplier.supplierType === 'Courier'
         },
-        selectedProducts: [] // This would need to be populated from a relationship table
+        selectedProducts: editingSupplier.supplierProducts
+          ? editingSupplier.supplierProducts
+              .filter(sp => sp.isActive)
+              .map(sp => sp.productId)
+          : []
       });
     } else {
       // Reset form when not editing
@@ -1234,7 +1246,8 @@ export function SupplierManagement() {
                       },
                       status: 'active' as const,
                       createdAt: new Date(),
-                      notes: ''
+                      notes: '',
+                      selectedProducts: formData.selectedProducts // Include selected products
                     };
 
                     if (editingSupplier) {
