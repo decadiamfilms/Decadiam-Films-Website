@@ -105,6 +105,13 @@ interface Subcategory {
   sortOrder: number;
 }
 
+interface SubcategoryPath {
+  id: string;
+  name: string;
+  level: number;
+  color: string;
+}
+
 export function SupplierManagement() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -243,10 +250,20 @@ export function SupplierManagement() {
     }
   };
 
-  // Populate form data when editing a supplier
+  // Populate form data when editing a supplier OR when opening modal for editing
   useEffect(() => {
-    if (editingSupplier) {
+    if (editingSupplier && showAddSupplierModal) {
       console.log('🏭 Populating form with supplier data:', editingSupplier.name);
+      console.log('📦 Supplier products:', editingSupplier.supplierProducts);
+      
+      const selectedProductIds = editingSupplier.supplierProducts
+        ? editingSupplier.supplierProducts
+            .filter(sp => sp.isActive)
+            .map(sp => sp.productId)
+        : [];
+      
+      console.log('✅ Selected product IDs:', selectedProductIds);
+      
       setFormData({
         supplierDetails: {
           name: editingSupplier.name || '',
@@ -270,14 +287,11 @@ export function SupplierManagement() {
           product: editingSupplier.supplierType === 'Manufacturer' || editingSupplier.supplierType === 'Wholesaler' || editingSupplier.supplierType === 'Distributor',
           courier: editingSupplier.supplierType === 'Courier'
         },
-        selectedProducts: editingSupplier.supplierProducts
-          ? editingSupplier.supplierProducts
-              .filter(sp => sp.isActive)
-              .map(sp => sp.productId)
-          : []
+        selectedProducts: selectedProductIds
       });
-    } else {
-      // Reset form when not editing
+    } else if (!editingSupplier && showAddSupplierModal) {
+      // Reset form when creating new supplier
+      console.log('🆕 Resetting form for new supplier');
       setFormData({
         supplierDetails: { name: '', mobile: '', email: '', accountingId: '' },
         primaryContact: { firstName: '', lastName: '', position: '', email: '', landline: '', fax: '', mobile: '' },
@@ -287,7 +301,8 @@ export function SupplierManagement() {
         selectedProducts: []
       });
     }
-  }, [editingSupplier]);
+  }, [editingSupplier, showAddSupplierModal]);
+
 
   // Load data on component mount
   useEffect(() => {
@@ -485,7 +500,10 @@ export function SupplierManagement() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => setShowAddSupplierModal(true)}
+                onClick={() => {
+                  setEditingSupplier(null); // Reset editing supplier for new supplier
+                  setShowAddSupplierModal(true);
+                }}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
               >
                 <PlusIcon className="w-5 h-5" />
@@ -656,7 +674,7 @@ export function SupplierManagement() {
               <button
                 onClick={() => {
                   setShowAddSupplierModal(false);
-                  setEditingSupplier(null);
+                  // Don't reset editingSupplier here - only reset when truly done editing
                 }}
                 className="p-2 hover:bg-gray-100 rounded-lg"
               >
@@ -1202,7 +1220,7 @@ export function SupplierManagement() {
               <button
                 onClick={() => {
                   setShowAddSupplierModal(false);
-                  setEditingSupplier(null);
+                  // Don't reset editingSupplier here - only reset when truly done editing
                 }}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
               >
@@ -1267,16 +1285,6 @@ export function SupplierManagement() {
                     
                     setShowAddSupplierModal(false);
                     setEditingSupplier(null);
-                    
-                    // Reset form
-                    setFormData({
-                      supplierDetails: { name: '', mobile: '', email: '', accountingId: '' },
-                      primaryContact: { firstName: '', lastName: '', position: '', email: '', landline: '', fax: '', mobile: '' },
-                      locations: [],
-                      additionalContacts: [],
-                      supplierTypes: { service: false, product: false, courier: false },
-                      selectedProducts: []
-                    });
                     
                   } catch (error) {
                     console.error('❌ Failed to save supplier:', error);
