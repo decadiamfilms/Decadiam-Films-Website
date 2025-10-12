@@ -91,6 +91,7 @@ model Product {
   // Relations
   pricing       ProductPricing[]
   inventory     ProductInventory[]
+  supplier_products SupplierProduct[]
   
   @@map("products")
 }
@@ -321,22 +322,120 @@ model Location {
   @@map("locations")
 }
 
-// Supplier Management
+// Enhanced Supplier Management
 model Supplier {
-  id          String   @id @default(uuid())
-  name        String
-  email       String?
-  phone       String?
-  address     Json?
-  company_id  String   @map("company_id")
-  company     Company  @relation(fields: [company_id], references: [id])
-  is_active   Boolean  @default(true) @map("is_active")
-  created_at  DateTime @default(now()) @map("created_at")
-  updated_at  DateTime @updatedAt @map("updated_at")
+  id               String   @id @default(uuid())
   
-  products    Product[]
+  // Basic Supplier Information
+  name             String   // Supplier Name *
+  mobile           String?  // Mobile
+  email            String?  // Email  
+  accounting_id    String?  @map("accounting_id") // Accounting ID
+  
+  // Primary Contact Information
+  primary_contact_first_name String? @map("primary_contact_first_name") // First Name *
+  primary_contact_last_name  String? @map("primary_contact_last_name")  // Last Name *
+  primary_contact_position   String? @map("primary_contact_position")   // Position
+  primary_contact_email      String? @map("primary_contact_email")      // Email
+  primary_contact_landline   String? @map("primary_contact_landline")   // Landline
+  primary_contact_fax        String? @map("primary_contact_fax")        // Fax
+  primary_contact_mobile     String? @map("primary_contact_mobile")     // Mobile
+  
+  // Address Information (JSON fields for structured address data)
+  mailing_address  Json?    @map("mailing_address")  // Mailing address with all fields
+  billing_address  Json?    @map("billing_address")  // Billing address
+  delivery_address Json?    @map("delivery_address") // Delivery address
+  
+  // Legacy address field (for backward compatibility)
+  address          Json?    // Location details as JSON
+  
+  // Category Integration
+  primary_category_id String? @map("primary_category_id")
+  primary_category    Category? @relation(fields: [primary_category_id], references: [id])
+  
+  // System Information
+  company_id       String   @map("company_id")
+  company          Company  @relation(fields: [company_id], references: [id])
+  is_active        Boolean  @default(true) @map("is_active")
+  created_at       DateTime @default(now()) @map("created_at")
+  updated_at       DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  products              Product[]
+  additional_contacts   SupplierContact[]
+  supplier_products     SupplierProduct[]
+  addresses            SupplierAddress[]
   
   @@map("suppliers")
+}
+
+// Additional Supplier Contacts
+model SupplierContact {
+  id           String   @id @default(uuid())
+  supplier_id  String   @map("supplier_id")
+  supplier     Supplier @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+  
+  first_name   String   @map("first_name") // First Name *
+  last_name    String   @map("last_name")  // Last Name *  
+  position     String?  // Position
+  email        String?  // Email
+  landline     String?  // Landline
+  fax          String?  // Fax
+  mobile       String?  // Mobile
+  
+  created_at   DateTime @default(now()) @map("created_at")
+  updated_at   DateTime @updatedAt @map("updated_at")
+  
+  @@map("supplier_contacts")
+}
+
+// Supplier Addresses with detailed structure
+model SupplierAddress {
+  id            String   @id @default(uuid())
+  supplier_id   String   @map("supplier_id")
+  supplier      Supplier @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+  
+  // Address Type and Usage
+  address_type  String   @map("address_type") // "Mailing", "Billing", "Delivery"
+  usage_type    String   @map("usage_type")   // How this address is used
+  
+  // Address Details
+  unit_number   String?  @map("unit_number")   // Unit Number
+  street_number String?  @map("street_number") // Street Number  
+  street_name   String?  @map("street_name")   // Street Name
+  city          String?  // City
+  state         String?  // State
+  postcode      String?  // Postcode
+  country       String?  @default("Australia") // Country
+  
+  is_primary    Boolean  @default(false) @map("is_primary")
+  created_at    DateTime @default(now()) @map("created_at")
+  updated_at    DateTime @updatedAt @map("updated_at")
+  
+  @@map("supplier_addresses")
+}
+
+// Supplier Product Junction - Track which products each supplier provides
+model SupplierProduct {
+  id                String   @id @default(uuid())
+  supplier_id       String   @map("supplier_id")
+  supplier          Supplier @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+  product_id        String   @map("product_id")
+  product           Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
+  
+  // Supplier-specific product details
+  supplier_product_code String? @map("supplier_product_code") // Supplier's code for this product
+  cost_price           Float?   @map("cost_price")            // Cost from this supplier
+  lead_time_days       Int?     @default(7) @map("lead_time_days") // Delivery time
+  minimum_order_qty    Int?     @default(1) @map("minimum_order_qty") // Min order quantity
+  is_preferred         Boolean  @default(false) @map("is_preferred") // Preferred supplier for this product
+  is_active            Boolean  @default(true) @map("is_active")
+  
+  created_at          DateTime @default(now()) @map("created_at")
+  updated_at          DateTime @updatedAt @map("updated_at")
+  
+  @@unique([supplier_id, product_id]) // One record per supplier-product combination
+  @@map("supplier_products")
 }
 
 // Authentication Session Management
@@ -405,6 +504,7 @@ model Category {
   products            Product[]
   customer_pricelists CustomerPriceList[]
   subcategories       Subcategory[] @relation("CategorySubcategories")
+  suppliers           Supplier[]
   
   @@map("categories")
 }

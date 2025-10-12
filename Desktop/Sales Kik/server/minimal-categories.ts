@@ -925,6 +925,246 @@ app.put('/api/onboarding/progress/:companyId', async (req, res) => {
   }
 });
 
+// Suppliers API endpoints
+app.get('/api/suppliers', async (_req, res) => {
+  try {
+    console.log('🏭 Suppliers API: Fetching suppliers from database');
+    
+    const suppliers = await prisma.supplier.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb',
+        is_active: true 
+      },
+      include: {
+        primary_category: true,
+        additional_contacts: true,
+        addresses: true,
+        supplier_products: {
+          include: {
+            product: true
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    console.log('✅ Suppliers API: Found', suppliers.length, 'suppliers');
+
+    // Transform to frontend format
+    const transformedSuppliers = suppliers.map(supplier => ({
+      id: supplier.id,
+      name: supplier.name,
+      mobile: supplier.mobile,
+      email: supplier.email,
+      accountingId: supplier.accounting_id,
+      
+      // Primary Contact
+      primaryContact: {
+        firstName: supplier.primary_contact_first_name,
+        lastName: supplier.primary_contact_last_name,
+        position: supplier.primary_contact_position,
+        email: supplier.primary_contact_email,
+        landline: supplier.primary_contact_landline,
+        fax: supplier.primary_contact_fax,
+        mobile: supplier.primary_contact_mobile
+      },
+      
+      // Addresses
+      mailingAddress: supplier.mailing_address,
+      billingAddress: supplier.billing_address,
+      deliveryAddress: supplier.delivery_address,
+      
+      // Category
+      primaryCategoryId: supplier.primary_category_id,
+      primaryCategoryName: supplier.primary_category?.name,
+      
+      // Additional contacts and addresses
+      additionalContacts: supplier.additional_contacts,
+      addresses: supplier.addresses,
+      
+      // Products this supplier provides
+      supplierProducts: supplier.supplier_products.map(sp => ({
+        productId: sp.product_id,
+        productName: sp.product.name,
+        productCode: sp.product.code,
+        supplierProductCode: sp.supplier_product_code,
+        costPrice: sp.cost_price,
+        leadTimeDays: sp.lead_time_days,
+        minimumOrderQty: sp.minimum_order_qty,
+        isPreferred: sp.is_preferred,
+        isActive: sp.is_active
+      })),
+      
+      isActive: supplier.is_active,
+      createdAt: supplier.created_at,
+      updatedAt: supplier.updated_at
+    }));
+
+    res.json({
+      success: true,
+      data: transformedSuppliers
+    });
+  } catch (error: any) {
+    console.error('❌ Suppliers API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.post('/api/suppliers', async (req, res) => {
+  try {
+    const companyId = '0e573687-3b53-498a-9e78-f198f16f8bcb';
+    const supplierData = req.body;
+    
+    console.log('💾 Creating new supplier:', supplierData.name);
+
+    // Create supplier with all fields
+    const newSupplier = await prisma.supplier.create({
+      data: {
+        company_id: companyId,
+        name: supplierData.name,
+        mobile: supplierData.mobile,
+        email: supplierData.email,
+        accounting_id: supplierData.accountingId,
+        
+        // Primary contact
+        primary_contact_first_name: supplierData.primaryContact?.firstName,
+        primary_contact_last_name: supplierData.primaryContact?.lastName,
+        primary_contact_position: supplierData.primaryContact?.position,
+        primary_contact_email: supplierData.primaryContact?.email,
+        primary_contact_landline: supplierData.primaryContact?.landline,
+        primary_contact_fax: supplierData.primaryContact?.fax,
+        primary_contact_mobile: supplierData.primaryContact?.mobile,
+        
+        // Addresses
+        mailing_address: supplierData.mailingAddress,
+        billing_address: supplierData.billingAddress,
+        delivery_address: supplierData.deliveryAddress,
+        
+        // Category
+        primary_category_id: supplierData.primaryCategoryId,
+        
+        is_active: supplierData.isActive ?? true
+      },
+      include: {
+        primary_category: true,
+        additional_contacts: true,
+        addresses: true
+      }
+    });
+
+    // Create additional contacts if provided
+    if (supplierData.additionalContacts && Array.isArray(supplierData.additionalContacts)) {
+      for (const contact of supplierData.additionalContacts) {
+        await prisma.supplierContact.create({
+          data: {
+            supplier_id: newSupplier.id,
+            first_name: contact.firstName,
+            last_name: contact.lastName,
+            position: contact.position,
+            email: contact.email,
+            landline: contact.landline,
+            fax: contact.fax,
+            mobile: contact.mobile
+          }
+        });
+      }
+    }
+
+    // Create additional addresses if provided
+    if (supplierData.addresses && Array.isArray(supplierData.addresses)) {
+      for (const address of supplierData.addresses) {
+        await prisma.supplierAddress.create({
+          data: {
+            supplier_id: newSupplier.id,
+            address_type: address.addressType,
+            usage_type: address.usageType,
+            unit_number: address.unitNumber,
+            street_number: address.streetNumber,
+            street_name: address.streetName,
+            city: address.city,
+            state: address.state,
+            postcode: address.postcode,
+            country: address.country || 'Australia',
+            is_primary: address.isPrimary || false
+          }
+        });
+      }
+    }
+
+    // Link to products if specified
+    if (supplierData.selectedProducts && Array.isArray(supplierData.selectedProducts)) {
+      for (const productId of supplierData.selectedProducts) {
+        await prisma.supplierProduct.create({
+          data: {
+            supplier_id: newSupplier.id,
+            product_id: productId,
+            is_active: true
+          }
+        });
+      }
+    }
+
+    console.log('✅ Supplier created with ID:', newSupplier.id);
+
+    res.json({
+      success: true,
+      data: newSupplier
+    });
+  } catch (error: any) {
+    console.error('❌ Suppliers CREATE Error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+app.delete('/api/suppliers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('🗑️ Deleting supplier:', id);
+
+    await prisma.supplier.delete({
+      where: { id }
+    });
+
+    console.log('✅ Supplier deleted successfully');
+
+    res.json({
+      success: true,
+      message: 'Supplier deleted successfully'
+    });
+  } catch (error: any) {
+    console.error('❌ Suppliers DELETE Error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Mock onboarding status for dashboard compatibility
+app.get('/api/onboarding/status', async (_req, res) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        isComplete: true,
+        currentStep: 5,
+        companySetup: true
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Minimal Categories & Customers Server running on port ${PORT}`);
   console.log('📝 Environment: development');

@@ -129,7 +129,7 @@ app.get('/api/categories', async (req, res) => {
       success: true,
       data: frontendCategories,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Categories API Error:', error);
     res.status(500).json({
       success: false,
@@ -203,7 +203,7 @@ app.post('/api/categories', async (req, res) => {
         data: category,
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Categories POST Error:', error);
     res.status(400).json({
       success: false,
@@ -223,7 +223,7 @@ app.delete('/api/categories/:id', async (req, res) => {
     });
 
     res.json({ success: true, message: 'Category deleted successfully' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Categories DELETE Error:', error);
     res.status(400).json({
       success: false,
