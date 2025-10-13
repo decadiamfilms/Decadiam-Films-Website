@@ -182,6 +182,37 @@ interface Subcategory {
 
 export default function ProductManagement() {
   const navigate = useNavigate();
+
+  // Helper function to reconstruct subcategory path from database IDs
+  const reconstructSubcategoryPath = (mainCategoryId: string, subCategoryId: string, subSubCategoryId: string, subSubSubCategoryId: string, categories: Category[]) => {
+    const path: SubcategoryPath[] = [];
+    
+    if (!categories || categories.length === 0) return path;
+    
+    // Find the main category
+    const mainCategory = categories.find(cat => cat.id === mainCategoryId);
+    if (!mainCategory) return path;
+    
+    // Build path from subcategory IDs
+    const addToPath = (subcategoryId: string, level: number) => {
+      const subcategory = mainCategory.subcategories?.find(sub => sub.id === subcategoryId);
+      if (subcategory) {
+        path.push({
+          id: subcategory.id,
+          name: subcategory.name,
+          level: level,
+          color: subcategory.color
+        });
+      }
+    };
+    
+    if (subCategoryId) addToPath(subCategoryId, 0);
+    if (subSubCategoryId) addToPath(subSubCategoryId, 1);
+    if (subSubSubCategoryId) addToPath(subSubSubCategoryId, 2);
+    
+    console.log('🔗 Reconstructed subcategory path:', path.map(p => p.name).join(' → '));
+    return path;
+  };
   const [showSidebar, setShowSidebar] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -296,24 +327,32 @@ export default function ProductManagement() {
       const parsedProducts = productsData.map((product: any) => ({
         ...product,
         // Map database fields to frontend expected fields
-        categoryId: product.category_id,
-        categoryName: product.category?.name || 'Unknown',
-        productType: product.category?.name || 'Unknown', 
-        size: product.dimensions || '',
-        subcategoryPath: [],
+        categoryId: product.categoryId || product.category_id,
+        categoryName: product.categoryName || product.category?.name || 'Unknown',
+        productType: product.categoryName || product.category?.name || 'Unknown', 
+        size: product.size || product.dimensions?.size || '',
+        weight: product.weight || 0,
+        // Reconstruct subcategory path from database IDs
+        subcategoryPath: reconstructSubcategoryPath(
+          product.mainCategoryId || product.categoryId, 
+          product.subCategoryId,
+          product.subSubCategoryId, 
+          product.subSubSubCategoryId,
+          categories
+        ),
         inventory: {
-          currentStock: 0,
-          reorderPoint: 10,
+          currentStock: product.inventory?.current_stock || product.inventory?.currentStock || 0,
+          reorderPoint: product.inventory?.reorder_point || 10,
           supplier: 'Unknown',
           primaryLocation: 'Main Warehouse'
         },
-        // Map pricing fields if they exist
-        cost: product.pricing?.[0]?.cost_price || 0,
-        priceT1: product.pricing?.[0]?.tier_1 || 0,
-        priceT2: product.pricing?.[0]?.tier_2 || 0,
-        priceT3: product.pricing?.[0]?.tier_3 || 0,
-        priceN: product.pricing?.[0]?.retail || 0,
-        isActive: product.is_active,
+        // Map pricing fields - handle both API formats
+        cost: product.pricing?.cost_price || product.pricing?.[0]?.cost_price || product.cost || 0,
+        priceT1: product.pricing?.tier_1 || product.pricing?.[0]?.tier_1 || product.priceT1 || 0,
+        priceT2: product.pricing?.tier_2 || product.pricing?.[0]?.tier_2 || product.priceT2 || 0,
+        priceT3: product.pricing?.tier_3 || product.pricing?.[0]?.tier_3 || product.priceT3 || 0,
+        priceN: product.pricing?.retail || product.pricing?.[0]?.retail || product.priceN || 0,
+        isActive: product.isActive !== undefined ? product.isActive : true, // Default to true if not specified
         createdAt: new Date(product.created_at || new Date()),
         updatedAt: new Date(product.updated_at || new Date())
       }));
@@ -472,13 +511,13 @@ export default function ProductManagement() {
       product.code.toLowerCase().includes(searchKeyword.toLowerCase()) ||
       product.productType.toLowerCase().includes(searchKeyword.toLowerCase());
     
-    const matchesCategory = !selectedCategoryId || product.category_id === selectedCategoryId;
+    const matchesCategory = !selectedCategoryId || product.categoryId === selectedCategoryId;
     
     // Enhanced subcategory filtering with database structure
     const matchesSubcategory = (!selectedSubcategoryId && !selectedSubSubcategoryId && !selectedSubSubSubcategoryId) || 
-      (selectedSubcategoryId && (product.subcategory_id === selectedSubcategoryId || product.category_id === selectedSubcategoryId)) ||
-      (selectedSubSubcategoryId && (product.subcategory_id === selectedSubSubcategoryId || product.category_id === selectedSubSubcategoryId)) ||
-      (selectedSubSubSubcategoryId && (product.subcategory_id === selectedSubSubSubcategoryId || product.category_id === selectedSubSubSubcategoryId));
+      (selectedSubcategoryId && (product.subCategoryId === selectedSubcategoryId || product.categoryId === selectedSubcategoryId)) ||
+      (selectedSubSubcategoryId && (product.subSubCategoryId === selectedSubSubcategoryId || product.categoryId === selectedSubSubcategoryId)) ||
+      (selectedSubSubSubcategoryId && (product.subSubSubCategoryId === selectedSubSubSubcategoryId || product.categoryId === selectedSubSubSubcategoryId));
     
     const matchesStatus = showInactiveProducts ? true : product.isActive;
     
@@ -1014,21 +1053,89 @@ export default function ProductManagement() {
               
               if (editingProduct) {
                 // Update existing product
+                // Extract subcategory IDs from selectedSubcategoryPath for update too
+                const subcategoryIds = {
+                  mainCategoryId: product.categoryId,
+                  subCategoryId: product.subcategoryPath?.[0]?.id || null,
+                  subSubCategoryId: product.subcategoryPath?.[1]?.id || null,
+                  subSubSubCategoryId: product.subcategoryPath?.[2]?.id || null
+                };
+
+                console.log('📝 Updating product with complete data:', {
+                  name: product.name,
+                  code: product.code,
+                  categoryPath: product.subcategoryPath?.map(s => s.name).join(' → '),
+                  subcategoryIds
+                });
+
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products/${editingProduct.id}`, {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(product)
+                  body: JSON.stringify({
+                    code: product.code,
+                    name: product.name,
+                    description: product.description,
+                    categoryId: product.categoryId,
+                    
+                    // Full subcategory hierarchy
+                    mainCategoryId: subcategoryIds.mainCategoryId,
+                    subCategoryId: subcategoryIds.subCategoryId,
+                    subSubCategoryId: subcategoryIds.subSubCategoryId,
+                    subSubSubCategoryId: subcategoryIds.subSubSubCategoryId,
+                    
+                    // Size/Dimensions
+                    size: product.size,
+                    weight: product.weight,
+                    
+                    // Pricing fields
+                    cost: product.cost,
+                    priceT1: product.priceT1,
+                    priceT2: product.priceT2,
+                    priceT3: product.priceT3,
+                    priceN: product.priceN,
+                    
+                    // Inventory
+                    currentStock: product.inventory?.currentStock || 0,
+                    reorderPoint: product.inventory?.reorderPoint || 10,
+                    
+                    // Product status
+                    isActive: product.isActive
+                  })
                 });
                 
                 if (response.ok) {
                   console.log('✅ Product updated in database');
+                  
+                  // Close modal first, then refresh
+                  setShowProductForm(false);
+                  setEditingProduct(null);
+                  
                   // Refresh products list from database
-                  loadData();
+                  console.log('🔄 Refreshing product list after update...');
+                  await loadData();
+                  console.log('✅ Product list refreshed after update');
                 } else {
                   console.error('❌ Failed to update product');
+                  setShowProductForm(false);
+                  setEditingProduct(null);
                 }
               } else {
                 // Create new product
+                // Extract subcategory IDs from selectedSubcategoryPath
+                const subcategoryIds = {
+                  mainCategoryId: product.categoryId,
+                  subCategoryId: product.subcategoryPath?.[0]?.id || null,
+                  subSubCategoryId: product.subcategoryPath?.[1]?.id || null,
+                  subSubSubCategoryId: product.subcategoryPath?.[2]?.id || null
+                };
+
+                console.log('🏗️ Sending complete product data with subcategories:', {
+                  name: product.name,
+                  code: product.code,
+                  categoryPath: product.subcategoryPath?.map(s => s.name).join(' → '),
+                  subcategoryIds
+                });
+
                 const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -1037,29 +1144,51 @@ export default function ProductManagement() {
                     name: product.name,
                     description: product.description,
                     categoryId: product.categoryId,
-                    // Remove subcategoryId to avoid constraint errors
+                    
+                    // Full subcategory hierarchy
+                    mainCategoryId: subcategoryIds.mainCategoryId,
+                    subCategoryId: subcategoryIds.subCategoryId,
+                    subSubCategoryId: subcategoryIds.subSubCategoryId,
+                    subSubSubCategoryId: subcategoryIds.subSubSubCategoryId,
+                    
+                    // Size/Dimensions
+                    size: product.size,
                     weight: product.weight,
+                    
+                    // Pricing fields
                     cost: product.cost,
                     priceT1: product.priceT1,
                     priceT2: product.priceT2,
                     priceT3: product.priceT3,
                     priceN: product.priceN,
-                    currentStock: product.inventory?.currentStock || 0
+                    
+                    // Inventory
+                    currentStock: product.inventory?.currentStock || 0,
+                    reorderPoint: product.inventory?.reorderPoint || 10,
+                    
+                    // Product status
+                    isActive: product.isActive
                   })
                 });
                 
                 if (response.ok) {
                   const result = await response.json();
                   console.log('✅ Product created in database:', result);
-                  // Refresh products list from database
-                  loadData();
+                  
+                  // Close modal first, then refresh to avoid state conflicts
+                  setShowProductForm(false);
+                  setEditingProduct(null);
+                  
+                  // Refresh products list from database after modal closes
+                  console.log('🔄 Refreshing product list...');
+                  await loadData();
+                  console.log('✅ Product list refreshed - new product should be visible');
                 } else {
                   console.error('❌ Failed to create product');
+                  setShowProductForm(false);
+                  setEditingProduct(null);
                 }
               }
-              
-              setShowProductForm(false);
-              setEditingProduct(null);
             } catch (error) {
               console.error('❌ Error saving product:', error);
             }

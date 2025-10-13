@@ -1332,14 +1332,15 @@ app.get('/api/products', async (_req, res) => {
       },
       include: {
         category: true,
-        pricing: true
+        pricing: true,
+        inventory: true
       },
       orderBy: { name: 'asc' }
     });
 
     console.log('✅ Products API: Found', products.length, 'products');
 
-    // Transform to frontend format
+    // Transform to frontend format with full subcategory hierarchy
     const transformedProducts = products.map(product => ({
       id: product.id,
       code: product.code,
@@ -1347,10 +1348,24 @@ app.get('/api/products', async (_req, res) => {
       description: product.description,
       categoryId: product.category_id,
       categoryName: product.category?.name,
+      
+      // Full subcategory hierarchy
+      mainCategoryId: product.main_category_id,
+      subCategoryId: product.sub_category_id,
+      subSubCategoryId: product.sub_sub_category_id,
+      subSubSubCategoryId: product.sub_sub_sub_category_id,
+      
+      // Extract size from dimensions JSON
+      size: product.dimensions?.size || '',
+      
       weight: product.weight,
       isActive: product.is_active,
       createdAt: product.created_at,
-      updatedAt: product.updated_at
+      updatedAt: product.updated_at,
+      
+      // Include pricing and inventory data
+      pricing: product.pricing?.[0] || null,
+      inventory: product.inventory?.[0] || null
     }));
 
     res.json({
@@ -1372,7 +1387,15 @@ app.post('/api/products', async (req, res) => {
     const productData = req.body;
     
     console.log('💾 Creating new product:', productData.name);
+    console.log('🏗️ Product data received:', {
+      name: productData.name,
+      code: productData.code,
+      categoryId: productData.categoryId,
+      hasPricing: !!productData.cost,
+      hasInventory: !!productData.currentStock
+    });
 
+    // Create product with full category hierarchy support
     const newProduct = await prisma.product.create({
       data: {
         company_id: companyId,
@@ -1380,15 +1403,71 @@ app.post('/api/products', async (req, res) => {
         name: productData.name,
         description: productData.description,
         category_id: productData.categoryId,
+        main_category_id: productData.mainCategoryId,
+        sub_category_id: productData.subCategoryId,
+        sub_sub_category_id: productData.subSubCategoryId,
+        sub_sub_sub_category_id: productData.subSubSubCategoryId,
         weight: productData.weight || 0,
+        dimensions: productData.size ? { size: productData.size } : null,
         is_active: productData.isActive ?? true
       },
       include: {
-        category: true
+        category: true,
+        pricing: true,
+        inventory: true
       }
     });
 
     console.log('✅ Product created with ID:', newProduct.id);
+
+    // Create pricing record if pricing data provided
+    if (productData.cost || productData.priceT1 || productData.priceT2 || productData.priceT3 || productData.priceN) {
+      console.log('💰 Creating pricing record...');
+      await prisma.productPricing.create({
+        data: {
+          product_id: newProduct.id,
+          cost_price: parseFloat(productData.cost || 0),
+          tier_1: parseFloat(productData.priceT1 || 0),
+          tier_2: parseFloat(productData.priceT2 || 0),
+          tier_3: parseFloat(productData.priceT3 || 0),
+          retail: parseFloat(productData.priceN || 0)
+        }
+      });
+      console.log('✅ Pricing record created');
+    }
+
+    // Create inventory record if stock data provided
+    if (productData.currentStock !== undefined || productData.reorderPoint !== undefined) {
+      console.log('📦 Creating inventory record...');
+      
+      // Get or create default location
+      let defaultLocation = await prisma.location.findFirst({
+        where: { company_id: companyId }
+      });
+      
+      if (!defaultLocation) {
+        console.log('🏢 No location found, creating default location...');
+        defaultLocation = await prisma.location.create({
+          data: {
+            company_id: companyId,
+            name: 'Main Warehouse',
+            address: { street: 'Default Location', city: 'Main Office' },
+            is_active: true
+          }
+        });
+        console.log('✅ Default location created:', defaultLocation.id);
+      }
+      
+      await prisma.productInventory.create({
+        data: {
+          product_id: newProduct.id,
+          location_id: defaultLocation.id,
+          current_stock: parseInt(productData.currentStock || 0),
+          reorder_point: parseInt(productData.reorderPoint || 10)
+        }
+      });
+      console.log('✅ Inventory record created with stock:', productData.currentStock);
+    }
 
     res.json({
       success: true,
@@ -1396,6 +1475,145 @@ app.post('/api/products', async (req, res) => {
     });
   } catch (error: any) {
     console.error('❌ Products CREATE Error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Update product endpoint
+app.put('/api/products/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const productData = req.body;
+    
+    console.log('📝 Updating product:', productId, productData.name);
+
+    // Update product with full category hierarchy support
+    const updatedProduct = await prisma.product.update({
+      where: { id: productId },
+      data: {
+        code: productData.code,
+        name: productData.name,
+        description: productData.description,
+        category_id: productData.categoryId,
+        main_category_id: productData.mainCategoryId,
+        sub_category_id: productData.subCategoryId,
+        sub_sub_category_id: productData.subSubCategoryId,
+        sub_sub_sub_category_id: productData.subSubSubCategoryId,
+        weight: productData.weight || 0,
+        dimensions: productData.size ? { size: productData.size } : null,
+        is_active: productData.isActive ?? true
+      },
+      include: {
+        category: true,
+        pricing: true,
+        inventory: true
+      }
+    });
+
+    console.log('✅ Product updated with ID:', updatedProduct.id);
+
+    // Update pricing record if pricing data provided
+    if (productData.cost || productData.priceT1 || productData.priceT2 || productData.priceT3 || productData.priceN) {
+      console.log('💰 Updating pricing record...');
+      
+      // Delete existing pricing records and create new one
+      await prisma.productPricing.deleteMany({
+        where: { product_id: productId }
+      });
+      
+      await prisma.productPricing.create({
+        data: {
+          product_id: productId,
+          cost_price: parseFloat(productData.cost || 0),
+          tier_1: parseFloat(productData.priceT1 || 0),
+          tier_2: parseFloat(productData.priceT2 || 0),
+          tier_3: parseFloat(productData.priceT3 || 0),
+          retail: parseFloat(productData.priceN || 0)
+        }
+      });
+      console.log('✅ Pricing record updated');
+    }
+
+    // Update inventory record if stock data provided
+    if (productData.currentStock !== undefined) {
+      console.log('📦 Updating inventory record...');
+      
+      // Get or create default location
+      let defaultLocation = await prisma.location.findFirst({
+        where: { company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb' }
+      });
+      
+      if (!defaultLocation) {
+        defaultLocation = await prisma.location.create({
+          data: {
+            company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb',
+            name: 'Main Warehouse',
+            address: { street: 'Default Location', city: 'Main Office' },
+            is_active: true
+          }
+        });
+      }
+      
+      // Delete existing inventory and create new
+      await prisma.productInventory.deleteMany({
+        where: { product_id: productId }
+      });
+      
+      await prisma.productInventory.create({
+        data: {
+          product_id: productId,
+          location_id: defaultLocation.id,
+          current_stock: parseInt(productData.currentStock || 0),
+          reorder_point: parseInt(productData.reorderPoint || 10)
+        }
+      });
+      console.log('✅ Inventory record updated with stock:', productData.currentStock);
+    }
+
+    res.json({
+      success: true,
+      data: updatedProduct
+    });
+  } catch (error: any) {
+    console.error('❌ Products UPDATE Error:', error);
+    res.status(400).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
+// Delete product endpoint
+app.delete('/api/products/:id', async (req, res) => {
+  try {
+    const productId = req.params.id;
+    console.log('🗑️ Deleting product:', productId);
+
+    // Delete related records first (cascade should handle this, but being explicit)
+    await prisma.productPricing.deleteMany({
+      where: { product_id: productId }
+    });
+    
+    await prisma.productInventory.deleteMany({
+      where: { product_id: productId }
+    });
+
+    // Delete the product itself
+    const deletedProduct = await prisma.product.delete({
+      where: { id: productId }
+    });
+
+    console.log('✅ Product deleted successfully:', deletedProduct.name);
+
+    res.json({
+      success: true,
+      message: 'Product deleted successfully'
+    });
+  } catch (error: any) {
+    console.error('❌ Products DELETE Error:', error);
     res.status(400).json({
       success: false,
       error: error.message,
