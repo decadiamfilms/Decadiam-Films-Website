@@ -329,24 +329,30 @@ const StockCheckPage: React.FC = () => {
       console.log('📦 StockCheck: Loading products from database');
       
       // Load real products from database
-      const response = await fetch('/api/products');
-      if (!response.ok) {
-        throw new Error('Failed to load products from database');
+      console.log('📦 StockCheck: Loading products using dataService...');
+      const databaseProducts = await dataService.products.getAll();
+      console.log('✅ StockCheck: dataService returned:', databaseProducts?.length || 'undefined', 'products');
+      
+      if (!databaseProducts || databaseProducts.length === 0) {
+        throw new Error('No products received from database');
       }
       
-      const result = await response.json();
-      const databaseProducts = result.success ? result.data : [];
-      
-      // Transform database products to Stock Check format
+      // Transform database products to Stock Check format while preserving inventory/pricing
       const stockCheckProducts: Product[] = databaseProducts.map((product: any) => ({
         id: String(product.id || ''),
         name: String(product.name || 'Unnamed Product'),
         sku: String(product.code || ''),
         barcode: String(product.code || ''), // Use product code as barcode
-        category_id: product.category_id,
-        category_name: String(product.category?.name || 'Unknown Category'),
+        category_id: product.category_id || product.categoryId,
+        category_name: String(product.categoryName || product.category?.name || 'Unknown Category'),
         image_url: '',
-        is_active: Boolean(product.is_active)
+        is_active: Boolean(product.isActive !== false),
+        
+        // PRESERVE inventory and pricing data for stock calculations
+        inventory: product.inventory,
+        pricing: product.pricing,
+        cost: product.cost,
+        currentStock: product.currentStock
       }));
       
       // Apply filters
@@ -386,17 +392,34 @@ const StockCheckPage: React.FC = () => {
 
       // Use REAL inventory data from database instead of fake data
       const realInventory: ProductInventory[] = filteredProducts.map((product, index) => {
-        console.log('📋 StockCheck: Processing product inventory:', product.name, product.inventory);
+        console.log('📋 StockCheck: Processing product inventory:', product.name);
+        console.log('📦 StockCheck: Full product object:', product);
+        console.log('📊 StockCheck: Inventory object:', product.inventory);
+        console.log('💰 StockCheck: Pricing object:', product.pricing);
         
-        // Extract real inventory data from database
+        // Try multiple possible inventory data structures
         const inventoryData = product.inventory || {};
         const pricingData = product.pricing || {};
         
-        const currentStock = inventoryData.current_stock || inventoryData.currentStock || 0;
-        const reserved = inventoryData.reserved_stock || 0;
-        const available = inventoryData.available_stock || currentStock;
-        const reorderPoint = inventoryData.reorder_point || inventoryData.reorderPoint || 10;
-        const costPrice = pricingData.cost_price || product.cost || 0;
+        // More comprehensive field checking
+        const currentStock = 
+          inventoryData.current_stock || 
+          inventoryData.currentStock || 
+          product.currentStock ||
+          product.inventory?.current_stock ||
+          0;
+          
+        const reserved = inventoryData.reserved_stock || inventoryData.reserved || 0;
+        const available = inventoryData.available_stock || inventoryData.available || currentStock;
+        const reorderPoint = inventoryData.reorder_point || inventoryData.reorderPoint || product.reorderLevel || 10;
+        
+        // More comprehensive pricing field checking  
+        const costPrice = 
+          pricingData.cost_price || 
+          pricingData.costPrice ||
+          product.cost ||
+          product.costPrice ||
+          0;
         
         console.log('✅ StockCheck: Real values mapped:', {
           productName: product.name,
