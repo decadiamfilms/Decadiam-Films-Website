@@ -384,31 +384,43 @@ const StockCheckPage: React.FC = () => {
       console.log('✅ StockCheck: Loaded', stockCheckProducts.length, 'products from database, showing', filteredProducts.length);
       setProducts(filteredProducts);
 
-      // Generate inventory data for the filtered products
+      // Use REAL inventory data from database instead of fake data
       const realInventory: ProductInventory[] = filteredProducts.map((product, index) => {
-        let stockLevel = 50; // Default good stock
+        console.log('📋 StockCheck: Processing product inventory:', product.name, product.inventory);
         
-        // Simulate different stock levels based on filter
-        if (activeFilter === 'out') stockLevel = 0;
-        else if (activeFilter === 'low') stockLevel = Math.floor(Math.random() * 10) + 1;
-        else if (activeFilter === 'reorder') stockLevel = Math.floor(Math.random() * 15) + 1;
-        else stockLevel = Math.floor(Math.random() * 200) + 20;
+        // Extract real inventory data from database
+        const inventoryData = product.inventory || {};
+        const pricingData = product.pricing || {};
+        
+        const currentStock = inventoryData.current_stock || inventoryData.currentStock || 0;
+        const reserved = inventoryData.reserved_stock || 0;
+        const available = inventoryData.available_stock || currentStock;
+        const reorderPoint = inventoryData.reorder_point || inventoryData.reorderPoint || 10;
+        const costPrice = pricingData.cost_price || product.cost || 0;
+        
+        console.log('✅ StockCheck: Real values mapped:', {
+          productName: product.name,
+          currentStock,
+          available,
+          reorderPoint,
+          costPrice
+        });
 
         return {
           id: index + 1,
           product_id: product.id,
           warehouse_id: 1,
-          quantity_on_hand: stockLevel,
-          quantity_reserved: Math.floor(stockLevel * 0.1),
-          quantity_available: Math.floor(stockLevel * 0.9),
-          quantity_pending_in: Math.floor(Math.random() * 50),
+          quantity_on_hand: currentStock,
+          quantity_reserved: reserved,
+          quantity_available: available,
+          quantity_pending_in: 0,
           quantity_allocated: 0,
-          reorder_point: 15,
+          reorder_point: reorderPoint,
           reorder_quantity: 50,
-          average_cost: 25.50 + (index * 5),
-          last_cost: 27.00 + (index * 5),
-          total_value: stockLevel * (25.50 + (index * 5)),
-          bin_location: `A${Math.floor(Math.random() * 5) + 1}-B${Math.floor(Math.random() * 5) + 1}`
+          average_cost: costPrice,
+          last_cost: costPrice,
+          total_value: currentStock * costPrice,
+          bin_location: 'A1-B1' // Default location
         };
       });
 

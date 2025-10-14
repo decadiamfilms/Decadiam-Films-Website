@@ -1621,6 +1621,46 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 });
 
+// Basic authentication endpoint for login compatibility
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    console.log('🔐 Login attempt for:', email);
+    
+    // Basic authentication - in production this would be more secure
+    if (email && password) {
+      const mockToken = 'mock-jwt-token-' + Date.now();
+      console.log('✅ Login successful for:', email);
+      
+      res.json({
+        success: true,
+        data: {
+          accessToken: mockToken,
+          user: {
+            id: '1',
+            email: email,
+            firstName: 'Admin',
+            lastName: 'User',
+            role: 'ADMIN'
+          }
+        }
+      });
+    } else {
+      console.log('❌ Login failed - missing credentials');
+      res.status(401).json({
+        success: false,
+        error: 'Invalid credentials'
+      });
+    }
+  } catch (error: any) {
+    console.error('❌ Login Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Mock onboarding status for dashboard compatibility
 app.get('/api/onboarding/status', async (_req, res) => {
   try {

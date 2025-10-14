@@ -337,23 +337,45 @@ export default function AdvancedInventoryGrid() {
       
       if (productsData && productsData.length > 0) {
         // Transform products to include inventory/stock data
-        const transformedProducts = productsData.map((product: any) => ({
-          ...product,
-          // Map database inventory structure to StockFlow format
-          currentStock: product.inventory?.[0]?.current_stock || 25, // Default meaningful stock
-          reserved: product.inventory?.[0]?.reserved_stock || 0,
-          available: product.inventory?.[0]?.available_stock || (product.inventory?.[0]?.current_stock || 25),
-          reorderLevel: product.inventory?.[0]?.reorder_point || 10,
-          maxStock: product.inventory?.[0]?.max_stock || 100,
-          location: 'Main Warehouse', // Default location since locations API disabled
-          lastMovement: product.inventory?.[0]?.last_movement || new Date().toISOString(),
-          // Ensure required fields exist with database pricing structure
-          categoryName: product.category?.name || 'Uncategorized',
-          isActive: product.is_active !== false, // Default to true, using database field name
-          unitPrice: product.pricing?.[0]?.tier_1 || 0, // Use database pricing tier_1
-          costPrice: product.pricing?.[0]?.cost_price || 0, // Use database cost_price
-          averageCost: product.pricing?.[0]?.cost_price || 0, // Same as cost for now
-        }));
+        const transformedProducts = productsData.map((product: any) => {
+          console.log('🏬 StockFlow: Processing product:', product.name);
+          console.log('📦 StockFlow: Raw inventory data:', product.inventory);
+          console.log('💰 StockFlow: Raw pricing data:', product.pricing);
+          
+          // Extract real inventory data  
+          const inventoryData = product.inventory || {};
+          const pricingData = product.pricing || {};
+          
+          const currentStock = inventoryData.current_stock || inventoryData.currentStock || 0;
+          const costPrice = pricingData.cost_price || product.cost || 0;
+          const tier1Price = pricingData.tier_1 || product.priceT1 || 0;
+          
+          console.log('✅ StockFlow: Mapped values:', {
+            currentStock,
+            costPrice,
+            tier1Price,
+            categoryName: product.categoryName
+          });
+          
+          return {
+            ...product,
+            // Use REAL database values only
+            currentStock: currentStock,
+            reserved: inventoryData.reserved_stock || 0,
+            available: inventoryData.available_stock || currentStock,
+            reorderLevel: inventoryData.reorder_point || inventoryData.reorderPoint || 10,
+            maxStock: inventoryData.max_stock || 100,
+            location: 'Main Warehouse',
+            lastMovement: inventoryData.last_movement || new Date().toISOString(),
+            
+            // Enhanced field mapping
+            categoryName: product.categoryName || product.category?.name || 'Uncategorized',
+            isActive: product.isActive !== false,
+            unitPrice: tier1Price,
+            costPrice: costPrice,
+            averageCost: costPrice
+          };
+        });
         
         // Add calculated fields after transformation
         const productsWithCalculations = transformedProducts.map(product => ({
