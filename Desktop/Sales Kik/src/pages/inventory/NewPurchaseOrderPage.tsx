@@ -580,7 +580,8 @@ export default function NewPurchaseOrderPage() {
     }
 
     if (!selectedCategory) {
-      setFilteredProducts([]);
+      console.log('📋 PO: No category selected, showing ALL products:', products.length);
+      setFilteredProducts(products); // Show all products instead of hiding them
       return;
     }
 
@@ -597,7 +598,14 @@ export default function NewPurchaseOrderPage() {
       return;
     }
 
-    let filtered = products.filter(p => p.isActive && p.categoryId === selectedCategory);
+    console.log('🔍 PO: Category filter - selectedCategory:', selectedCategory);
+    console.log('🔍 PO: Product categories:', products.map(p => ({name: p.name, categoryId: p.categoryId, categoryName: p.categoryName})));
+    
+    let filtered = products.filter(p => {
+      const matches = p.isActive && p.categoryId === selectedCategory;
+      console.log('🔍 PO: Product', p.name, 'matches category filter:', matches, 'categoryId:', p.categoryId);
+      return matches;
+    });
     
     if (selectedPath.length > 0) {
       const finalSubcategory = selectedPath[selectedPath.length - 1];
@@ -925,7 +933,11 @@ export default function NewPurchaseOrderPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredProducts.length === 0 ? (
+                    {(() => {
+                      console.log('🔍 PO: Conditional check - filteredProducts.length:', filteredProducts.length);
+                      console.log('🔍 PO: Should show products?', filteredProducts.length > 0);
+                      return filteredProducts.length === 0;
+                    })() ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-8 text-center">
                           <CubeIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
