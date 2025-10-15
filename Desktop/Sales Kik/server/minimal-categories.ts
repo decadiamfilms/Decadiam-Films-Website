@@ -1340,7 +1340,45 @@ app.get('/api/products', async (_req, res) => {
 
     console.log('✅ Products API: Found', products.length, 'products');
 
-    // Transform to frontend format with full subcategory hierarchy
+    // Get categories for building subcategory paths
+    const categories = await prisma.category.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb',
+        is_active: true 
+      },
+      include: {
+        subcategories: true
+      }
+    });
+
+    // Helper function to build subcategory path from IDs
+    const buildSubcategoryPath = (mainCategoryId: string, subCategoryId: string, subSubCategoryId: string, subSubSubCategoryId: string) => {
+      const path = [];
+      
+      if (!mainCategoryId) return path;
+      
+      const mainCategory = categories.find(c => c.id === mainCategoryId);
+      if (!mainCategory) return path;
+      
+      // Add subcategories to path based on stored IDs
+      [subCategoryId, subSubCategoryId, subSubSubCategoryId].forEach((id, level) => {
+        if (id) {
+          const subcategory = mainCategory.subcategories.find(sub => sub.id === id);
+          if (subcategory) {
+            path.push({
+              id: subcategory.id,
+              name: subcategory.name,
+              level: level,
+              color: subcategory.color
+            });
+          }
+        }
+      });
+      
+      return path;
+    };
+
+    // Transform to frontend format with complete subcategory hierarchy
     const transformedProducts = products.map(product => ({
       id: product.id,
       code: product.code,
@@ -1349,11 +1387,19 @@ app.get('/api/products', async (_req, res) => {
       categoryId: product.category_id,
       categoryName: product.category?.name,
       
-      // Full subcategory hierarchy
+      // Full subcategory hierarchy IDs
       mainCategoryId: product.main_category_id,
       subCategoryId: product.sub_category_id,
       subSubCategoryId: product.sub_sub_category_id,
       subSubSubCategoryId: product.sub_sub_sub_category_id,
+      
+      // Build complete subcategory path for filtering
+      subcategoryPath: buildSubcategoryPath(
+        product.main_category_id || product.category_id,
+        product.sub_category_id,
+        product.sub_sub_category_id,
+        product.sub_sub_sub_category_id
+      ),
       
       // Extract size from dimensions JSON
       size: product.dimensions?.size || '',

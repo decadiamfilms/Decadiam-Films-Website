@@ -599,11 +599,27 @@ export default function NewPurchaseOrderPage() {
     }
 
     console.log('🔍 PO: Category filter - selectedCategory:', selectedCategory);
-    console.log('🔍 PO: Product categories:', products.map(p => ({name: p.name, categoryId: p.categoryId, categoryName: p.categoryName})));
+    console.log('🔍 PO: Product categories and paths:', products.map(p => ({
+      name: p.name, 
+      categoryId: p.categoryId, 
+      categoryName: p.categoryName,
+      subcategoryPath: p.subcategoryPath
+    })));
     
     let filtered = products.filter(p => {
-      const matches = p.isActive && p.categoryId === selectedCategory;
-      console.log('🔍 PO: Product', p.name, 'matches category filter:', matches, 'categoryId:', p.categoryId);
+      // Enhanced matching: categoryId, categoryName, OR subcategory path contains selected category
+      const categoryMatch = p.categoryId === selectedCategory || p.categoryName === selectedCategory;
+      const pathMatch = p.subcategoryPath && p.subcategoryPath.some(sub => 
+        sub.name === selectedCategory || sub.id === selectedCategory
+      );
+      const matches = p.isActive && (categoryMatch || pathMatch);
+      
+      console.log('🔍 PO: Product', p.name, 'matches category filter:', matches, {
+        categoryMatch,
+        pathMatch,
+        categoryName: p.categoryName,
+        pathNames: p.subcategoryPath?.map(s => s.name)
+      });
       return matches;
     });
     
