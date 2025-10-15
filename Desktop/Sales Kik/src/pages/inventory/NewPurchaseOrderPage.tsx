@@ -457,16 +457,34 @@ export default function NewPurchaseOrderPage() {
       const productsData = await dataService.products.getAll();
       
       if (productsData && productsData.length > 0) {
-        setProducts(productsData);
-        setFilteredProducts(productsData);
-        console.log('✅ PO: Loaded', productsData.length, 'products from API');
+        // Transform database products to match expected format
+        const transformedProducts = productsData.map((product: any) => ({
+          id: product.id,
+          code: product.code,
+          name: product.name,
+          description: product.description || '',
+          costPrice: product.pricing?.cost_price || product.cost || 0,
+          currentStock: product.inventory?.current_stock || product.currentStock || 0,
+          categoryId: product.categoryId,
+          categoryName: product.categoryName || 'Unknown',
+          subcategoryPath: product.subcategoryPath || [],
+          isActive: product.isActive !== false
+        }));
+        
+        setProducts(transformedProducts);
+        setFilteredProducts(transformedProducts);
+        console.log('✅ PO: Loaded', transformedProducts.length, 'real products from database');
+        console.log('📋 PO: First product sample:', transformedProducts[0]);
+        console.log('🎯 PO: Products state updated, filteredProducts should show', transformedProducts.length, 'products');
+        return; // Don't fall back to mock data
       } else {
-        console.log('📝 PO: No products found, using empty array');
+        console.log('📝 PO: No products found in database');
         setProducts([]);
         setFilteredProducts([]);
+        return; // Don't fall back to mock data
       }
     } catch (error) {
-      console.error('❌ PO: Error loading products, using fallback:', error);
+      console.error('❌ PO: Error loading products from database:', error);
       const mockProducts: Product[] = [
         {
           id: '1',
@@ -928,7 +946,11 @@ export default function NewPurchaseOrderPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredProducts.map((product, index) => {
+                      (() => {
+                        console.log('🎯 PO: Rendering products table, filteredProducts.length:', filteredProducts.length);
+                        console.log('📋 PO: filteredProducts contents:', filteredProducts);
+                        return filteredProducts;
+                      })().map((product, index) => {
                         const isLowStock = product.currentStock <= 5;
                         const isOutOfStock = product.currentStock === 0;
                         

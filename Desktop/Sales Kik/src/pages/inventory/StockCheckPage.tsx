@@ -22,6 +22,7 @@ import BarcodeScannerModal from '@/components/inventory/BarcodeScannerModal';
 import UniversalNavigation from '@/components/layout/UniversalNavigation';
 import UniversalHeader from '@/components/layout/UniversalHeader';
 import type { Product, ProductInventory, Warehouse as WarehouseType, StockCheckFilter } from '@/types/inventory';
+import { dataService } from '../../services/api.service';
 import '@/styles/stock-check.css';
 
 // CustomDropdown component for category filtering
