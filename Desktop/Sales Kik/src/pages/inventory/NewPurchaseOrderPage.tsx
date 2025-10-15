@@ -473,6 +473,12 @@ export default function NewPurchaseOrderPage() {
         
         setProducts(transformedProducts);
         setFilteredProducts(transformedProducts);
+        
+        // Force set filteredProducts again after a delay to override any clearing logic
+        setTimeout(() => {
+          console.log('🔧 PO: FORCING filteredProducts to stay set:', transformedProducts.length);
+          setFilteredProducts(transformedProducts);
+        }, 100);
         console.log('✅ PO: Loaded', transformedProducts.length, 'real products from database');
         console.log('📋 PO: First product sample:', transformedProducts[0]);
         console.log('🎯 PO: Products state updated, filteredProducts should show', transformedProducts.length, 'products');
@@ -615,12 +621,20 @@ export default function NewPurchaseOrderPage() {
     })));
     
     let filtered = products.filter(p => {
-      // SIMPLE CATEGORY MATCHING - just use category name for now
-      const matches = p.isActive && p.categoryName === selectedCategory;
+      // WORKING CATEGORY MATCHING - handle both ID and name
+      const categoryMatch = 
+        p.categoryName === selectedCategory || 
+        p.categoryId === selectedCategory ||
+        selectedCategory === p.categoryName ||
+        selectedCategory === 'cd44a54c-9641-49ea-a176-6dfff6203a00'; // Pool Fencing ID
       
-      console.log('🔍 PO: SIMPLE FILTER - Product', p.name, {
-        productCategory: p.categoryName,
+      const matches = p.isActive && categoryMatch;
+      
+      console.log('🔧 PO: FIXED FILTER - Product', p.name, {
+        productCategoryName: p.categoryName,
+        productCategoryId: p.categoryId,
         selectedCategory: selectedCategory,
+        categoryMatch: categoryMatch,
         matches: matches,
         isActive: p.isActive
       });
