@@ -579,6 +579,13 @@ export default function NewPurchaseOrderPage() {
       return;
     }
 
+    // Don't filter if products haven't loaded yet
+    if (!products || products.length === 0) {
+      console.log('📋 PO: Waiting for products to load, products.length:', products?.length || 0);
+      setFilteredProducts([]);
+      return;
+    }
+
     if (!selectedCategory) {
       console.log('📋 PO: No category selected, showing ALL products:', products.length);
       setFilteredProducts(products); // Show all products instead of hiding them
@@ -598,27 +605,24 @@ export default function NewPurchaseOrderPage() {
       return;
     }
 
-    console.log('🔍 PO: Category filter - selectedCategory:', selectedCategory);
+    console.log('🔍 PO: Category filter - selectedCategory:', JSON.stringify(selectedCategory));
+    console.log('🔍 PO: selectedCategory type:', typeof selectedCategory);
     console.log('🔍 PO: Product categories and paths:', products.map(p => ({
       name: p.name, 
       categoryId: p.categoryId, 
-      categoryName: p.categoryName,
-      subcategoryPath: p.subcategoryPath
+      categoryName: JSON.stringify(p.categoryName),
+      categoryNameType: typeof p.categoryName
     })));
     
     let filtered = products.filter(p => {
-      // Enhanced matching: categoryId, categoryName, OR subcategory path contains selected category
-      const categoryMatch = p.categoryId === selectedCategory || p.categoryName === selectedCategory;
-      const pathMatch = p.subcategoryPath && p.subcategoryPath.some(sub => 
-        sub.name === selectedCategory || sub.id === selectedCategory
-      );
-      const matches = p.isActive && (categoryMatch || pathMatch);
+      // SIMPLE CATEGORY MATCHING - just use category name for now
+      const matches = p.isActive && p.categoryName === selectedCategory;
       
-      console.log('🔍 PO: Product', p.name, 'matches category filter:', matches, {
-        categoryMatch,
-        pathMatch,
-        categoryName: p.categoryName,
-        pathNames: p.subcategoryPath?.map(s => s.name)
+      console.log('🔍 PO: SIMPLE FILTER - Product', p.name, {
+        productCategory: p.categoryName,
+        selectedCategory: selectedCategory,
+        matches: matches,
+        isActive: p.isActive
       });
       return matches;
     });
