@@ -359,51 +359,58 @@ export default function NewPurchaseOrderPage() {
     console.log('🚀 PO: USEMEMO FILTER - Computing filtered products');
     console.log('🚀 PO: products.length:', products.length);
     console.log('🚀 PO: selectedCategory:', selectedCategory);
+    console.log('🚀 PO: selectedPath:', selectedPath);
     
     if (!products || products.length === 0) {
       console.log('🚀 PO: No products to filter');
       return [];
     }
     
-    if (!selectedCategory || selectedCategory === '') {
-      console.log('🚀 PO: No category filter - showing all products:', products.length);
+    // If no main category selected but subcategory path exists, filter by path
+    if ((!selectedCategory || selectedCategory === '') && (!selectedPath || selectedPath.length === 0)) {
+      console.log('🚀 PO: No filters - showing all products:', products.length);
       return products;
     }
     
     const filtered = products.filter(product => {
-      // Enhanced filtering: match main category, subcategory IDs, OR subcategory path
-      const mainCategoryMatch = product.categoryName === selectedCategory || product.categoryId === selectedCategory;
-      
-      // Check subcategory IDs 
-      const subcategoryMatch = 
-        product.subCategoryId === selectedCategory ||
-        product.subSubCategoryId === selectedCategory ||
-        product.subSubSubCategoryId === selectedCategory;
+      // When subcategory path is selected, ONLY show products that match subcategories
+      if (selectedPath && selectedPath.length > 0) {
+        // Product must match the selected subcategory path
+        const hasMatchingSubcategory = selectedPath.some(selectedSub => {
+          // Check if product name contains the subcategory name (fallback matching)
+          const nameMatch = product.name.toLowerCase().includes(selectedSub.name.toLowerCase());
+          
+          // Check actual subcategory data if available
+          const dataMatch = product.subcategoryPath && product.subcategoryPath.some(productSub => 
+            productSub.id === selectedSub.id || productSub.name === selectedSub.name
+          );
+          
+          // Check subcategory IDs
+          const idMatch = 
+            product.subCategoryId === selectedSub.id ||
+            product.subSubCategoryId === selectedSub.id ||
+            product.subSubSubCategoryId === selectedSub.id;
+            
+          return nameMatch || dataMatch || idMatch;
+        });
         
-      // Check subcategory path array
-      const pathMatch = product.subcategoryPath && product.subcategoryPath.some(sub => 
-        sub.id === selectedCategory || sub.name === selectedCategory
-      );
+        console.log('🔥 PO: SUBCATEGORY FILTER - Product', product.name, {
+          selectedPath: selectedPath.map(p => p.name),
+          hasMatchingSubcategory: hasMatchingSubcategory,
+          productName: product.name
+        });
+        
+        return hasMatchingSubcategory;
+      }
       
-      const matches = mainCategoryMatch || subcategoryMatch || pathMatch;
-      
-      console.log('🚀 PO: ENHANCED FILTER - Product', product.name, {
-        categoryName: product.categoryName,
-        categoryId: product.categoryId,
-        subCategoryId: product.subCategoryId,
-        subcategoryPath: product.subcategoryPath,
-        selectedCategory: selectedCategory,
-        mainCategoryMatch,
-        subcategoryMatch,
-        pathMatch,
-        finalMatch: matches
-      });
+      // Regular category filtering when no subcategory path selected
+      const matches = product.categoryName === selectedCategory || product.categoryId === selectedCategory;
       return matches;
     });
     
     console.log('🚀 PO: USEMEMO result:', filtered.length, 'filtered products');
     return filtered;
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, selectedPath]); // Add selectedPath dependency for subcategories
 
   const [lineItems, setLineItems] = useState<PurchaseOrderLineItem[]>([]);
   const [quantities, setQuantities] = useState<{[key: string]: number | string}>({});

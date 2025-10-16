@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
@@ -332,14 +332,18 @@ export default function ProductManagement() {
         productType: product.categoryName || product.category?.name || 'Unknown', 
         size: product.size || product.dimensions?.size || '',
         weight: product.weight || 0,
-        // Reconstruct subcategory path from database IDs
-        subcategoryPath: reconstructSubcategoryPath(
-          product.mainCategoryId || product.categoryId, 
-          product.subCategoryId,
-          product.subSubCategoryId, 
-          product.subSubSubCategoryId,
-          categories
-        ),
+        // Reconstruct subcategory path from database IDs with enhanced logging
+        subcategoryPath: (() => {
+          const path = reconstructSubcategoryPath(
+            product.mainCategoryId || product.categoryId, 
+            product.subCategoryId,
+            product.subSubCategoryId, 
+            product.subSubSubCategoryId,
+            categories
+          );
+          console.log('🔗 Product', product.name, 'reconstructed path:', path.map(p => p.name));
+          return path;
+        })(),
         inventory: {
           currentStock: product.inventory?.current_stock || product.inventory?.currentStock || 0,
           reorderPoint: product.inventory?.reorder_point || 10,
@@ -504,25 +508,72 @@ export default function ProductManagement() {
     return null;
   };
 
-  // Filter products
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = !searchKeyword || 
-      product.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      product.code.toLowerCase().includes(searchKeyword.toLowerCase()) ||
-      product.productType.toLowerCase().includes(searchKeyword.toLowerCase());
-    
-    const matchesCategory = !selectedCategoryId || product.categoryId === selectedCategoryId;
-    
-    // Enhanced subcategory filtering with database structure
-    const matchesSubcategory = (!selectedSubcategoryId && !selectedSubSubcategoryId && !selectedSubSubSubcategoryId) || 
-      (selectedSubcategoryId && (product.subCategoryId === selectedSubcategoryId || product.categoryId === selectedSubcategoryId)) ||
-      (selectedSubSubcategoryId && (product.subSubCategoryId === selectedSubSubcategoryId || product.categoryId === selectedSubSubcategoryId)) ||
-      (selectedSubSubSubcategoryId && (product.subSubSubCategoryId === selectedSubSubSubcategoryId || product.categoryId === selectedSubSubSubcategoryId));
-    
-    const matchesStatus = showInactiveProducts ? true : product.isActive;
-    
-    return matchesSearch && matchesCategory && matchesSubcategory && matchesStatus;
-  });
+  // Filter products with proper useMemo dependencies
+  const filteredProducts = useMemo(() => {
+    console.log('🔄 Filtering products with:', {
+      searchKeyword,
+      selectedCategoryId,
+      selectedSubcategoryId,
+      selectedSubSubcategoryId,
+      selectedSubSubSubcategoryId,
+      showInactiveProducts,
+      totalProducts: products.length
+    });
+
+    return products.filter(product => {
+      const matchesSearch = !searchKeyword || 
+        product.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        product.code.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+        product.productType.toLowerCase().includes(searchKeyword.toLowerCase());
+      
+      const matchesCategory = !selectedCategoryId || product.categoryId === selectedCategoryId;
+      
+      // Enhanced multi-level subcategory filtering
+      let matchesSubcategory = true;
+      
+      // If any subcategory filter is selected, apply hierarchical filtering
+      if (selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId) {
+        // Check if product matches at the deepest selected level
+        if (selectedSubSubSubcategoryId) {
+          // Level 3 selected - product must match this exact level
+          matchesSubcategory = product.subSubSubCategoryId === selectedSubSubSubcategoryId;
+        } else if (selectedSubSubcategoryId) {
+          // Level 2 selected - product must match this level (or have this as parent)
+          matchesSubcategory = product.subSubCategoryId === selectedSubSubcategoryId ||
+                               product.subSubSubCategoryId === selectedSubSubcategoryId;
+        } else if (selectedSubcategoryId) {
+          // Level 1 selected - product must match this level (or have this as ancestor)
+          matchesSubcategory = product.subCategoryId === selectedSubcategoryId ||
+                               product.subSubCategoryId === selectedSubcategoryId ||
+                               product.subSubSubCategoryId === selectedSubcategoryId;
+        }
+      }
+      
+      const matchesStatus = showInactiveProducts ? true : product.isActive;
+      
+      const matches = matchesSearch && matchesCategory && matchesSubcategory && matchesStatus;
+      
+      if (selectedSubcategoryId && product.categoryId === selectedCategoryId) {
+        console.log('🔍 Product filter check:', {
+          productName: product.name,
+          productSubCategoryId: product.subCategoryId,
+          selectedSubcategoryId,
+          matchesSubcategory,
+          matches
+        });
+      }
+      
+      return matches;
+    });
+  }, [
+    products, 
+    searchKeyword, 
+    selectedCategoryId, 
+    selectedSubcategoryId, 
+    selectedSubSubcategoryId, 
+    selectedSubSubSubcategoryId, 
+    showInactiveProducts
+  ]);
 
   if (loading) {
     return <div className="p-8">Loading products...</div>;
