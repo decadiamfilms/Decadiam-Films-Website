@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UniversalNavigation from '../../components/layout/UniversalNavigation';
 import UniversalHeader from '../../components/layout/UniversalHeader';
@@ -354,7 +354,57 @@ export default function NewPurchaseOrderPage() {
   
   // Products and line items
   const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  // BEST PRACTICE: Use useMemo for filtering (no state race conditions)
+  const filteredProducts = useMemo(() => {
+    console.log('🚀 PO: USEMEMO FILTER - Computing filtered products');
+    console.log('🚀 PO: products.length:', products.length);
+    console.log('🚀 PO: selectedCategory:', selectedCategory);
+    
+    if (!products || products.length === 0) {
+      console.log('🚀 PO: No products to filter');
+      return [];
+    }
+    
+    if (!selectedCategory || selectedCategory === '') {
+      console.log('🚀 PO: No category filter - showing all products:', products.length);
+      return products;
+    }
+    
+    const filtered = products.filter(product => {
+      // Enhanced filtering: match main category, subcategory IDs, OR subcategory path
+      const mainCategoryMatch = product.categoryName === selectedCategory || product.categoryId === selectedCategory;
+      
+      // Check subcategory IDs 
+      const subcategoryMatch = 
+        product.subCategoryId === selectedCategory ||
+        product.subSubCategoryId === selectedCategory ||
+        product.subSubSubCategoryId === selectedCategory;
+        
+      // Check subcategory path array
+      const pathMatch = product.subcategoryPath && product.subcategoryPath.some(sub => 
+        sub.id === selectedCategory || sub.name === selectedCategory
+      );
+      
+      const matches = mainCategoryMatch || subcategoryMatch || pathMatch;
+      
+      console.log('🚀 PO: ENHANCED FILTER - Product', product.name, {
+        categoryName: product.categoryName,
+        categoryId: product.categoryId,
+        subCategoryId: product.subCategoryId,
+        subcategoryPath: product.subcategoryPath,
+        selectedCategory: selectedCategory,
+        mainCategoryMatch,
+        subcategoryMatch,
+        pathMatch,
+        finalMatch: matches
+      });
+      return matches;
+    });
+    
+    console.log('🚀 PO: USEMEMO result:', filtered.length, 'filtered products');
+    return filtered;
+  }, [products, selectedCategory]);
+
   const [lineItems, setLineItems] = useState<PurchaseOrderLineItem[]>([]);
   const [quantities, setQuantities] = useState<{[key: string]: number | string}>({});
   
@@ -472,21 +522,13 @@ export default function NewPurchaseOrderPage() {
         }));
         
         setProducts(transformedProducts);
-        setFilteredProducts(transformedProducts);
-        
-        // Force set filteredProducts again after a delay to override any clearing logic
-        setTimeout(() => {
-          console.log('🔧 PO: FORCING filteredProducts to stay set:', transformedProducts.length);
-          setFilteredProducts(transformedProducts);
-        }, 100);
+        // No need to set filteredProducts - useMemo will handle it
         console.log('✅ PO: Loaded', transformedProducts.length, 'real products from database');
         console.log('📋 PO: First product sample:', transformedProducts[0]);
-        console.log('🎯 PO: Products state updated, filteredProducts should show', transformedProducts.length, 'products');
         return; // Don't fall back to mock data
       } else {
         console.log('📝 PO: No products found in database');
         setProducts([]);
-        setFilteredProducts([]);
         return; // Don't fall back to mock data
       }
     } catch (error) {
@@ -531,7 +573,7 @@ export default function NewPurchaseOrderPage() {
     ];
     
       setProducts(mockProducts);
-      setFilteredProducts(mockProducts);
+      // No need for // setFilteredProducts - REMOVED (using useMemo) - useMemo handles filtering
     }
   };
 
@@ -581,25 +623,25 @@ export default function NewPurchaseOrderPage() {
         p.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(smartSearch.toLowerCase()))
       );
-      setFilteredProducts(filtered);
+      // setFilteredProducts - REMOVED (using useMemo)(filtered);
       return;
     }
 
     // Don't filter if products haven't loaded yet
     if (!products || products.length === 0) {
       console.log('📋 PO: Waiting for products to load, products.length:', products?.length || 0);
-      setFilteredProducts([]);
+      // setFilteredProducts - REMOVED (using useMemo)([]);
       return;
     }
 
     if (!selectedCategory) {
       console.log('📋 PO: No category selected, showing ALL products:', products.length);
-      setFilteredProducts(products); // Show all products instead of hiding them
+      // setFilteredProducts - REMOVED (using useMemo)(products); // Show all products instead of hiding them
       return;
     }
 
     if (selectedCategory === 'custom-glass') {
-      setFilteredProducts([]);
+      // setFilteredProducts - REMOVED (using useMemo)([]);
       return;
     }
 
@@ -607,7 +649,7 @@ export default function NewPurchaseOrderPage() {
     const isCompletelySelected = selectedPath.length > maxLevel;
     
     if (!isCompletelySelected && maxLevel >= 0) {
-      setFilteredProducts([]);
+      // setFilteredProducts - REMOVED (using useMemo)([]);
       return;
     }
 
@@ -648,14 +690,42 @@ export default function NewPurchaseOrderPage() {
       });
     }
 
-    setFilteredProducts(filtered);
-  }, [products, selectedCategory, selectedPath, smartSearch]);
+    // setFilteredProducts - REMOVED (using useMemo)(filtered);
+  }, []); // DISABLE automatic filtering - use manual filtering only
+
+  // SIMPLE DIRECT FILTERING - no useEffect complications
+  const applyFilter = (categoryFilter: string = selectedCategory) => {
+    console.log('🔥 PO: DIRECT FILTER - applying filter:', categoryFilter);
+    console.log('🔥 PO: Available products:', products.map(p => ({name: p.name, categoryName: p.categoryName})));
+    
+    if (!categoryFilter || categoryFilter === '') {
+      console.log('🔥 PO: No filter - showing all products:', products.length);
+      // setFilteredProducts - REMOVED (using useMemo)(products);
+      return;
+    }
+    
+    const filtered = products.filter(p => {
+      const match = p.categoryName === categoryFilter;
+      console.log('🔥 PO: Product', p.name, 'category:', p.categoryName, 'filter:', categoryFilter, 'matches:', match);
+      return match;
+    });
+    
+    console.log('🔥 PO: Filtered result:', filtered.length, 'products');
+    // setFilteredProducts - REMOVED (using useMemo)(filtered);
+  };
+
+  const handleCategoryChange = (category: string) => {
+    console.log('🔥 PO: Category changed to:', category);
+    setSelectedCategory(category);
+    applyFilter(category);
+  };
 
   const handleSmartSearch = (value: string) => {
     setSmartSearch(value);
     if (value && selectedCategory) {
       setSelectedCategory('');
       setSelectedPath([]);
+      applyFilter('');
     }
   };
 
