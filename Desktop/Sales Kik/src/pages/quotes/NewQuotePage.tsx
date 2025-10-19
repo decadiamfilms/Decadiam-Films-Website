@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UniversalNavigation from '../../components/layout/UniversalNavigation';
 import UniversalHeader from '../../components/layout/UniversalHeader';
@@ -721,7 +721,89 @@ export default function NewQuotePage() {
 
   // Products and quote items
   const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  
+  // WORKING SUBCATEGORY FILTERING - Same as purchase orders
+  const filteredProducts = useMemo(() => {
+    console.log('🚀 QUOTES: FILTER START');
+    console.log('🚀 QUOTES: products.length:', products.length);
+    console.log('🚀 QUOTES: selectedCategory:', selectedCategory);
+    console.log('🚀 QUOTES: selectedPath:', selectedPath?.map(p => ({id: p.id, name: p.name})));
+    
+    if (!products || products.length === 0) {
+      return [];
+    }
+    
+    let filtered = products.filter(p => p.isActive !== false);
+    
+    // Smart search override
+    if (smartSearch) {
+      return filtered.filter(product => 
+        product.code.toLowerCase().includes(smartSearch.toLowerCase()) ||
+        product.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(smartSearch.toLowerCase()))
+      );
+    }
+    
+    // SKU search override  
+    if (skuSearch) {
+      return filtered.filter(product =>
+        product.code.toLowerCase().includes(skuSearch.toLowerCase()) ||
+        product.name.toLowerCase().includes(skuSearch.toLowerCase())
+      );
+    }
+    
+    // No category selected - show all
+    if (!selectedCategory) {
+      return filtered;
+    }
+    
+    // First filter by main category
+    filtered = filtered.filter(product => {
+      return product.categoryId === selectedCategory || product.categoryName === selectedCategory;
+    });
+    
+    console.log('🔥 QUOTES: After category filter:', filtered.length, 'products');
+    
+    // Apply subcategory filter if any subcategory is selected
+    if (selectedPath && selectedPath.length > 0) {
+      const targetSubcategory = selectedPath[selectedPath.length - 1]; // Get the most specific subcategory
+      console.log('🔥 QUOTES: Filtering by subcategory:', targetSubcategory.name, '(ID:', targetSubcategory.id, ')');
+      
+      filtered = filtered.filter(product => {
+        // Method 1: Direct subcategory ID matching
+        const directMatch = 
+          product.subCategoryId === targetSubcategory.id ||
+          product.subSubCategoryId === targetSubcategory.id ||
+          product.subSubSubCategoryId === targetSubcategory.id;
+        
+        // Method 2: Subcategory path matching
+        const pathMatch = product.subcategoryPath?.some(subcat => 
+          subcat.id === targetSubcategory.id || subcat.name === targetSubcategory.name
+        );
+        
+        const finalMatch = directMatch || pathMatch;
+        
+        console.log('🔥 QUOTES: Product', product.name, '- subcategory check:', {
+          targetSubcategoryId: targetSubcategory.id,
+          targetSubcategoryName: targetSubcategory.name,
+          productSubCategoryId: product.subCategoryId,
+          productSubSubCategoryId: product.subSubCategoryId,
+          productSubSubSubCategoryId: product.subSubSubCategoryId,
+          productSubcategoryPath: product.subcategoryPath?.map(s => s.name),
+          directMatch,
+          pathMatch,
+          finalMatch
+        });
+        
+        return finalMatch;
+      });
+      
+      console.log('🔥 QUOTES: After subcategory filter:', filtered.length, 'products');
+    }
+    
+    console.log('🚀 QUOTES: FINAL RESULT:', filtered.length, 'products');
+    return filtered;
+  }, [products, selectedCategory, selectedPath, smartSearch, skuSearch]);
   const [jobSections, setJobSections] = useState<JobSection[]>([
     { id: '1', name: 'Main Project', items: [] }
   ]);
@@ -873,7 +955,7 @@ export default function NewQuotePage() {
       console.warn('Quote: API call failed or returned no success');
       setCategories([]);
     }
-    } catch (error) {
+  } catch (error) {
       console.error('Error loading categories:', error);
       setCategories([]);
     } finally {
@@ -882,34 +964,54 @@ export default function NewQuotePage() {
   };
 
   const loadProducts = async () => {
-    // Load products from localStorage (matching ProductManagement structure)
-    // Load products with API-first approach
-    const productsData = await dataService.products.getAll();
-    if (productsData.length > 0) {
-      const parsedProducts = productsData;
-      // Convert to our interface format
-      const convertedProducts: Product[] = parsedProducts.map((p: any) => ({
-        id: p.id,
-        code: p.code,
-        name: p.name,
-        description: p.productType || p.description,
-        priceT1: p.priceT1,
-        priceT2: p.priceT2,
-        priceT3: p.priceT3,
-        priceRetail: p.priceN,
-        currentStock: p.inventory?.currentStock || 0,
-        categoryId: p.categoryId,
-        categoryName: p.categoryName,
-        subcategoryPath: p.subcategoryPath || [],
-        weight: p.weight,
-        isActive: p.isActive
-      }));
-      setProducts(convertedProducts);
-      setFilteredProducts(convertedProducts);
-      // Trigger initial filtering to show all active products
-      handleSmartSearch('');
-    } else {
-      // Create sample data if no products exist
+    try {
+      // Load products from database API (same as purchase orders)
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`);
+      if (response.ok) {
+        const result = await response.json();
+        const loadedProducts = result.data || [];
+        
+        // Convert to our interface format
+        const convertedProducts: Product[] = loadedProducts.map((p: any) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          description: p.productType || p.description,
+          priceT1: p.priceT1,
+          priceT2: p.priceT2,
+          priceT3: p.priceT3,
+          priceRetail: p.priceN,
+          currentStock: p.inventory?.currentStock || 0,
+          categoryId: p.categoryId,
+          categoryName: p.categoryName,
+          subcategoryPath: p.subcategoryPath || [],
+          // Add subcategory IDs for filtering
+          subCategoryId: p.subCategoryId,
+          subSubCategoryId: p.subSubCategoryId,
+          subSubSubCategoryId: p.subSubSubCategoryId,
+          weight: p.weight,
+          isActive: p.isActive
+        }));
+        setProducts(convertedProducts);
+        console.log('✅ QUOTES: Loaded', convertedProducts.length, 'products from database');
+      } else {
+        console.error('❌ QUOTES: Failed to load products from API');
+        // Fallback to dataService if API fails
+        const productsData = await dataService.products.getAll();
+        if (productsData.length > 0) {
+          setProducts(productsData);
+          console.log('✅ QUOTES: Loaded', productsData.length, 'products from fallback');
+        }
+      }
+    } catch (error) {
+      console.error('❌ QUOTES: Error loading products:', error);
+      // Try fallback
+      const productsData = await dataService.products.getAll();
+      if (productsData.length > 0) {
+        setProducts(productsData);
+        console.log('✅ QUOTES: Loaded', productsData.length, 'products from fallback');
+      } else {
+        // Create sample data if no products exist
       const sampleProducts: Product[] = [
         {
           id: 'test-product-1',
@@ -945,9 +1047,8 @@ export default function NewQuotePage() {
         }
       ];
       setProducts(sampleProducts);
-      setFilteredProducts(sampleProducts);
-      // Trigger initial filtering to show all active products
-      handleSmartSearch('');
+      console.log('📝 QUOTES: Using sample products (no database data found)');
+      }
     }
   };
 
@@ -991,8 +1092,8 @@ export default function NewQuotePage() {
     return Math.max(-1, ...category.subcategories.map((sub: any) => sub.level || 0));
   };
 
-  // Filter products - require complete category drill-down before showing products
-  useEffect(() => {
+  // OLD FILTERING LOGIC REMOVED - Now using useMemo for real-time filtering
+  // useEffect(() => {
     // Don't show any products if search is being used
     if (smartSearch) {
       let filtered = products.filter(p => p.isActive);
@@ -1001,13 +1102,13 @@ export default function NewQuotePage() {
         p.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(smartSearch.toLowerCase()))
       );
-      setFilteredProducts(filtered);
+      // setFilteredProducts(filtered);
       return;
     }
 
     // Check if user has drilled down to the deepest level of categories
     if (!selectedCategory) {
-      setFilteredProducts([]);
+      // setFilteredProducts([]);
       return;
     }
 
@@ -1018,7 +1119,7 @@ export default function NewQuotePage() {
     
     // Require user to select all levels if subcategories exist
     if (maxLevel >= 0 && selectedPath.length <= maxLevel) {
-      setFilteredProducts([]);
+      // setFilteredProducts([]);
       return;
     }
 
@@ -1044,8 +1145,8 @@ export default function NewQuotePage() {
       );
     }
 
-    setFilteredProducts(filtered);
-  }, [selectedPath, skuSearch, products, selectedCategory, smartSearch]);
+    // setFilteredProducts(filtered);
+  // }, [selectedPath, skuSearch, products, selectedCategory, smartSearch]);
 
   // Initialize quantities for filtered products - DISABLED FOR DEBUGGING
   // useEffect(() => {
@@ -1446,10 +1547,7 @@ export default function NewQuotePage() {
         p.id === productId ? { ...p, ...editedProduct } : p
       ));
       
-      // Update filtered products
-      setFilteredProducts(prev => prev.map(p => 
-        p.id === productId ? { ...p, ...editedProduct } : p
-      ));
+      // No need to update filteredProducts - useMemo handles it automatically
     }
     setEditingProduct(null);
   };
@@ -1479,13 +1577,9 @@ export default function NewQuotePage() {
   // Smart search with AI-like natural language processing
   const handleSmartSearch = (searchTerm: string) => {
     setSmartSearch(searchTerm);
+    // No need to setFilteredProducts - useMemo handles filtering automatically
     
-    if (!searchTerm.trim()) {
-      setFilteredProducts(products.filter(p => p.isActive));
-      return;
-    }
-    
-    // Enhanced search with synonyms and natural language
+    // Enhanced search with synonyms and natural language (kept for future use)
     const searchWords = searchTerm.toLowerCase().split(' ');
     const synonyms: {[key: string]: string[]} = {
       'glass': ['panel', 'sheet', 'glazing', 'transparent'],
@@ -1513,7 +1607,7 @@ export default function NewQuotePage() {
       });
     }).filter(p => p.isActive);
     
-    setFilteredProducts(filtered);
+    // Filtering now handled by useMemo automatically
   };
   
   // Auto-complete project name based on customer
@@ -1536,6 +1630,20 @@ export default function NewQuotePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* DEBUG: Test visibility */}
+      <div style={{
+        position: 'fixed',
+        top: '10px',
+        left: '10px',
+        background: 'red',
+        color: 'white',
+        padding: '10px',
+        zIndex: 9999,
+        fontSize: '16px'
+      }}>
+        QUOTES PAGE LOADED - Categories: {categories.length} | Products: {products.length}
+      </div>
+      
       <UniversalNavigation 
         currentPage="quotes" 
         isOpen={showSidebar}

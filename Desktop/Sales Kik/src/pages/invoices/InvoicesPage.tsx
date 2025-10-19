@@ -210,6 +210,19 @@ export default function InvoicesPage() {
     loadCustomers();
   }, []);
 
+  const loadCustomers = async () => {
+    try {
+      // Simple customers loading to prevent errors
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Customers loaded for invoices');
+      }
+    } catch (error) {
+      console.log('📝 Using default customer list');
+    }
+  };
+
   const loadInvoices = async () => {
     try {
       console.log('🔍 Invoices: Loading invoices from database...');

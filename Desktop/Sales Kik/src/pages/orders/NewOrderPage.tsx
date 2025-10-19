@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UniversalNavigation from '../../components/layout/UniversalNavigation';
 import UniversalHeader from '../../components/layout/UniversalHeader';
@@ -601,7 +601,89 @@ export default function NewOrderPage() {
 
   // Products and order items
   const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  
+  // WORKING SUBCATEGORY FILTERING - Same as quotes page
+  const filteredProducts = useMemo(() => {
+    console.log('🚀 ORDERS: FILTER START');
+    console.log('🚀 ORDERS: products.length:', products.length);
+    console.log('🚀 ORDERS: selectedCategory:', selectedCategory);
+    console.log('🚀 ORDERS: selectedPath:', selectedPath?.map(p => ({id: p.id, name: p.name})));
+    
+    if (!products || products.length === 0) {
+      return [];
+    }
+    
+    let filtered = products.filter(p => p.isActive !== false);
+    
+    // Smart search override
+    if (smartSearch) {
+      return filtered.filter(product => 
+        product.code.toLowerCase().includes(smartSearch.toLowerCase()) ||
+        product.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(smartSearch.toLowerCase()))
+      );
+    }
+    
+    // SKU search override  
+    if (skuSearch) {
+      return filtered.filter(product =>
+        product.code.toLowerCase().includes(skuSearch.toLowerCase()) ||
+        product.name.toLowerCase().includes(skuSearch.toLowerCase())
+      );
+    }
+    
+    // No category selected - show all (like quotes and purchase orders)
+    if (!selectedCategory) {
+      return filtered;
+    }
+    
+    // First filter by main category
+    filtered = filtered.filter(product => {
+      return product.categoryId === selectedCategory || product.categoryName === selectedCategory;
+    });
+    
+    console.log('🔥 ORDERS: After category filter:', filtered.length, 'products');
+    
+    // Apply subcategory filter if any subcategory is selected
+    if (selectedPath && selectedPath.length > 0) {
+      const targetSubcategory = selectedPath[selectedPath.length - 1];
+      console.log('🔥 ORDERS: Filtering by subcategory:', targetSubcategory.name, '(ID:', targetSubcategory.id, ')');
+      
+      filtered = filtered.filter(product => {
+        // Method 1: Direct subcategory ID matching
+        const directMatch = 
+          product.subCategoryId === targetSubcategory.id ||
+          product.subSubCategoryId === targetSubcategory.id ||
+          product.subSubSubCategoryId === targetSubcategory.id;
+        
+        // Method 2: Subcategory path matching
+        const pathMatch = product.subcategoryPath?.some(subcat => 
+          subcat.id === targetSubcategory.id || subcat.name === targetSubcategory.name
+        );
+        
+        const finalMatch = directMatch || pathMatch;
+        
+        console.log('🔥 ORDERS: Product', product.name, '- subcategory check:', {
+          targetSubcategoryId: targetSubcategory.id,
+          targetSubcategoryName: targetSubcategory.name,
+          productSubCategoryId: product.subCategoryId,
+          productSubSubCategoryId: product.subSubCategoryId,
+          productSubSubSubCategoryId: product.subSubSubCategoryId,
+          productSubcategoryPath: product.subcategoryPath?.map(s => s.name),
+          directMatch,
+          pathMatch,
+          finalMatch
+        });
+        
+        return finalMatch;
+      });
+      
+      console.log('🔥 ORDERS: After subcategory filter:', filtered.length, 'products');
+    }
+    
+    console.log('🚀 ORDERS: FINAL RESULT:', filtered.length, 'products');
+    return filtered;
+  }, [products, selectedCategory, selectedPath, smartSearch, skuSearch]);
   const [jobSections, setJobSections] = useState<JobSection[]>([
     { id: '1', name: 'Main Project', items: [] }
   ]);
@@ -791,8 +873,10 @@ export default function NewOrderPage() {
 
   const loadProducts = async () => {
     try {
-      // Use same dataService pattern as ProductManagement
-      const productsData = await dataService.products.getAll();
+      // Load products from database API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`);
+      const result = response.ok ? await response.json() : { data: [] };
+      const productsData = result.data || [];
       
       if (productsData.length > 0) {
         // Convert to our interface format
@@ -801,30 +885,34 @@ export default function NewOrderPage() {
           code: p.code || p.sku,
           name: p.name,
           description: p.productType || p.description,
-          priceT1: p.priceT1 || 0,
-          priceT2: p.priceT2 || 0,
-          priceT3: p.priceT3 || 0,
-          priceRetail: p.priceN || p.priceRetail || 0,
-          currentStock: p.inventory?.currentStock || p.currentStock || 0,
+          priceT1: p.pricing?.tier_1 || p.priceT1 || 0,
+          priceT2: p.pricing?.tier_2 || p.priceT2 || 0,
+          priceT3: p.pricing?.tier_3 || p.priceT3 || 0,
+          priceRetail: p.pricing?.retail || p.priceN || p.priceRetail || 0,
+          currentStock: p.inventory?.current_stock || p.inventory?.currentStock || p.currentStock || 0,
           categoryId: p.categoryId,
           categoryName: p.categoryName,
           subcategoryPath: p.subcategoryPath || [],
+          // Add subcategory IDs for working filtering
+          subCategoryId: p.subCategoryId,
+          subSubCategoryId: p.subSubCategoryId,
+          subSubSubCategoryId: p.subSubSubCategoryId,
           weight: p.weight || 0,
           isActive: p.isActive !== false
         }));
         setProducts(convertedProducts);
-        setFilteredProducts(convertedProducts);
+        // No need for // setFilteredProducts - useMemo handles it automatically
         console.log('Order page: Loaded products from API (same as ProductManagement):', convertedProducts.length, 'products');
       } else {
         // Start with empty products if nothing found (user should create them in ProductManagement)
         setProducts([]);
-        setFilteredProducts([]);
+        // No need for // setFilteredProducts - useMemo handles it
         console.log('Order page: No products found - user should create them in ProductManagement');
       }
     } catch (error) {
       console.error('Error loading products:', error);
       setProducts([]);
-      setFilteredProducts([]);
+      // No need for // setFilteredProducts - useMemo handles it
     }
   };
 
@@ -878,13 +966,13 @@ export default function NewOrderPage() {
         p.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(smartSearch.toLowerCase()))
       );
-      setFilteredProducts(filtered);
+      // // setFilteredProducts(filtered);
       return;
     }
 
-    // Check if user has drilled down to the deepest level of categories
+    // Show all products if no category selected (like purchase orders)
     if (!selectedCategory) {
-      setFilteredProducts([]);
+      // setFilteredProducts(products.filter(p => p.isActive));
       return;
     }
 
@@ -895,7 +983,7 @@ export default function NewOrderPage() {
     
     // Require user to select all levels if subcategories exist
     if (maxLevel >= 0 && selectedPath.length <= maxLevel) {
-      setFilteredProducts([]);
+      // setFilteredProducts([]);
       return;
     }
 
@@ -921,7 +1009,7 @@ export default function NewOrderPage() {
       );
     }
 
-    setFilteredProducts(filtered);
+    // setFilteredProducts(filtered);
   }, [selectedPath, skuSearch, products, selectedCategory, smartSearch]);
 
   // Initialize quantities for filtered products - DISABLED FOR DEBUGGING
@@ -1249,10 +1337,7 @@ export default function NewOrderPage() {
         p.id === productId ? { ...p, ...editedProduct } : p
       ));
       
-      // Update filtered products
-      setFilteredProducts(prev => prev.map(p => 
-        p.id === productId ? { ...p, ...editedProduct } : p
-      ));
+      // No need to update filteredProducts - useMemo handles it automatically
     }
     setEditingProduct(null);
   };
@@ -1284,7 +1369,7 @@ export default function NewOrderPage() {
     setSmartSearch(searchTerm);
     
     if (!searchTerm.trim()) {
-      setFilteredProducts(products.filter(p => p.isActive));
+      // setFilteredProducts(products.filter(p => p.isActive));
       return;
     }
     
@@ -1316,7 +1401,7 @@ export default function NewOrderPage() {
       });
     }).filter(p => p.isActive);
     
-    setFilteredProducts(filtered);
+    // setFilteredProducts(filtered);
   };
   
   // Auto-complete project name based on customer
