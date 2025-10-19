@@ -1535,6 +1535,13 @@ app.put('/api/products/:id', async (req, res) => {
     const productData = req.body;
     
     console.log('📝 Updating product:', productId, productData.name);
+    console.log('🔍 Subcategory data received:', {
+      subCategoryId: productData.subCategoryId,
+      subSubCategoryId: productData.subSubCategoryId,
+      subSubSubCategoryId: productData.subSubSubCategoryId,
+      categoryId: productData.categoryId,
+      mainCategoryId: productData.mainCategoryId
+    });
 
     // Update product with full category hierarchy support
     const updatedProduct = await prisma.product.update({

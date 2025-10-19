@@ -932,18 +932,43 @@ export default function ProductManagement() {
                           {/* Duplicate button - always available */}
                           <button
                             onClick={async () => {
-                              const duplicateProduct = {
-                                ...product,
-                                id: Date.now().toString(),
-                                code: product.code + '-COPY',
-                                name: product.name + ' (Copy)',
-                                isUsedInDocuments: false,
-                                createdAt: new Date(),
-                                updatedAt: new Date()
-                              };
-                              const updatedProducts = [...products, duplicateProduct];
-                              setProducts(updatedProducts);
-                              await dataService.products.save(updatedProducts);
+                              try {
+                                // Create duplicate product via API
+                                const duplicateData = {
+                                  code: product.code + '-COPY',
+                                  name: product.name + ' (Copy)',
+                                  description: product.description,
+                                  categoryId: product.categoryId,
+                                  mainCategoryId: product.categoryId,
+                                  subCategoryId: product.subCategoryId,
+                                  subSubCategoryId: product.subSubCategoryId,
+                                  subSubSubCategoryId: product.subSubSubCategoryId,
+                                  size: product.size,
+                                  weight: product.weight,
+                                  cost: product.cost,
+                                  priceT1: product.priceT1,
+                                  priceT2: product.priceT2,
+                                  priceT3: product.priceT3,
+                                  priceN: product.priceN,
+                                  currentStock: product.inventory?.currentStock || 0,
+                                  isActive: true
+                                };
+
+                                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify(duplicateData)
+                                });
+
+                                if (response.ok) {
+                                  await loadProducts(); // Refresh the product list
+                                  console.log('✅ Product duplicated successfully');
+                                } else {
+                                  console.error('❌ Failed to duplicate product');
+                                }
+                              } catch (error) {
+                                console.error('❌ Error duplicating product:', error);
+                              }
                             }}
                             className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                             title="Duplicate product"
@@ -1104,12 +1129,12 @@ export default function ProductManagement() {
               
               if (editingProduct) {
                 // Update existing product
-                // Extract subcategory IDs from selectedSubcategoryPath for update too
+                // Use subcategory IDs directly from product object (SIMPLIFIED)
                 const subcategoryIds = {
                   mainCategoryId: product.categoryId,
-                  subCategoryId: product.subcategoryPath?.[0]?.id || null,
-                  subSubCategoryId: product.subcategoryPath?.[1]?.id || null,
-                  subSubSubCategoryId: product.subcategoryPath?.[2]?.id || null
+                  subCategoryId: product.subCategoryId,
+                  subSubCategoryId: product.subSubCategoryId,  
+                  subSubSubCategoryId: product.subSubSubCategoryId
                 };
 
                 console.log('📝 Updating product with complete data:', {
@@ -1172,12 +1197,12 @@ export default function ProductManagement() {
                 }
               } else {
                 // Create new product
-                // Extract subcategory IDs from selectedSubcategoryPath
+                // Use subcategory IDs directly from product object (SIMPLIFIED)
                 const subcategoryIds = {
                   mainCategoryId: product.categoryId,
-                  subCategoryId: product.subcategoryPath?.[0]?.id || null,
-                  subSubCategoryId: product.subcategoryPath?.[1]?.id || null,
-                  subSubSubCategoryId: product.subcategoryPath?.[2]?.id || null
+                  subCategoryId: product.subCategoryId,
+                  subSubCategoryId: product.subSubCategoryId,
+                  subSubSubCategoryId: product.subSubSubCategoryId
                 };
 
                 console.log('🏗️ Sending complete product data with subcategories:', {
@@ -1436,6 +1461,10 @@ function ProductFormStructured({ product, categories, locations, pricingTierName
       categoryId: formData.categoryId,
       categoryName: selectedCategory?.name || '',
       subcategoryPath: formData.selectedSubcategoryPath,
+      // ADD SUBCATEGORY IDS FOR DATABASE STORAGE
+      subCategoryId: formSelectedSubcategoryId || null,
+      subSubCategoryId: formSelectedSubSubcategoryId || null,
+      subSubSubCategoryId: formSelectedSubSubSubcategoryId || null,
       inventory: {
         currentStock: formData.currentStock,
         reorderPoint: 10,

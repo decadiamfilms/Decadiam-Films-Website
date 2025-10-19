@@ -354,63 +354,80 @@ export default function NewPurchaseOrderPage() {
   
   // Products and line items
   const [products, setProducts] = useState<Product[]>([]);
-  // BEST PRACTICE: Use useMemo for filtering (no state race conditions)
+  // WORKING SUBCATEGORY FILTERING - Direct ID matching approach
   const filteredProducts = useMemo(() => {
-    console.log('🚀 PO: USEMEMO FILTER - Computing filtered products');
+    console.log('🚀 PO: FILTER START');
     console.log('🚀 PO: products.length:', products.length);
     console.log('🚀 PO: selectedCategory:', selectedCategory);
-    console.log('🚀 PO: selectedPath:', selectedPath);
+    console.log('🚀 PO: selectedPath:', selectedPath?.map(p => ({id: p.id, name: p.name})));
     
     if (!products || products.length === 0) {
-      console.log('🚀 PO: No products to filter');
       return [];
     }
     
-    // If no main category selected but subcategory path exists, filter by path
-    if ((!selectedCategory || selectedCategory === '') && (!selectedPath || selectedPath.length === 0)) {
-      console.log('🚀 PO: No filters - showing all products:', products.length);
-      return products;
+    let filtered = products.filter(p => p.isActive !== false);
+    
+    // Smart search override
+    if (smartSearch) {
+      return filtered.filter(product => 
+        product.code.toLowerCase().includes(smartSearch.toLowerCase()) ||
+        product.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(smartSearch.toLowerCase()))
+      );
     }
     
-    const filtered = products.filter(product => {
-      // When subcategory path is selected, ONLY show products that match subcategories
-      if (selectedPath && selectedPath.length > 0) {
-        // Product must match the selected subcategory path
-        const hasMatchingSubcategory = selectedPath.some(selectedSub => {
-          // Check if product name contains the subcategory name (fallback matching)
-          const nameMatch = product.name.toLowerCase().includes(selectedSub.name.toLowerCase());
-          
-          // Check actual subcategory data if available
-          const dataMatch = product.subcategoryPath && product.subcategoryPath.some(productSub => 
-            productSub.id === selectedSub.id || productSub.name === selectedSub.name
-          );
-          
-          // Check subcategory IDs
-          const idMatch = 
-            product.subCategoryId === selectedSub.id ||
-            product.subSubCategoryId === selectedSub.id ||
-            product.subSubSubCategoryId === selectedSub.id;
-            
-          return nameMatch || dataMatch || idMatch;
-        });
-        
-        console.log('🔥 PO: SUBCATEGORY FILTER - Product', product.name, {
-          selectedPath: selectedPath.map(p => p.name),
-          hasMatchingSubcategory: hasMatchingSubcategory,
-          productName: product.name
-        });
-        
-        return hasMatchingSubcategory;
-      }
-      
-      // Regular category filtering when no subcategory path selected
-      const matches = product.categoryName === selectedCategory || product.categoryId === selectedCategory;
-      return matches;
+    // No category selected - show all
+    if (!selectedCategory) {
+      return filtered;
+    }
+    
+    // First filter by main category
+    filtered = filtered.filter(product => {
+      return product.categoryId === selectedCategory || product.categoryName === selectedCategory;
     });
     
-    console.log('🚀 PO: USEMEMO result:', filtered.length, 'filtered products');
+    console.log('🔥 PO: After category filter:', filtered.length, 'products');
+    
+    // Apply subcategory filter if any subcategory is selected
+    if (selectedPath && selectedPath.length > 0) {
+      const targetSubcategory = selectedPath[selectedPath.length - 1]; // Get the most specific subcategory
+      console.log('🔥 PO: Filtering by subcategory:', targetSubcategory.name, '(ID:', targetSubcategory.id, ')');
+      
+      filtered = filtered.filter(product => {
+        // Method 1: Direct subcategory ID matching
+        const directMatch = 
+          product.subCategoryId === targetSubcategory.id ||
+          product.subSubCategoryId === targetSubcategory.id ||
+          product.subSubSubCategoryId === targetSubcategory.id;
+        
+        // Method 2: Subcategory path matching
+        const pathMatch = product.subcategoryPath?.some(subcat => 
+          subcat.id === targetSubcategory.id || subcat.name === targetSubcategory.name
+        );
+        
+        const finalMatch = directMatch || pathMatch;
+        
+        console.log('🔥 PO: Product', product.name, '- subcategory check:', {
+          targetSubcategoryId: targetSubcategory.id,
+          targetSubcategoryName: targetSubcategory.name,
+          productSubCategoryId: product.subCategoryId,
+          productSubSubCategoryId: product.subSubCategoryId,
+          productSubSubSubCategoryId: product.subSubSubCategoryId,
+          productSubcategoryPath: product.subcategoryPath?.map(s => s.name),
+          directMatch,
+          pathMatch,
+          finalMatch
+        });
+        
+        return finalMatch;
+      });
+      
+      console.log('🔥 PO: After subcategory filter:', filtered.length, 'products');
+    }
+    
+    console.log('🚀 PO: FINAL RESULT:', filtered.length, 'products');
     return filtered;
-  }, [products, selectedCategory, selectedPath]); // Add selectedPath dependency for subcategories
+  }, [products, selectedCategory, selectedPath, smartSearch]);
 
   const [lineItems, setLineItems] = useState<PurchaseOrderLineItem[]>([]);
   const [quantities, setQuantities] = useState<{[key: string]: number | string}>({});
