@@ -554,7 +554,7 @@ export default function NewPurchaseOrderPage() {
           name: product.name,
           description: product.description || '',
           costPrice: product.pricing?.cost_price || product.cost || 0,
-          currentStock: product.inventory?.current_stock || product.currentStock || 0,
+          currentStock: product.inventory?.currentStock || product.currentStock || 0,
           categoryId: product.categoryId,
           categoryName: product.categoryName || 'Unknown',
           subcategoryPath: product.subcategoryPath || [],
