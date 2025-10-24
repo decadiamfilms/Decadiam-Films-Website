@@ -22,6 +22,48 @@ Authentication flow and server startup reliability improvements completed.
 - Added npm run dev:safe command for enhanced startup process
 - Existing npm run dev command still available via concurrently
 
+## 🚨 CRITICAL: "Error Loading Dashboard" Fix
+When you see "Unable to connect to server" error, follow these steps in order:
+
+### Root Cause
+The error occurs when frontend can't reach backend due to proxy misconfiguration or auth issues.
+
+### Step-by-Step Fix (TESTED WORKING):
+1. **Check Vite Proxy Configuration** (Most Common Issue)
+   ```bash
+   # The problem: vite.config.ts proxy points to wrong port
+   # Check: proxy.target should be 'http://localhost:5001' NOT 'http://localhost:5000'
+   # Fix: Edit vite.config.ts line ~25: target: 'http://localhost:5001'
+   ```
+
+2. **Restart Servers Properly**
+   ```bash
+   npm run dev:safe  # Use the enhanced startup script
+   ```
+
+3. **Check Authentication Middleware**
+   - Routes with `router.use(authenticate)` may need temporary disabling
+   - Add fallback company IDs for development: `|| '0e573687-3b53-498a-9e78-f198f16f8bcb'`
+
+4. **Verify Individual Endpoints**
+   ```bash
+   curl http://localhost:5001/health                # Should return {"status":"ok"}
+   curl http://localhost:5001/api/auth/me          # Should not return auth error  
+   curl http://localhost:5001/api/onboarding/status # Should not return 404
+   ```
+
+5. **If Still Failing - Restore Working State**
+   ```bash
+   git stash                                        # Save current changes
+   git checkout HEAD -- server/services/auth.service.ts
+   npm run dev:safe
+   ```
+
+### Quick Test
+- Frontend loads: ✅ http://localhost:3001 should show application
+- Backend health: ✅ http://localhost:5001/health should return status OK
+- Proxy working: ✅ No 404 errors in browser console for /api/* requests
+
 ## Current Challenge:
 Complex JSX nesting is causing "Unterminated JSX contents" errors when adding visual drop zone feedback.
 

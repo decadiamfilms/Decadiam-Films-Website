@@ -138,6 +138,34 @@ node test-db.js
 brew services list | grep postgresql
 ```
 
+### "Error Loading Dashboard - Unable to connect to server"
+This is a common issue that can occur when the Vite proxy configuration doesn't match the backend port:
+
+```bash
+# 1. Check if both servers are running
+npm run dev:safe
+
+# 2. Verify backend is on port 5001 and frontend on port 3001
+curl http://localhost:5001/health
+curl http://localhost:3001
+
+# 3. Fix the most common cause - Vite proxy port mismatch
+# Check vite.config.ts proxy target should be 'http://localhost:5001'
+# If it shows 'http://localhost:5000', update it to 'http://localhost:5001'
+
+# 4. If still not working, restore working files from git
+git stash  # Save current changes
+git checkout HEAD -- server/services/auth.service.ts  # Restore auth service
+npm run dev:safe
+
+# 5. Check for authentication middleware issues
+# Look for routes with authenticate() middleware that need to be temporarily disabled
+
+# 6. Test endpoints individually
+curl http://localhost:5001/api/auth/me
+curl http://localhost:5001/api/onboarding/status
+```
+
 ### Clear all data and start fresh
 ```bash
 # Stop all services

@@ -46,7 +46,11 @@ interface Product {
   currentStock: number;
   categoryId: string;
   categoryName: string;
-  subcategoryPath: { name: string; color: string }[];
+  subcategoryPath: { id: string; name: string; color: string }[];
+  // Add the missing subcategory ID fields that the filtering logic expects
+  subCategoryId?: string;
+  subSubCategoryId?: string;
+  subSubSubCategoryId?: string;
   weight?: number;
   isActive: boolean;
 }
@@ -383,7 +387,9 @@ export default function NewPurchaseOrderPage() {
     
     // First filter by main category
     filtered = filtered.filter(product => {
-      return product.categoryId === selectedCategory || product.categoryName === selectedCategory;
+      return product.categoryId === selectedCategory || 
+             product.mainCategoryId === selectedCategory ||
+             product.categoryName === selectedCategory;
     });
     
     console.log('🔥 PO: After category filter:', filtered.length, 'products');
@@ -394,27 +400,37 @@ export default function NewPurchaseOrderPage() {
       console.log('🔥 PO: Filtering by subcategory:', targetSubcategory.name, '(ID:', targetSubcategory.id, ')');
       
       filtered = filtered.filter(product => {
-        // Method 1: Direct subcategory ID matching
+        // Method 1: Direct subcategory ID matching (with string conversion for safety)
+        const targetId = String(targetSubcategory.id);
         const directMatch = 
-          product.subCategoryId === targetSubcategory.id ||
-          product.subSubCategoryId === targetSubcategory.id ||
-          product.subSubSubCategoryId === targetSubcategory.id;
+          String(product.subCategoryId) === targetId ||
+          String(product.subSubCategoryId) === targetId ||
+          String(product.subSubSubCategoryId) === targetId;
         
-        // Method 2: Subcategory path matching
+        // Method 2: Hierarchical matching - if we select a parent, show products with that parent in their path
+        const hierarchicalMatch = selectedPath.some(pathItem => {
+          const pathId = String(pathItem.id);
+          return String(product.subCategoryId) === pathId ||
+                 String(product.subSubCategoryId) === pathId ||
+                 String(product.subSubSubCategoryId) === pathId;
+        });
+        
+        // Method 3: Subcategory path matching
         const pathMatch = product.subcategoryPath?.some(subcat => 
-          subcat.id === targetSubcategory.id || subcat.name === targetSubcategory.name
+          String(subcat.id) === String(targetSubcategory.id) || subcat.name === targetSubcategory.name
         );
         
-        const finalMatch = directMatch || pathMatch;
+        const finalMatch = directMatch || hierarchicalMatch || pathMatch;
         
-        console.log('🔥 PO: Product', product.name, '- subcategory check:', {
-          targetSubcategoryId: targetSubcategory.id,
+        console.log('🚨 DEBUG: Product', product.name, '- subcategory check:', {
+          targetSubcategoryId: String(targetSubcategory.id),
           targetSubcategoryName: targetSubcategory.name,
-          productSubCategoryId: product.subCategoryId,
-          productSubSubCategoryId: product.subSubCategoryId,
-          productSubSubSubCategoryId: product.subSubSubCategoryId,
-          productSubcategoryPath: product.subcategoryPath?.map(s => s.name),
+          productSubCategoryId: String(product.subCategoryId),
+          productSubSubCategoryId: String(product.subSubCategoryId),
+          productSubSubSubCategoryId: String(product.subSubSubCategoryId),
+          productSubcategoryPath: product.subcategoryPath?.map(s => ({ id: String(s.id), name: s.name })),
           directMatch,
+          hierarchicalMatch,
           pathMatch,
           finalMatch
         });
@@ -542,6 +558,10 @@ export default function NewPurchaseOrderPage() {
           categoryId: product.categoryId,
           categoryName: product.categoryName || 'Unknown',
           subcategoryPath: product.subcategoryPath || [],
+          // Add the missing subcategory ID fields from the product data
+          subCategoryId: product.subCategoryId || product.subcategoryId,
+          subSubCategoryId: product.subSubCategoryId || product.subsubcategoryId,
+          subSubSubCategoryId: product.subSubSubCategoryId || product.subsubsubcategoryId,
           isActive: product.isActive !== false
         }));
         
@@ -549,6 +569,12 @@ export default function NewPurchaseOrderPage() {
         // No need to set filteredProducts - useMemo will handle it
         console.log('✅ PO: Loaded', transformedProducts.length, 'real products from database');
         console.log('📋 PO: First product sample:', transformedProducts[0]);
+        console.log('🔍 PO: Product subcategory IDs:', transformedProducts.map(p => ({
+          name: p.name,
+          subCategoryId: p.subCategoryId,
+          subSubCategoryId: p.subSubCategoryId,
+          subSubSubCategoryId: p.subSubSubCategoryId
+        })));
         return; // Don't fall back to mock data
       } else {
         console.log('📝 PO: No products found in database');
@@ -1287,4 +1313,4 @@ export default function NewPurchaseOrderPage() {
       />
     </div>
   );
-}
+} 
