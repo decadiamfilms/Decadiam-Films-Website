@@ -208,7 +208,14 @@ const StockCheckPage: React.FC = () => {
       }
     } catch (error) {
       console.error('Failed to load categories:', error);
-      setCategories([]);
+      // Keep existing categories if API fails, or provide fallback
+      if (categories.length === 0) {
+        console.log('📦 StockCheck: Using fallback categories');
+        setCategories([
+          { id: 'cd44a54c-9641-49ea-a176-6dfff6203a00', name: 'Pool Fencing', color: '#6B7280', subcategories: [] },
+          { id: '4e80513e-fdf5-4521-90f0-f49230fee2c2', name: 'Shower Screens', color: '#94e3fe', subcategories: [] }
+        ]);
+      }
     }
   };
 
@@ -329,14 +336,31 @@ const StockCheckPage: React.FC = () => {
     try {
       console.log('📦 StockCheck: Loading products from database');
       
-      // Load real products from database
-      console.log('📦 StockCheck: Loading products using dataService...');
-      const databaseProducts = await dataService.products.getAll();
+      // Load real products from database - use direct API call to avoid localStorage fallback
+      console.log('📦 StockCheck: Loading products directly from API...');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`);
+      const result = await response.json();
+      const databaseProducts = result.success ? result.data : [];
       console.log('✅ StockCheck: dataService returned:', databaseProducts?.length || 'undefined', 'products');
       
       if (!databaseProducts || databaseProducts.length === 0) {
+        // Don't throw error if products are already loaded - preserve existing data
+        if (products.length > 0) {
+          console.log('📦 StockCheck: API failed but keeping existing products');
+          setLoading(false);
+          return;
+        }
         throw new Error('No products received from database');
       }
+      
+      // Debug: Check what subcategory fields the API products have
+      console.log('🔍 STOCK: Raw API product subcategory fields:', databaseProducts[0] ? {
+        subCategoryId: databaseProducts[0].subCategoryId,
+        subSubCategoryId: databaseProducts[0].subSubCategoryId,
+        subSubSubCategoryId: databaseProducts[0].subSubSubCategoryId,
+        sub_category_id: databaseProducts[0].sub_category_id,
+        sub_sub_category_id: databaseProducts[0].sub_sub_category_id
+      } : 'No products');
       
       // Transform database products to Stock Check format while preserving inventory/pricing
       const stockCheckProducts: Product[] = databaseProducts.map((product: any) => ({
@@ -344,8 +368,12 @@ const StockCheckPage: React.FC = () => {
         name: String(product.name || 'Unnamed Product'),
         sku: String(product.code || ''),
         barcode: String(product.code || ''), // Use product code as barcode
-        category_id: product.category_id || product.categoryId,
+        category_id: product.categoryId || product.mainCategoryId || product.category_id,
         category_name: String(product.categoryName || product.category?.name || 'Unknown Category'),
+        // Add subcategory fields for filtering  
+        sub_category_id: product.subCategoryId || product.sub_category_id,
+        sub_sub_category_id: product.subSubCategoryId || product.sub_sub_category_id,
+        sub_sub_sub_category_id: product.subSubSubCategoryId || product.sub_sub_sub_category_id,
         image_url: '',
         is_active: Boolean(product.isActive !== false),
         
@@ -374,10 +402,20 @@ const StockCheckPage: React.FC = () => {
       if (selectedCategoryId || selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId) {
         filteredProducts = filteredProducts.filter(product => {
           if (selectedCategoryId) {
-            // Use same logic as purchase orders for consistency
-            return product.categoryId === selectedCategoryId || 
-                   product.mainCategoryId === selectedCategoryId ||
+            // Use correct field names from API - products have category_id not categoryId
+            const matches = product.category_id === selectedCategoryId || 
+                   product.main_category_id === selectedCategoryId ||
                    product.category_name?.includes(categories.find(cat => cat.id === selectedCategoryId)?.name || '');
+            
+            console.log('🔥 STOCK: Product filter check:', {
+              productName: product.name,
+              productCategoryId: product.category_id,
+              productMainCategoryId: product.main_category_id,
+              selectedCategoryId,
+              matches
+            });
+            
+            return matches;
           }
           return true;
         });
@@ -562,17 +600,55 @@ const StockCheckPage: React.FC = () => {
     }
 
     // Apply category filters
+    console.log('🔍 STOCK: Filter check - category states:', {
+      selectedCategoryId,
+      selectedSubcategoryId, 
+      selectedSubSubcategoryId,
+      selectedSubSubSubcategoryId,
+      shouldFilter: !!(selectedCategoryId || selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId)
+    });
+    
     if (selectedCategoryId || selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId) {
       filtered = filtered.filter(product => {
-        // For now, filter by category name matching since we're using mock data
-        // In a real implementation, this would filter by product.categoryId
+        // First apply category filter
+        let categoryMatches = true;
         if (selectedCategoryId) {
-          const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
-          if (selectedCategory) {
-            return product.category_name?.includes(selectedCategory.name);
-          }
+          categoryMatches = product.category_id === selectedCategoryId || 
+                           product.main_category_id === selectedCategoryId ||
+                           product.category_name?.includes(categories.find(cat => cat.id === selectedCategoryId)?.name || '');
+          
+          console.log('🔥 STOCK FILTER: Product check:', {
+            productName: product.name,
+            productCategoryId: product.category_id,
+            selectedCategoryId,
+            matches: categoryMatches
+          });
         }
-        return true;
+        
+        // Then apply subcategory filter  
+        let subcategoryMatches = true;
+        if (selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId) {
+          // Use the deepest selected subcategory
+          const targetSubcategoryId = selectedSubSubSubcategoryId || selectedSubSubcategoryId || selectedSubcategoryId;
+          
+          subcategoryMatches = 
+            product.sub_category_id === targetSubcategoryId ||
+            product.sub_sub_category_id === targetSubcategoryId ||
+            product.sub_sub_sub_category_id === targetSubcategoryId;
+            
+          console.log('🔥 STOCK SUBCAT FILTER:', {
+            productName: product.name,
+            targetSubcategoryId,
+            productSubIds: {
+              sub: product.sub_category_id,
+              subSub: product.sub_sub_category_id,
+              subSubSub: product.sub_sub_sub_category_id
+            },
+            matches: subcategoryMatches
+          });
+        }
+        
+        return categoryMatches && subcategoryMatches;
       });
     }
 
