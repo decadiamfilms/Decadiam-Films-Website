@@ -577,6 +577,12 @@ export default function NewPurchaseOrderPage() {
           subSubCategoryId: p.subSubCategoryId,
           subSubSubCategoryId: p.subSubSubCategoryId
         })));
+        console.log('🎯 PO: CATEGORY MAPPING CHECK:', transformedProducts.map(p => ({
+          name: p.name,
+          categoryId: p.categoryId,
+          mainCategoryId: p.mainCategoryId,
+          categoryName: p.categoryName
+        })));
         return; // Don't fall back to mock data
       } else {
         console.log('📝 PO: No products found in database');
