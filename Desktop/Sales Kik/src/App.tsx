@@ -148,28 +148,7 @@ function App() {
           <Route path="/admin/custom-pricelists" element={<ProtectedRoute><CustomPricelistsPage /></ProtectedRoute>} />
           <Route path="/employee-dashboard" element={<ProtectedRoute><EmployeeDashboard /></ProtectedRoute>} />
           <Route path="/quotes" element={<QuotesPage />} />
-          <Route path="/quotes/new" element={
-            <div style={{
-              padding: '20px',
-              background: 'lightblue',
-              minHeight: '100vh',
-              color: 'black',
-              fontSize: '18px'
-            }}>
-              <h1>MINIMAL QUOTES PAGE TEST</h1>
-              <p>If you see this, React routing works!</p>
-              <p>Categories and products should load from API on port 5001</p>
-              <button style={{
-                background: 'green',
-                color: 'white',
-                padding: '10px',
-                border: 'none',
-                cursor: 'pointer'
-              }} onClick={() => window.location.href = '/quotes/new-real'}>
-                Test Real Page
-              </button>
-            </div>
-          } />
+          <Route path="/quotes/new" element={<ProtectedRoute><NewQuotePage /></ProtectedRoute>} />
           <Route path="/quotes/new-real" element={
             <div style={{
               padding: '20px',
