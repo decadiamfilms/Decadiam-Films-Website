@@ -374,10 +374,10 @@ const StockCheckPage: React.FC = () => {
       if (selectedCategoryId || selectedSubcategoryId || selectedSubSubcategoryId || selectedSubSubSubcategoryId) {
         filteredProducts = filteredProducts.filter(product => {
           if (selectedCategoryId) {
-            const selectedCategory = categories.find(cat => cat.id === selectedCategoryId);
-            if (selectedCategory) {
-              return product.category_name?.includes(selectedCategory.name);
-            }
+            // Use same logic as purchase orders for consistency
+            return product.categoryId === selectedCategoryId || 
+                   product.mainCategoryId === selectedCategoryId ||
+                   product.category_name?.includes(categories.find(cat => cat.id === selectedCategoryId)?.name || '');
           }
           return true;
         });
