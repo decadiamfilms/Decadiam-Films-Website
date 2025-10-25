@@ -60,7 +60,7 @@ export const authenticate = async (
 
     req.user = {
       id: session.user.id,
-      companyId: session.user.companyId,
+      companyId: session.user.company_id,
       email: session.user.email,
     };
     req.session = {

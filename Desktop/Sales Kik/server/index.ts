@@ -14,7 +14,7 @@ import publicQuoteRoutes from './api/public/quote.routes';
 import orderRoutes from './api/orders/order.routes';
 import invoiceRoutes from './api/invoices/invoice.routes';
 import enterpriseRoutes from './api/enterprise/enterprise.routes';
-import categoryStructureRoutes from './api/categories/category-structure.routes';
+// import categoryStructureRoutes from './api/categories/category-structure.routes';
 import categoryRoutes from './api/categories/category.routes';
 import verificationRoutes from './api/auth/verification.routes';
 import modulesRoutes from './api/modules/modules.routes';
@@ -157,7 +157,7 @@ app.use('/api/public', publicQuoteRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/enterprise', enterpriseRoutes);
-app.use('/api/category', categoryStructureRoutes);
+// app.use('/api/category', categoryStructureRoutes);
 
 // Our working categories API
 app.get('/api/categories', async (req, res) => {
