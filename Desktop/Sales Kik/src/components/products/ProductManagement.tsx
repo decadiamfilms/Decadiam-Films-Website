@@ -304,8 +304,10 @@ export default function ProductManagement() {
     try {
       setLoading(true);
       
-      // Load categories from database
-      const categoriesData = await dataService.categories.getAll();
+      // Load categories from database  
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const result = await response.json();
+      const categoriesData = result.success ? result.data : [];
       setCategories(categoriesData);
       console.log('📂 ProductManagement: Loaded categories:', categoriesData.length);
 
@@ -1313,11 +1315,11 @@ function ProductFormStructured({ product, categories, locations, pricingTierName
     isActive: product?.isActive ?? true
   });
 
-  // Sequential cascading dropdown state for form
+  // Sequential cascading dropdown state for form - pre-populate when editing
   const [formSelectedCategoryId, setFormSelectedCategoryId] = useState<string>(product?.categoryId || '');
-  const [formSelectedSubcategoryId, setFormSelectedSubcategoryId] = useState<string>('');
-  const [formSelectedSubSubcategoryId, setFormSelectedSubSubcategoryId] = useState<string>('');
-  const [formSelectedSubSubSubcategoryId, setFormSelectedSubSubSubcategoryId] = useState<string>('');
+  const [formSelectedSubcategoryId, setFormSelectedSubcategoryId] = useState<string>(product?.subCategoryId || '');
+  const [formSelectedSubSubcategoryId, setFormSelectedSubSubcategoryId] = useState<string>(product?.subSubCategoryId || '');
+  const [formSelectedSubSubSubcategoryId, setFormSelectedSubSubSubcategoryId] = useState<string>(product?.subSubSubCategoryId || '');
   
   // Available options for each level in form
   const [formLevel1Options, setFormLevel1Options] = useState<any[]>([]);
@@ -1327,6 +1329,33 @@ function ProductFormStructured({ product, categories, locations, pricingTierName
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     product ? categories.find(c => c.id === product.categoryId) || null : null
   );
+
+  // Initialize subcategory levels when editing a product
+  useEffect(() => {
+    if (product && formSelectedCategoryId) {
+      console.log('🔧 Initializing form with existing product data:', {
+        categoryId: formSelectedCategoryId,
+        subCategoryId: formSelectedSubcategoryId,
+        subSubCategoryId: formSelectedSubSubcategoryId,
+        subSubSubCategoryId: formSelectedSubSubSubcategoryId
+      });
+      
+      // Load level 1 options for the selected category
+      if (formSelectedCategoryId) {
+        loadFormLevel1Options(formSelectedCategoryId);
+      }
+      
+      // Load level 2 options if level 1 is selected
+      if (formSelectedSubcategoryId) {
+        loadFormLevel2Options(formSelectedSubcategoryId);
+      }
+      
+      // Load level 3 options if level 2 is selected
+      if (formSelectedSubSubcategoryId) {
+        loadFormLevel3Options(formSelectedSubSubcategoryId);
+      }
+    }
+  }, [product, categories]);
 
   // Form cascading dropdown loading functions
   const loadFormLevel1Options = async (categoryId: string) => {
