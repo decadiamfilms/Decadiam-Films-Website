@@ -210,19 +210,14 @@ function CustomerSearch({ value, onChange }: CustomerSearchProps) {
       try {
         console.log('🔍 NewOrder: Loading customers from database...');
         
-        // Use direct API call to our customers endpoint
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
-        const data = await response.json();
+        // Load customers from database using dataService (like quotes page)
+        const customersData = await dataService.customers.getAll();
+        console.log('📡 NewOrder: Customers from dataService:', customersData);
         
-        console.log('📡 NewOrder: Customers API response:', data);
-        
-        if (data.success && data.data) {
-          const customersData = data.data;
+        if (customersData && customersData.length > 0) {
           console.log('📂 NewOrder: Found', customersData.length, 'customers in database');
-          
-          if (Array.isArray(customersData) && customersData.length > 0) {
-            // Transform database customers to frontend format
-            const transformedCustomers = customersData.map((customer: any) => ({
+          // Transform database customers to frontend format
+          const transformedCustomers = customersData.map((customer: any) => ({
               id: customer.id,
               name: customer.name,
               accountingId: customer.accounting_id || '',
@@ -257,20 +252,52 @@ function CustomerSearch({ value, onChange }: CustomerSearchProps) {
               priceTier: customer.payment_due_days <= 15 ? 'T1' : customer.payment_due_days <= 30 ? 'T2' : 'T3'
             }));
             
-            setCustomers(transformedCustomers);
-            console.log('✅ NewOrder: Loaded database customers:', transformedCustomers.length);
-            console.log('📂 NewOrder: Customer names:', transformedCustomers.map(c => c.name));
+          setCustomers(transformedCustomers);
+          console.log('✅ NewOrder: Loaded database customers:', transformedCustomers.length);
+          console.log('📂 NewOrder: Customer names:', transformedCustomers.map(c => c.name));
+        } else {
+          console.warn('⚠️ NewOrder: No customers found in database, trying localStorage');
+          // Fallback to localStorage
+          const savedCustomers = localStorage.getItem('saleskik-customers');
+          if (savedCustomers) {
+            try {
+              const parsedCustomers = JSON.parse(savedCustomers);
+              const customersWithDates = parsedCustomers.map((customer: any) => ({
+                ...customer,
+                createdAt: new Date(customer.createdAt || new Date()),
+                priceTier: customer.priceTier || 'T2'
+              }));
+              setCustomers(customersWithDates);
+              console.log('✅ NewOrder: Loaded customers from localStorage:', customersWithDates.length);
+            } catch (error) {
+              console.error('Error parsing localStorage customers:', error);
+              setCustomers([]);
+            }
           } else {
-            console.warn('⚠️ NewOrder: No customers found in database');
             setCustomers([]);
           }
-        } else {
-          console.warn('⚠️ NewOrder: Customer API failed');
-          setCustomers([]);
         }
       } catch (error) {
         console.error('❌ NewOrder: Error loading database customers:', error);
-        setCustomers([]);
+        // Also try localStorage on error
+        const savedCustomers = localStorage.getItem('saleskik-customers');
+        if (savedCustomers) {
+          try {
+            const parsedCustomers = JSON.parse(savedCustomers);
+            const customersWithDates = parsedCustomers.map((customer: any) => ({
+              ...customer,
+              createdAt: new Date(customer.createdAt || new Date()),
+              priceTier: customer.priceTier || 'T2'
+            }));
+            setCustomers(customersWithDates);
+            console.log('✅ NewOrder: Loaded customers from localStorage fallback:', customersWithDates.length);
+          } catch (localError) {
+            console.error('Error with localStorage fallback:', localError);
+            setCustomers([]);
+          }
+        } else {
+          setCustomers([]);
+        }
       }
     };
 
