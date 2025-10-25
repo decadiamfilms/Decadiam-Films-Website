@@ -308,6 +308,52 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
+// Simple customers GET endpoint
+app.get('/api/customers', async (req, res) => {
+  try {
+    console.log('🔍 Customers API: Loading customers for company: 0e573687-3b53-498a-9e78-f198f16f8bcb');
+    
+    const customers = await prisma.customer.findMany({
+      where: { 
+        company_id: '0e573687-3b53-498a-9e78-f198f16f8bcb',
+        is_active: true 
+      },
+      include: {
+        contacts: true,
+        addresses: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    console.log('📋 Customers API: Raw customers from database:', customers.length);
+    
+    // Transform to frontend format
+    const frontendCustomers = customers.map(customer => ({
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+      phone: customer.phone,
+      accountingId: customer.accounting_id || '',
+      // Add other fields as needed
+      createdAt: customer.created_at,
+      updatedAt: customer.updated_at
+    }));
+
+    console.log('✅ Customers API: Returning', frontendCustomers.length, 'customers');
+    
+    res.json({
+      success: true,
+      data: frontendCustomers
+    });
+  } catch (error: any) {
+    console.error('❌ Customers API Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
+
 app.post('/api/categories', async (req, res) => {
   try {
     const companyId = '0e573687-3b53-498a-9e78-f198f16f8bcb';

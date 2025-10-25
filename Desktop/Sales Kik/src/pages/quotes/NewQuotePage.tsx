@@ -1,13 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import UniversalNavigation from '../../components/layout/UniversalNavigation';
 import UniversalHeader from '../../components/layout/UniversalHeader';
 import QuoteDetailsModal from '../../components/quotes/QuoteDetailsModal';
 import EnhancedQuoteModal from '../../components/quotes/EnhancedQuoteModal';
 import { useCategoryStructure } from '../../hooks/useCategoryStructure';
-import { usePricingResolution } from '../../hooks/usePricingResolution';
-import AdminConnectedGlassQuote from '../../components/glass/AdminConnectedGlassQuote';
-import { dataService } from '../../services/api.service';
 import { 
   PlusIcon, MagnifyingGlassIcon, XMarkIcon, UserIcon,
   ChevronDownIcon, InformationCircleIcon, CubeIcon,
@@ -205,68 +202,25 @@ function CustomerSearch({ value, onChange }: CustomerSearchProps) {
 
   useEffect(() => {
     // Load customers from localStorage (same as CustomerManagement saves)
-    const loadCustomersFromManagement = async () => {
-      try {
-        console.log('🔍 NewQuote: Loading customers from database...');
-        
-        // Use direct API call to our customers endpoint
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
-        const data = await response.json();
-        
-        console.log('📡 NewQuote: Customers API response:', data);
-        
-        if (data.success && data.data) {
-          const customersData = data.data;
-          console.log('📂 NewQuote: Found', customersData.length, 'customers in database');
-          
-          if (Array.isArray(customersData) && customersData.length > 0) {
-            // Transform database customers to frontend format
-            const transformedCustomers = customersData.map((customer: any) => ({
-              id: customer.id,
-              name: customer.name,
-              accountingId: customer.accounting_id || '',
-              salesRepId: customer.sales_rep_id || '',
-              salesRepName: customer.sales_rep_name || '',
-              abnNumber: customer.abn_number || '',
-              phone: customer.phone || '',
-              email: customer.email || '',
-              primaryContact: {
-                id: customer.id + '_contact',
-                firstName: customer.primary_contact_first_name || '',
-                lastName: customer.primary_contact_last_name || '',
-                email: customer.primary_contact_email || customer.email || '',
-                landline: customer.primary_contact_landline || '',
-                fax: customer.primary_contact_fax || '',
-                mobile: customer.primary_contact_mobile || customer.phone || ''
-              },
-              accountDetails: {
-                accountingTerms: customer.accounting_terms || '',
-                paymentTerms: customer.payment_due_days || 30,
-                paymentPeriod: 'days' as const,
-                creditLimit: customer.credit_limit || 0,
-                availableLimit: customer.available_limit || 0,
-                invoiceType: customer.invoice_type || 'Account' as const
-              },
-              locations: [],
-              additionalContacts: [],
-              priceLists: [],
-              status: customer.status || 'active' as const,
-              createdAt: new Date(customer.created_at || new Date()),
-              notes: customer.notes || '',
-              priceTier: customer.payment_due_days <= 15 ? 'T1' : customer.payment_due_days <= 30 ? 'T2' : 'T3'
-            }));
-            
-            setCustomers(transformedCustomers);
-            console.log('✅ NewQuote: Loaded database customers:', transformedCustomers.length);
-            console.log('📂 NewQuote: Customer names:', transformedCustomers.map(c => c.name));
-            return;
-          }
+    const loadCustomersFromManagement = () => {
+      // First try to load from localStorage
+      const savedCustomers = localStorage.getItem('saleskik-customers');
+      if (savedCustomers) {
+        try {
+          const parsedCustomers = JSON.parse(savedCustomers);
+          // Convert date strings back to Date objects and add priceTier fallback
+          const customersWithDates = parsedCustomers.map((customer: any) => ({
+            ...customer,
+            createdAt: new Date(customer.createdAt),
+            priceTier: customer.priceTier || (customer.accountDetails.paymentTerms <= 15 ? 'T1' : 
+                      customer.accountDetails.paymentTerms <= 30 ? 'T2' : 'T3') // Auto-assign tier
+          }));
+          setCustomers(customersWithDates);
+          console.log('Quote page: Loaded customers from localStorage:', customersWithDates.length, 'customers');
+          return;
+        } catch (error) {
+          console.error('Error parsing saved customers for quotes:', error);
         }
-        
-        console.warn('⚠️ NewQuote: No customers found in database');
-        setCustomers([]);
-      } catch (error) {
-        console.error('❌ NewQuote: Error loading database customers:', error);
       }
 
       // If no saved customers, use initial sample data
@@ -687,16 +641,6 @@ export default function NewQuotePage() {
   
   // Enhanced search state
   const [smartSearch, setSmartSearch] = useState('');
-  
-  // Custom pricing integration
-  const { 
-    getPriceForCustomer: getResolvedPrice, 
-    bulkResolvePricing, 
-    getPricingInfo, 
-    invalidateCache,
-    savePriceToCustomerList,
-    loading: pricingLoading 
-  } = usePricingResolution();
 
   // Quote form state
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -721,89 +665,7 @@ export default function NewQuotePage() {
 
   // Products and quote items
   const [products, setProducts] = useState<Product[]>([]);
-  
-  // WORKING SUBCATEGORY FILTERING - Same as purchase orders
-  const filteredProducts = useMemo(() => {
-    console.log('🚀 QUOTES: FILTER START');
-    console.log('🚀 QUOTES: products.length:', products.length);
-    console.log('🚀 QUOTES: selectedCategory:', selectedCategory);
-    console.log('🚀 QUOTES: selectedPath:', selectedPath?.map(p => ({id: p.id, name: p.name})));
-    
-    if (!products || products.length === 0) {
-      return [];
-    }
-    
-    let filtered = products.filter(p => p.isActive !== false);
-    
-    // Smart search override
-    if (smartSearch) {
-      return filtered.filter(product => 
-        product.code.toLowerCase().includes(smartSearch.toLowerCase()) ||
-        product.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
-        (product.description && product.description.toLowerCase().includes(smartSearch.toLowerCase()))
-      );
-    }
-    
-    // SKU search override  
-    if (skuSearch) {
-      return filtered.filter(product =>
-        product.code.toLowerCase().includes(skuSearch.toLowerCase()) ||
-        product.name.toLowerCase().includes(skuSearch.toLowerCase())
-      );
-    }
-    
-    // No category selected - show all
-    if (!selectedCategory) {
-      return filtered;
-    }
-    
-    // First filter by main category
-    filtered = filtered.filter(product => {
-      return product.categoryId === selectedCategory || product.categoryName === selectedCategory;
-    });
-    
-    console.log('🔥 QUOTES: After category filter:', filtered.length, 'products');
-    
-    // Apply subcategory filter if any subcategory is selected
-    if (selectedPath && selectedPath.length > 0) {
-      const targetSubcategory = selectedPath[selectedPath.length - 1]; // Get the most specific subcategory
-      console.log('🔥 QUOTES: Filtering by subcategory:', targetSubcategory.name, '(ID:', targetSubcategory.id, ')');
-      
-      filtered = filtered.filter(product => {
-        // Method 1: Direct subcategory ID matching
-        const directMatch = 
-          product.subCategoryId === targetSubcategory.id ||
-          product.subSubCategoryId === targetSubcategory.id ||
-          product.subSubSubCategoryId === targetSubcategory.id;
-        
-        // Method 2: Subcategory path matching
-        const pathMatch = product.subcategoryPath?.some(subcat => 
-          subcat.id === targetSubcategory.id || subcat.name === targetSubcategory.name
-        );
-        
-        const finalMatch = directMatch || pathMatch;
-        
-        console.log('🔥 QUOTES: Product', product.name, '- subcategory check:', {
-          targetSubcategoryId: targetSubcategory.id,
-          targetSubcategoryName: targetSubcategory.name,
-          productSubCategoryId: product.subCategoryId,
-          productSubSubCategoryId: product.subSubCategoryId,
-          productSubSubSubCategoryId: product.subSubSubCategoryId,
-          productSubcategoryPath: product.subcategoryPath?.map(s => s.name),
-          directMatch,
-          pathMatch,
-          finalMatch
-        });
-        
-        return finalMatch;
-      });
-      
-      console.log('🔥 QUOTES: After subcategory filter:', filtered.length, 'products');
-    }
-    
-    console.log('🚀 QUOTES: FINAL RESULT:', filtered.length, 'products');
-    return filtered;
-  }, [products, selectedCategory, selectedPath, smartSearch, skuSearch]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [jobSections, setJobSections] = useState<JobSection[]>([
     { id: '1', name: 'Main Project', items: [] }
   ]);
@@ -891,71 +753,72 @@ export default function NewQuotePage() {
   }, [selectedCustomer, jobSections]);
 
   const loadCategories = async () => {
+    setCategoriesLoading(true);
     try {
-      console.log('🔍 Quote: Loading categories from database...');
+      // Load categories from database first with timeout
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`, {
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
       
-      // Use direct API call like other pages
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
-      const data = await response.json();
-      
-      console.log('📡 Quote: API response:', data);
-      
-      if (data.success && data.data) {
-        const categoriesData = data.data;
-        console.log('📂 Quote: Categories data:', categoriesData);
-        console.log('📊 Quote: Categories count:', categoriesData.length);
-      
-      if (categoriesData.length > 0) {
-        // Parse categories exactly like InventoryBuilder does
-        const parsedCategories = categoriesData.map((cat: any) => ({
-          ...cat,
-          createdAt: new Date(cat.createdAt),
-          updatedAt: new Date(cat.updatedAt)
-        }));
-        
-        // Add custom glass category if user has access to glass module
-        const categoriesWithGlass = [...parsedCategories];
-        
-        // Check if custom-glass category already exists
-        const hasGlassCategory = categoriesWithGlass.some(cat => cat.id === 'custom-glass');
-        
-        // Add glass category if not present (user has glass module access)
-        if (!hasGlassCategory) {
-          categoriesWithGlass.push({
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data.length > 0) {
+          setCategories(result.data);
+          console.log('Quote page: Loaded categories from database:', result.data.length, 'categories');
+          setCategoriesLoading(false);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load categories from database:', error);
+    }
+    
+    // Fallback to localStorage
+    try {
+      const savedCategories = localStorage.getItem('saleskik-categories');
+      if (savedCategories) {
+        const parsedCategories = JSON.parse(savedCategories);
+        setCategories(parsedCategories);
+        console.log('Quote page: Loaded categories from localStorage:', parsedCategories.length, 'categories');
+      } else {
+        // Restore user's EXACT categories from backup template service
+        const exactUserCategories = [
+          {
+            id: 'shower-screens',
+            name: 'Shower Screens',
+            color: '#3B82F6', // Exact color from template
+            subcategories: [
+              { id: 'shower-screen-glass', name: 'Shower Screen Glass', categoryId: 'shower-screens', level: 0, color: '#2563EB' },
+              { id: 'hardware-finish', name: 'Hardware Finish', categoryId: 'shower-screens', level: 0, color: '#1D4ED8' }
+            ]
+          },
+          {
+            id: 'pool-fencing', 
+            name: 'Pool Fencing',
+            color: '#FB923C', // Exact color from template
+            subcategories: [
+              { id: 'frame-type', name: 'Frame Type', categoryId: 'pool-fencing', level: 0, color: '#EA580C' }
+            ]
+          },
+          {
+            id: 'balustrading',
+            name: 'Balustrading', 
+            color: '#8B5CF6',
+            subcategories: []
+          },
+          {
             id: 'custom-glass',
             name: 'Custom Glass',
-            description: 'Custom glass products and configurations',
-            color: '#3b82f6',
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            color: '#10B981', 
             subcategories: []
-          });
-        }
+          }
+        ];
         
-        setCategories(categoriesWithGlass);
-        console.log('Quote page: Loaded categories from API (same as InventoryBuilder):', categoriesWithGlass.length, 'categories (including glass)');
-      } else {
-        // If no API categories, still add glass category if user has module access
-        const glassCategory = {
-          id: 'custom-glass',
-          name: 'Custom Glass',
-          description: 'Custom glass products and configurations',
-          color: '#3b82f6',
-          isActive: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          subcategories: []
-        };
-        
-        setCategories([glassCategory]);
-        console.log('Quote page: No API categories found - added glass category for module access');
+        setCategories(exactUserCategories);
+        localStorage.setItem('saleskik-categories', JSON.stringify(exactUserCategories));
+        console.log('Quote page: Restored user\'s EXACT categories from backup template service:', exactUserCategories.length, 'categories');
       }
-    } else {
-      console.warn('Quote: API call failed or returned no success');
-      setCategories([]);
-    }
-  } catch (error) {
+    } catch (error) {
       console.error('Error loading categories:', error);
       setCategories([]);
     } finally {
@@ -963,65 +826,42 @@ export default function NewQuotePage() {
     }
   };
 
-  const loadProducts = async () => {
-    try {
-      // Load products from database API (same as purchase orders)
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`);
-      if (response.ok) {
-        const result = await response.json();
-        const loadedProducts = result.data || [];
-        
-        // Convert to our interface format
-        const convertedProducts: Product[] = loadedProducts.map((p: any) => ({
-          id: p.id,
-          code: p.code,
-          name: p.name,
-          description: p.productType || p.description,
-          priceT1: p.priceT1,
-          priceT2: p.priceT2,
-          priceT3: p.priceT3,
-          priceRetail: p.priceN,
-          currentStock: p.inventory?.currentStock || 0,
-          categoryId: p.categoryId,
-          categoryName: p.categoryName,
-          subcategoryPath: p.subcategoryPath || [],
-          // Add subcategory IDs for filtering
-          subCategoryId: p.subCategoryId,
-          subSubCategoryId: p.subSubCategoryId,
-          subSubSubCategoryId: p.subSubSubCategoryId,
-          weight: p.weight,
-          isActive: p.isActive
-        }));
-        setProducts(convertedProducts);
-        console.log('✅ QUOTES: Loaded', convertedProducts.length, 'products from database');
-      } else {
-        console.error('❌ QUOTES: Failed to load products from API');
-        // Fallback to dataService if API fails
-        const productsData = await dataService.products.getAll();
-        if (productsData.length > 0) {
-          setProducts(productsData);
-          console.log('✅ QUOTES: Loaded', productsData.length, 'products from fallback');
-        }
-      }
-    } catch (error) {
-      console.error('❌ QUOTES: Error loading products:', error);
-      // Try fallback
-      const productsData = await dataService.products.getAll();
-      if (productsData.length > 0) {
-        setProducts(productsData);
-        console.log('✅ QUOTES: Loaded', productsData.length, 'products from fallback');
-      } else {
-        // Create sample data if no products exist
+  const loadProducts = () => {
+    // Load products from localStorage (matching ProductManagement structure)
+    const savedProducts = localStorage.getItem('saleskik-products-structured');
+    if (savedProducts) {
+      const parsedProducts = JSON.parse(savedProducts);
+      // Convert to our interface format
+      const convertedProducts: Product[] = parsedProducts.map((p: any) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        description: p.productType || p.description,
+        priceT1: p.priceT1,
+        priceT2: p.priceT2,
+        priceT3: p.priceT3,
+        priceRetail: p.priceN,
+        currentStock: p.inventory?.currentStock || 0,
+        categoryId: p.categoryId,
+        categoryName: p.categoryName,
+        subcategoryPath: p.subcategoryPath || [],
+        weight: p.weight,
+        isActive: p.isActive
+      }));
+      setProducts(convertedProducts);
+      setFilteredProducts(convertedProducts);
+    } else {
+      // Create sample data if no products exist
       const sampleProducts: Product[] = [
         {
-          id: 'test-product-1',
-          code: 'TEST-001',
-          name: 'Test Product for Demo',
-          description: 'Sample product for testing quotes and orders',
-          priceT1: 10.00,
-          priceT2: 15.00,
-          priceT3: 20.00,
-          priceRetail: 25.00,
+          id: '1',
+          code: '12F-100',
+          name: '1175 x 100 mm - 12mm Clear Toughened Glass',
+          description: 'Frameless Pool Fencing Glass',
+          priceT1: 85.50,
+          priceT2: 95.00,
+          priceT3: 105.00,
+          priceRetail: 125.00,
           currentStock: 25,
           categoryId: 'glass',
           categoryName: 'Glass Products',
@@ -1047,8 +887,7 @@ export default function NewQuotePage() {
         }
       ];
       setProducts(sampleProducts);
-      console.log('📝 QUOTES: Using sample products (no database data found)');
-      }
+      setFilteredProducts(sampleProducts);
     }
   };
 
@@ -1092,23 +931,23 @@ export default function NewQuotePage() {
     return Math.max(-1, ...category.subcategories.map((sub: any) => sub.level || 0));
   };
 
-  // OLD FILTERING LOGIC REMOVED - Now using useMemo for real-time filtering
-  // useEffect(() => {
+  // Filter products - require complete category drill-down before showing products
+  useEffect(() => {
     // Don't show any products if search is being used
     if (smartSearch) {
       let filtered = products.filter(p => p.isActive);
       filtered = filtered.filter(p => 
-        p.code?.toLowerCase().includes(smartSearch.toLowerCase()) ||
+        p.code.toLowerCase().includes(smartSearch.toLowerCase()) ||
         p.name.toLowerCase().includes(smartSearch.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(smartSearch.toLowerCase()))
       );
-      // setFilteredProducts(filtered);
+      setFilteredProducts(filtered);
       return;
     }
 
     // Check if user has drilled down to the deepest level of categories
     if (!selectedCategory) {
-      // setFilteredProducts([]);
+      setFilteredProducts([]);
       return;
     }
 
@@ -1119,7 +958,7 @@ export default function NewQuotePage() {
     
     // Require user to select all levels if subcategories exist
     if (maxLevel >= 0 && selectedPath.length <= maxLevel) {
-      // setFilteredProducts([]);
+      setFilteredProducts([]);
       return;
     }
 
@@ -1139,14 +978,14 @@ export default function NewQuotePage() {
     // Filter by SKU/name search
     if (skuSearch) {
       filtered = filtered.filter(p => 
-        p.code?.toLowerCase().includes(skuSearch.toLowerCase()) ||
+        p.code.toLowerCase().includes(skuSearch.toLowerCase()) ||
         p.name.toLowerCase().includes(skuSearch.toLowerCase()) ||
         (p.description && p.description.toLowerCase().includes(skuSearch.toLowerCase()))
       );
     }
 
-    // setFilteredProducts(filtered);
-  // }, [selectedPath, skuSearch, products, selectedCategory, smartSearch]);
+    setFilteredProducts(filtered);
+  }, [selectedPath, skuSearch, products, selectedCategory, smartSearch]);
 
   // Initialize quantities for filtered products - DISABLED FOR DEBUGGING
   // useEffect(() => {
@@ -1161,92 +1000,11 @@ export default function NewQuotePage() {
   //   }
   // }, [filteredProducts]);
 
-  // Enhanced pricing with custom price resolution
-  const [resolvedPrices, setResolvedPrices] = useState<Record<string, number>>({});
-  const [pricingPreloaded, setPricingPreloaded] = useState(false);
-  
-  // Preload pricing when customer or products change
-  useEffect(() => {
-    const preloadPricing = async () => {
-      if (selectedCustomer && filteredProducts.length > 0) {
-        setPricingPreloaded(false);
-        try {
-          const pricing = await bulkResolvePricing(selectedCustomer.id, filteredProducts);
-          
-          // Update resolved prices cache
-          const newResolvedPrices: Record<string, number> = {};
-          Object.entries(pricing).forEach(([productId, pricingResult]) => {
-            const cacheKey = `${selectedCustomer.id}-${productId}`;
-            newResolvedPrices[cacheKey] = pricingResult.price;
-          });
-          
-          setResolvedPrices(prev => ({ ...prev, ...newResolvedPrices }));
-        } catch (error) {
-          console.error('Error preloading pricing:', error);
-        } finally {
-          setPricingPreloaded(true);
-        }
-      }
-    };
-    
-    preloadPricing();
-  }, [selectedCustomer, filteredProducts.length, bulkResolvePricing]);
-  
-  const getPriceForCustomer = async (product: Product, customer: Customer | null): Promise<number> => {
+  // Get price for customer tier
+  const getPriceForCustomer = (product: Product, customer: Customer | null): number => {
     if (!customer) return product.priceRetail;
     
-    const cacheKey = `${customer.id}-${product.id}`;
-    
-    // Check if we already have this price resolved
-    if (resolvedPrices[cacheKey]) {
-      return resolvedPrices[cacheKey];
-    }
-    
-    try {
-      const price = await getResolvedPrice(product, customer);
-      
-      // Cache the resolved price
-      setResolvedPrices(prev => ({
-        ...prev,
-        [cacheKey]: price
-      }));
-      
-      return price;
-    } catch (error) {
-      console.error('Error resolving price:', error);
-      
-      // Fallback to tier pricing
-      const tier = customer.priceTier || 
-                  (customer.accountDetails.paymentTerms <= 15 ? 'T1' : 
-                   customer.accountDetails.paymentTerms <= 30 ? 'T2' : 'T3');
-      
-      switch (tier) {
-        case 'T1': return product.priceT1;
-        case 'T2': return product.priceT2;
-        case 'T3': return product.priceT3;
-        default: return product.priceRetail;
-      }
-    }
-  };
-  
-  // Synchronous version for existing code that expects immediate response
-  const getPriceForCustomerSync = (product: Product, customer: Customer | null): number => {
-    if (!customer) return product.priceRetail;
-    
-    const cacheKey = `${customer.id}-${product.id}`;
-    
-    // Check resolved prices cache first
-    if (resolvedPrices[cacheKey]) {
-      return resolvedPrices[cacheKey];
-    }
-    
-    // Check pricing info from the hook
-    const pricingInfo = getPricingInfo(product.id, customer.id);
-    if (pricingInfo && pricingInfo.type !== 'error') {
-      return pricingInfo.price;
-    }
-    
-    // Fallback to tier pricing
+    // Use priceTier if available, otherwise derive from payment terms or default to T2
     const tier = customer.priceTier || 
                 (customer.accountDetails.paymentTerms <= 15 ? 'T1' : 
                  customer.accountDetails.paymentTerms <= 30 ? 'T2' : 'T3');
@@ -1257,61 +1015,6 @@ export default function NewQuotePage() {
       case 'T3': return product.priceT3;
       default: return product.priceRetail;
     }
-  };
-
-  // Price save to custom pricelist functionality
-  const handlePriceSaveModal = async (productId: string, newPrice: number, productName: string) => {
-    if (!selectedCustomer) return false;
-
-    return new Promise<boolean>((resolve) => {
-      const modal = document.createElement('div');
-      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-      modal.innerHTML = `
-        <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Save to Custom Pricelist?</h3>
-          <p class="text-gray-600 mb-4">
-            Would you like to save this price ($${newPrice.toFixed(2)}) for "${productName}" 
-            to ${selectedCustomer.name}'s custom pricelist for future use?
-          </p>
-          <div class="flex justify-end space-x-3">
-            <button id="cancel-save" class="px-4 py-2 text-gray-700 bg-gray-200 rounded hover:bg-gray-300">
-              No, just for this quote
-            </button>
-            <button id="confirm-save" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-              Yes, save to pricelist
-            </button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-
-      const cleanup = () => {
-        document.body.removeChild(modal);
-      };
-
-      modal.querySelector('#cancel-save')?.addEventListener('click', () => {
-        cleanup();
-        resolve(false);
-      });
-
-      modal.querySelector('#confirm-save')?.addEventListener('click', async () => {
-        cleanup();
-        const saved = await savePriceToCustomerList(selectedCustomer.id, productId, newPrice, 'Price updated during quote creation');
-        if (saved) {
-          // Invalidate cache so new price will be loaded
-          invalidateCache(selectedCustomer.id, productId);
-        }
-        resolve(saved);
-      });
-
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          cleanup();
-          resolve(false);
-        }
-      });
-    });
   };
 
   // Add product to quote
@@ -1346,93 +1049,6 @@ export default function NewQuotePage() {
       };
       setJobSections([...jobSections, newJobSection]);
     }
-  };
-
-  // Add glass item to quote (special handler for glass module)
-  const addGlassToQuote = (glassItem: {
-    glassType: any;
-    thickness: any;
-    quantity: number;
-    heightMm: string;
-    widthMm: string;
-    itemCode?: string;
-    processing: any;
-    priceBreakdown: any;
-  }) => {
-    if (!selectedCustomer) {
-      alert('Please select a customer first');
-      return;
-    }
-
-    // Build processing description for quote display
-    const processingDetails = [];
-    if (glassItem.processing.edgework?.length) {
-      processingDetails.push(...glassItem.processing.edgework.map((p: any) => `${p.name} (Edgework)`));
-    }
-    if (glassItem.processing.corner?.length) {
-      processingDetails.push(...glassItem.processing.corner.map((p: any) => 
-        `${p.name}${p.selectedValue ? ` - ${p.selectedValue}mm` : ''} (Corner)`
-      ));
-    }
-    if (glassItem.processing.holes?.length) {
-      processingDetails.push(...glassItem.processing.holes.map((p: any) => `${p.name} (Holes)`));
-    }
-    if (glassItem.processing.services?.length) {
-      processingDetails.push(...glassItem.processing.services.map((p: any) => `${p.name} (Service)`));
-    }
-    if (glassItem.processing.surface?.length) {
-      processingDetails.push(...glassItem.processing.surface.map((p: any) => `${p.name} (Surface)`));
-    }
-    
-    const processingText = processingDetails.length > 0 ? ` • Processing: ${processingDetails.join(', ')}` : '';
-
-    // Create a pseudo-product for glass item to fit the QuoteLineItem structure
-    const glassProduct: Product = {
-      id: `glass-${Date.now()}`,
-      name: `${glassItem.glassType.name} - ${glassItem.thickness.thickness}mm`,
-      description: `${glassItem.heightMm} × ${glassItem.widthMm}mm ${glassItem.glassType.name}${glassItem.itemCode ? ` (${glassItem.itemCode})` : ''}${processingText}`,
-      categoryId: 'custom-glass',
-      sku: glassItem.thickness.sku,
-      unitPrice: glassItem.priceBreakdown.total / glassItem.quantity,
-      costPrice: glassItem.priceBreakdown.baseGlass / glassItem.quantity,
-      markup: 0,
-      profitMargin: 0,
-      isActive: true,
-      inventory: {
-        currentStock: 999,
-        reorderPoint: 0,
-        supplier: 'Glass Supplier'
-      },
-      createdAt: new Date(),
-      priceLists: [],
-      bulkPricing: []
-    };
-
-    const newItem: QuoteLineItem = {
-      id: Date.now().toString(),
-      productId: glassProduct.id,
-      product: glassProduct,
-      quantity: glassItem.quantity,
-      unitPrice: glassProduct.unitPrice,
-      totalPrice: glassItem.priceBreakdown.total,
-      jobName: jobName
-    };
-
-    // Add to job sections like regular products
-    const existingJobIndex = jobSections.findIndex(js => js.name === jobName);
-    if (existingJobIndex >= 0) {
-      const updatedSections = [...jobSections];
-      updatedSections[existingJobIndex].items.push(newItem);
-      setJobSections(updatedSections);
-    } else {
-      const newJobSection: JobSection = {
-        id: Date.now().toString(),
-        name: jobName,
-        items: [newItem]
-      };
-      setJobSections([...jobSections, newJobSection]);
-    }
-
   };
 
   // Remove item from quote
@@ -1547,7 +1163,10 @@ export default function NewQuotePage() {
         p.id === productId ? { ...p, ...editedProduct } : p
       ));
       
-      // No need to update filteredProducts - useMemo handles it automatically
+      // Update filtered products
+      setFilteredProducts(prev => prev.map(p => 
+        p.id === productId ? { ...p, ...editedProduct } : p
+      ));
     }
     setEditingProduct(null);
   };
@@ -1577,9 +1196,13 @@ export default function NewQuotePage() {
   // Smart search with AI-like natural language processing
   const handleSmartSearch = (searchTerm: string) => {
     setSmartSearch(searchTerm);
-    // No need to setFilteredProducts - useMemo handles filtering automatically
     
-    // Enhanced search with synonyms and natural language (kept for future use)
+    if (!searchTerm.trim()) {
+      setFilteredProducts(products.filter(p => p.isActive));
+      return;
+    }
+    
+    // Enhanced search with synonyms and natural language
     const searchWords = searchTerm.toLowerCase().split(' ');
     const synonyms: {[key: string]: string[]} = {
       'glass': ['panel', 'sheet', 'glazing', 'transparent'],
@@ -1607,7 +1230,7 @@ export default function NewQuotePage() {
       });
     }).filter(p => p.isActive);
     
-    // Filtering now handled by useMemo automatically
+    setFilteredProducts(filtered);
   };
   
   // Auto-complete project name based on customer
@@ -1630,20 +1253,6 @@ export default function NewQuotePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* DEBUG: Test visibility */}
-      <div style={{
-        position: 'fixed',
-        top: '10px',
-        left: '10px',
-        background: 'red',
-        color: 'white',
-        padding: '10px',
-        zIndex: 9999,
-        fontSize: '16px'
-      }}>
-        QUOTES PAGE LOADED - Categories: {categories.length} | Products: {products.length}
-      </div>
-      
       <UniversalNavigation 
         currentPage="quotes" 
         isOpen={showSidebar}
@@ -1856,17 +1465,18 @@ export default function NewQuotePage() {
                     return null;
                   })()}
 
-                  {/* Level 1 Dropdown */}
-                  {selectedPath[0] && (() => {
-                    const level1Options = getSubcategoriesAtLevel(1, selectedPath[0]?.id);
+                  {/* Level 1 Subcategory Dropdown */}
+                  {selectedCategory && selectedPath.length > 0 && (() => {
+                    const parentId = selectedPath[0]?.id;
+                    const subcategoriesAtLevel = getSubcategoriesAtLevel(1, parentId);
                     
-                    if (level1Options.length > 0) {
+                    if (subcategoriesAtLevel.length > 0) {
                       return (
                         <CustomDropdown
-                          label="Type"
+                          label="Sub-Subcategory"
                           value={selectedPath[1]?.id || ''}
-                          placeholder="Select type..."
-                          options={level1Options.map((sub: any) => ({
+                          placeholder="Select sub-subcategory..."
+                          options={subcategoriesAtLevel.map((sub: any) => ({
                             value: sub.id,
                             label: sub.name,
                             color: sub.color
@@ -1878,44 +1488,23 @@ export default function NewQuotePage() {
                     return null;
                   })()}
 
-                  {/* Level 2 Dropdown */}
-                  {selectedPath[1] && (() => {
-                    const level2Options = getSubcategoriesAtLevel(2, selectedPath[1]?.id);
+                  {/* Level 2 Subcategory Dropdown */}
+                  {selectedCategory && selectedPath.length > 1 && (() => {
+                    const parentId = selectedPath[1]?.id;
+                    const subcategoriesAtLevel = getSubcategoriesAtLevel(2, parentId);
                     
-                    if (level2Options.length > 0) {
+                    if (subcategoriesAtLevel.length > 0) {
                       return (
                         <CustomDropdown
-                          label="Specification"
+                          label="Final Category"
                           value={selectedPath[2]?.id || ''}
-                          placeholder="Select specification..."
-                          options={level2Options.map((sub: any) => ({
+                          placeholder="Select final category..."
+                          options={subcategoriesAtLevel.map((sub: any) => ({
                             value: sub.id,
                             label: sub.name,
                             color: sub.color
                           }))}
                           onChange={(value) => handleSubcategorySelectionAtLevel(2, value)}
-                        />
-                      );
-                    }
-                    return null;
-                  })()}
-
-                  {/* Level 3 Dropdown */}
-                  {selectedPath[2] && (() => {
-                    const level3Options = getSubcategoriesAtLevel(3, selectedPath[2]?.id);
-                    
-                    if (level3Options.length > 0) {
-                      return (
-                        <CustomDropdown
-                          label="Option"
-                          value={selectedPath[3]?.id || ''}
-                          placeholder="Select option..."
-                          options={level3Options.map((sub: any) => ({
-                            value: sub.id,
-                            label: sub.name,
-                            color: sub.color
-                          }))}
-                          onChange={(value) => handleSubcategorySelectionAtLevel(3, value)}
                         />
                       );
                     }
@@ -1971,242 +1560,206 @@ export default function NewQuotePage() {
                 </div>
               </div>
               
-              {/* Products Table or Glass Module - Enhanced */}
-              {selectedCategory === 'custom-glass' ? (
-                /* Custom Glass Module */
-                <div className="p-6">
-                  <AdminConnectedGlassQuote 
-                    quoteId={quoteId || 'temp-quote'}
-                    customerId={selectedCustomer?.id || ''}
-                    onItemsAdded={() => {
-                      // Refresh the quote when glass items are added
-                      console.log('Glass item added to quote');
-                      // You can add logic here to refresh quote totals
-                    }}
-                    onAddGlassToQuote={addGlassToQuote}
-                  />
-                </div>
-              ) : (
-                /* Regular Products Table */
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
+              {/* Products Table - Enhanced */}
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gradient-to-r from-gray-50 to-blue-50">
+                    <tr>
+                      <th className="px-4 py-4 text-left text-base font-bold text-gray-600 uppercase tracking-wider">Product</th>
+                      <th className="px-4 py-4 text-left text-base font-bold text-gray-600 uppercase tracking-wider">Details</th>
+                      <th className="px-4 py-4 text-right text-base font-bold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-end gap-1">
+                          <TagIcon className="w-4 h-4" />
+                          Price
+                        </div>
+                      </th>
+                      <th className="px-4 py-4 text-center text-base font-bold text-gray-600 uppercase tracking-wider">
+                        <div className="flex items-center justify-center gap-1">
+                          <CubeIcon className="w-4 h-4" />
+                          Stock
+                        </div>
+                      </th>
+                      <th className="px-4 py-4 text-center text-base font-bold text-gray-600 uppercase tracking-wider">Qty</th>
+                      <th className="px-4 py-4 text-center text-base font-bold text-gray-600 uppercase tracking-wider">Add</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {filteredProducts.length === 0 ? (
                       <tr>
-                        <th className="px-4 py-4 text-left text-base font-bold text-gray-600 uppercase tracking-wider">Product</th>
-                        <th className="px-4 py-4 text-left text-base font-bold text-gray-600 uppercase tracking-wider">Details</th>
-                        <th className="px-4 py-4 text-right text-base font-bold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center justify-end gap-1">
-                            <TagIcon className="w-4 h-4" />
-                            Price
-                          </div>
-                        </th>
-                        <th className="px-4 py-4 text-center text-base font-bold text-gray-600 uppercase tracking-wider">
-                          <div className="flex items-center justify-center gap-1">
-                            <CubeIcon className="w-4 h-4" />
-                            Stock
-                          </div>
-                        </th>
-                        <th className="px-4 py-4 text-center text-base font-bold text-gray-600 uppercase tracking-wider">Qty</th>
-                        <th className="px-4 py-4 text-center text-base font-bold text-gray-600 uppercase tracking-wider">Add</th>
+                        <td colSpan={6} className="px-6 py-8 text-center">
+                          <CubeIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          {!selectedCategory && !smartSearch ? (
+                            <>
+                              <h3 className="text-xl font-medium text-gray-900 mb-2">Select a category to view products</h3>
+                              <p className="text-base text-gray-600 mb-4">Choose a category from the filter above to browse available products</p>
+                            </>
+                          ) : selectedCategory && !smartSearch ? (
+                            <>
+                              <h3 className="text-xl font-medium text-gray-900 mb-2">Select all subcategories to view products</h3>
+                              <p className="text-base text-gray-600 mb-4">Complete the category drill-down by selecting all subcategory levels</p>
+                              <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg inline-block">
+                                💡 You've selected: <span className="font-medium">{categories.find(c => c.id === selectedCategory)?.name}</span>
+                                {selectedPath.length > 0 && (
+                                  <span> → {selectedPath.map(p => p.name).join(' → ')}</span>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
+                              <p className="text-base text-gray-600 mb-4">Try adjusting your search criteria or filters</p>
+                            </>
+                          )}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredProducts.length === 0 ? (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-8 text-center">
-                            <CubeIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                            {false && !selectedCategory && !smartSearch ? (
-                              <>
-                                <h3 className="text-xl font-medium text-gray-900 mb-2">Select a category to view products</h3>
-                                <p className="text-base text-gray-600 mb-4">Choose a category from the filter above to browse available products</p>
-                                <div className="mt-4 text-sm text-blue-600 bg-blue-50 p-3 rounded-lg inline-block">
-                                  💡 Try selecting <span className="font-medium">Custom Glass 🪟</span> for professional glass quoting!
-                                </div>
-                              </>
-                            ) : selectedCategory && !smartSearch ? (
-                              <>
-                                <h3 className="text-xl font-medium text-gray-900 mb-2">Select all subcategories to view products</h3>
-                                <p className="text-base text-gray-600 mb-4">Complete the category drill-down by selecting all subcategory levels</p>
-                                <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg inline-block">
-                                  💡 You've selected: <span className="font-medium">{categories.find(c => c.id === selectedCategory)?.name}</span>
-                                  {selectedPath.length > 0 && (
-                                    <span> → {selectedPath.map(p => p.name).join(' → ')}</span>
-                                  )}
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <h3 className="text-xl font-medium text-gray-900 mb-2">No products found</h3>
-                                <p className="text-base text-gray-600 mb-4">Try adjusting your search criteria or filters</p>
-                              </>
-                            )}
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredProducts.map((product, index) => {
-                          const customerPrice = getPriceForCustomerSync(product, selectedCustomer);
-                          const isLowStock = product.currentStock <= 5;
-                          const isOutOfStock = product.currentStock === 0;
-                          
-                          // Get pricing info for this product
-                          const pricingInfo = selectedCustomer ? getPricingInfo(product.id, selectedCustomer.id) : null;
-                          const hasCustomPricing = pricingInfo?.type === 'custom';
-                          const isLoadingPrice = pricingLoading && !pricingPreloaded;
-                          
-                          return (
-                            <tr key={product.id} className={`hover:bg-blue-50 hover:shadow-sm transition-all duration-200 ${
-                              index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
-                            }`}>
-                              <td className="px-4 py-5">
-                                <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center shadow-sm">
-                                  <CubeIcon className="w-8 h-8 text-gray-500" />
-                                </div>
-                              </td>
-                              <td className="px-4 py-5">
-                                <div className="relative group">
-                                  {editingProduct === product.id ? (
-                                    // Editing mode
-                                    <div className="space-y-2">
-                                      <input
-                                        type="text"
-                                        value={editedProducts[product.id]?.name || product.name}
-                                        onChange={(e) => updateEditedProduct(product.id, 'name', e.target.value)}
-                                        className="font-bold text-gray-900 text-lg leading-tight w-full border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                                        placeholder="Product name"
-                                      />
-                                      <input
-                                        type="text"
-                                        value={editedProducts[product.id]?.code || product.code}
-                                        onChange={(e) => updateEditedProduct(product.id, 'code', e.target.value)}
-                                        className="text-base text-gray-600 font-mono w-full border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                                        placeholder="SKU"
-                                      />
-                                      <textarea
-                                        value={editedProducts[product.id]?.description || product.description || ''}
-                                        onChange={(e) => updateEditedProduct(product.id, 'description', e.target.value)}
-                                        className="text-base text-gray-500 w-full border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 resize-none"
-                                        placeholder="Description"
-                                        rows={2}
-                                      />
-                                      <div className="flex gap-2 mt-2">
-                                        <button
-                                          onClick={() => saveProductEdit(product.id)}
-                                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center gap-1"
-                                        >
-                                          <CheckIcon className="w-3 h-3" />
-                                          Save
-                                        </button>
-                                        <button
-                                          onClick={cancelProductEdit}
-                                          className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 flex items-center gap-1"
-                                        >
-                                          <XMarkIcon className="w-3 h-3" />
-                                          Cancel
-                                        </button>
-                                      </div>
+                    ) : (
+                      filteredProducts.map((product, index) => {
+                        const customerPrice = getPriceForCustomer(product, selectedCustomer);
+                        const isLowStock = product.currentStock <= 5;
+                        const isOutOfStock = product.currentStock === 0;
+                        
+                        return (
+                          <tr key={product.id} className={`hover:bg-blue-50 hover:shadow-sm transition-all duration-200 ${
+                            index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                          }`}>
+                            <td className="px-4 py-5">
+                              <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center shadow-sm">
+                                <CubeIcon className="w-8 h-8 text-gray-500" />
+                              </div>
+                            </td>
+                            <td className="px-4 py-5">
+                              <div className="relative group">
+                                {editingProduct === product.id ? (
+                                  // Editing mode
+                                  <div className="space-y-2">
+                                    <input
+                                      type="text"
+                                      value={editedProducts[product.id]?.name || product.name}
+                                      onChange={(e) => updateEditedProduct(product.id, 'name', e.target.value)}
+                                      className="font-bold text-gray-900 text-lg leading-tight w-full border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
+                                      placeholder="Product name"
+                                    />
+                                    <input
+                                      type="text"
+                                      value={editedProducts[product.id]?.code || product.code}
+                                      onChange={(e) => updateEditedProduct(product.id, 'code', e.target.value)}
+                                      className="text-base text-gray-600 font-mono w-full border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
+                                      placeholder="SKU"
+                                    />
+                                    <textarea
+                                      value={editedProducts[product.id]?.description || product.description || ''}
+                                      onChange={(e) => updateEditedProduct(product.id, 'description', e.target.value)}
+                                      className="text-base text-gray-500 w-full border border-blue-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 resize-none"
+                                      placeholder="Description"
+                                      rows={2}
+                                    />
+                                    <div className="flex gap-2 mt-2">
+                                      <button
+                                        onClick={() => saveProductEdit(product.id)}
+                                        className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center gap-1"
+                                      >
+                                        <CheckIcon className="w-3 h-3" />
+                                        Save
+                                      </button>
+                                      <button
+                                        onClick={cancelProductEdit}
+                                        className="px-3 py-1 bg-gray-500 text-white rounded text-sm hover:bg-gray-600 flex items-center gap-1"
+                                      >
+                                        <XMarkIcon className="w-3 h-3" />
+                                        Cancel
+                                      </button>
                                     </div>
-                                  ) : (
-                                    // Display mode
-                                    <div onClick={() => startEditing(product.id, product)} className="cursor-pointer hover:bg-blue-50 rounded p-2 -m-2">
-                                      <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                          <p className="font-bold text-gray-900 text-lg leading-tight">{product.name}</p>
-                                          <p className="text-base text-gray-600 mt-1 font-mono">SKU: {product.code}</p>
-                                          {product.description && (
-                                            <p className="text-base text-gray-500 mt-1 line-clamp-2">{product.description}</p>
-                                          )}
-                                        </div>
-                                        <PencilIcon className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0" />
-                                      </div>
-                                      <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <p className="text-xs text-blue-600">Click to edit product details</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-5 text-right">
-                                <div className="text-right">
-                                  <div className={`text-2xl font-bold ${hasCustomPricing ? 'text-blue-600' : 'text-green-600'}`}>
-                                    {isLoadingPrice ? (
-                                      <div className="inline-flex items-center">
-                                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 mr-2"></div>
-                                        Loading...
-                                      </div>
-                                    ) : (
-                                      `$${customerPrice?.toFixed(2) || '0.00'}`
-                                    )}
                                   </div>
-                                  {selectedCustomer && !isLoadingPrice && (
-                                    <div className={`text-base px-3 py-2 rounded-full inline-block mt-1 ${
-                                      hasCustomPricing 
-                                        ? 'text-blue-800 bg-blue-100' 
-                                        : 'text-gray-500 bg-gray-100'
-                                    }`}>
-                                      {hasCustomPricing ? 'Custom Price' : `Tier ${selectedCustomer.priceTier || 'T2'}`}
+                                ) : (
+                                  // Display mode
+                                  <div onClick={() => startEditing(product.id, product)} className="cursor-pointer hover:bg-blue-50 rounded p-2 -m-2">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <p className="font-bold text-gray-900 text-lg leading-tight">{product.name}</p>
+                                        <p className="text-base text-gray-600 mt-1 font-mono">SKU: {product.code}</p>
+                                        {product.description && (
+                                          <p className="text-base text-gray-500 mt-1 line-clamp-2">{product.description}</p>
+                                        )}
+                                      </div>
+                                      <PencilIcon className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0" />
                                     </div>
-                                  )}
-                                  {!selectedCustomer && (
-                                    <div className="text-base text-orange-600 font-medium">Select customer for pricing</div>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-5 text-center">
-                                <div className="flex flex-col items-center gap-1">
-                                  <span className={`px-3 py-2 rounded-full text-base font-bold shadow-sm ${
-                                    isOutOfStock ? 'bg-red-100 text-red-800 border border-red-200' :
-                                    isLowStock ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                                    'bg-green-100 text-green-800 border border-green-200'
-                                  }`}>
-                                    {product.currentStock}
-                                  </span>
-                                  {isLowStock && !isOutOfStock && (
-                                    <span className="text-base text-orange-600 font-medium">Low Stock</span>
-                                  )}
-                                  {isOutOfStock && (
-                                    <span className="text-base text-red-600 font-medium">Out of Stock</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-5 text-center">
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max={product.currentStock || 999}
-                                  defaultValue="1"
-                                  className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg text-center font-bold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-base"
-                                  id={`qty-${product.id}`}
-                                  disabled={isOutOfStock}
-                                />
-                              </td>
-                              <td className="px-4 py-5 text-center">
-                                <button
-                                  onClick={() => {
-                                    const qty = quantities[product.id];
-                                    const quantity = typeof qty === 'string' ? parseInt(qty) || 1 : qty || 1;
-                                    addToQuote(product, quantity);
-                                  }}
-                                  disabled={!selectedCustomer || isOutOfStock}
-                                  className={`px-6 py-3 rounded-lg font-bold transition-all duration-200 shadow-sm ${
-                                    !selectedCustomer || isOutOfStock
-                                      ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                      : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg transform hover:-translate-y-0.5'
-                                  }`}
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <PlusIcon className="w-4 h-4" />
-                                    Add
+                                    <div className="mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <p className="text-xs text-blue-600">Click to edit product details</p>
+                                    </div>
                                   </div>
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-5 text-right">
+                              <div className="text-right">
+                                <div className="text-2xl font-bold text-green-600">
+                                  ${customerPrice.toFixed(2)}
+                                </div>
+                                {selectedCustomer && (
+                                  <div className="text-base text-gray-500 bg-gray-100 px-3 py-2 rounded-full inline-block mt-1">
+                                    Tier {selectedCustomer.priceTier}
+                                  </div>
+                                )}
+                                {!selectedCustomer && (
+                                  <div className="text-base text-orange-600 font-medium">Select customer for pricing</div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-5 text-center">
+                              <div className="flex flex-col items-center gap-1">
+                                <span className={`px-3 py-2 rounded-full text-base font-bold shadow-sm ${
+                                  isOutOfStock ? 'bg-red-100 text-red-800 border border-red-200' :
+                                  isLowStock ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                                  'bg-green-100 text-green-800 border border-green-200'
+                                }`}>
+                                  {product.currentStock}
+                                </span>
+                                {isLowStock && !isOutOfStock && (
+                                  <span className="text-base text-orange-600 font-medium">Low Stock</span>
+                                )}
+                                {isOutOfStock && (
+                                  <span className="text-base text-red-600 font-medium">Out of Stock</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-5 text-center">
+                              <input
+                                type="number"
+                                min="1"
+                                max={product.currentStock || 999}
+                                defaultValue="1"
+                                className="w-20 px-3 py-2 border-2 border-gray-300 rounded-lg text-center font-bold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm text-base"
+                                id={`qty-${product.id}`}
+                                disabled={isOutOfStock}
+                              />
+                            </td>
+                            <td className="px-4 py-5 text-center">
+                              <button
+                                onClick={() => {
+                                  const qty = quantities[product.id];
+                                  const quantity = typeof qty === 'string' ? parseInt(qty) || 1 : qty || 1;
+                                  addToQuote(product, quantity);
+                                }}
+                                disabled={!selectedCustomer || isOutOfStock}
+                                className={`px-6 py-3 rounded-lg font-bold transition-all duration-200 shadow-sm ${
+                                  !selectedCustomer || isOutOfStock
+                                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    : 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:shadow-lg transform hover:-translate-y-0.5'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <PlusIcon className="w-4 h-4" />
+                                  Add
+                                </div>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -2246,12 +1799,6 @@ export default function NewQuotePage() {
                               <div key={item.id} className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-base font-medium text-gray-900 truncate">{item.product.name}</p>
-                                  {/* Show processing details for glass items */}
-                                  {item.product.categoryId === 'custom-glass' && item.product.description.includes('Processing:') && (
-                                    <p className="text-sm text-blue-600 mt-1 truncate">
-                                      {item.product.description.split('Processing:')[1]?.trim()}
-                                    </p>
-                                  )}
                                   <div className="flex items-center justify-between mt-1">
                                     <span className="text-base text-gray-600">Qty: {item.quantity}</span>
                                     <span className="text-base font-bold text-green-600">
