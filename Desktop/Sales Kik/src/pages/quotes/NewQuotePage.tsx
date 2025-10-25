@@ -168,6 +168,10 @@ interface Product {
   categoryId: string;
   categoryName: string;
   subcategoryPath: { name: string; color: string }[];
+  // Add subcategory ID fields for filtering
+  subCategoryId?: string;
+  subSubCategoryId?: string;
+  subSubSubCategoryId?: string;
   weight?: number;
   isActive: boolean;
 }
@@ -826,12 +830,58 @@ export default function NewQuotePage() {
     }
   };
 
-  const loadProducts = () => {
-    // Load products from localStorage (matching ProductManagement structure)
+  const loadProducts = async () => {
+    try {
+      // Load products from database first
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`);
+      const result = await response.json();
+      
+      if (result.success && result.data.length > 0) {
+        // Convert database products to quotes interface format
+        const convertedProducts: Product[] = result.data.map((p: any) => ({
+          id: p.id,
+          code: p.code,
+          name: p.name,
+          description: p.description || '',
+          priceT1: p.priceT1,
+          priceT2: p.priceT2,
+          priceT3: p.priceT3,
+          priceRetail: p.priceN,
+          currentStock: p.inventory?.currentStock || 0,
+          categoryId: p.categoryId,
+          categoryName: p.categoryName,
+          subcategoryPath: p.subcategoryPath || [],
+          // Add subcategory IDs for filtering
+          subCategoryId: p.subCategoryId,
+          subSubCategoryId: p.subSubCategoryId,
+          subSubSubCategoryId: p.subSubSubCategoryId,
+          weight: p.weight,
+          isActive: p.isActive
+        }));
+        setProducts(convertedProducts);
+        setFilteredProducts(convertedProducts);
+        console.log('Quote page: Loaded products from database:', convertedProducts.length, 'products');
+        return;
+      }
+    } catch (error) {
+      console.error('Failed to load products from database:', error);
+      // Don't fall back if products are already loaded - preserve existing data
+      if (products.length > 0) {
+        console.log('Quote page: API failed but keeping existing products');
+        return;
+      }
+    }
+    
+    // Don't fall back to localStorage if we already have real products
+    if (products.length === 2) {
+      console.log('Quote page: Skipping localStorage fallback - already have real products');
+      return;
+    }
+    
+    // Fallback to localStorage only if no products exist
     const savedProducts = localStorage.getItem('saleskik-products-structured');
     if (savedProducts) {
       const parsedProducts = JSON.parse(savedProducts);
-      // Convert to our interface format
       const convertedProducts: Product[] = parsedProducts.map((p: any) => ({
         id: p.id,
         code: p.code,
@@ -850,6 +900,7 @@ export default function NewQuotePage() {
       }));
       setProducts(convertedProducts);
       setFilteredProducts(convertedProducts);
+      console.log('Quote page: Loaded products from localStorage fallback:', convertedProducts.length, 'products');
     } else {
       // Create sample data if no products exist
       const sampleProducts: Product[] = [
@@ -956,23 +1007,49 @@ export default function NewQuotePage() {
     console.log('Max subcategory level for category:', maxLevel);
     console.log('Current selected path length:', selectedPath.length);
     
-    // Require user to select all levels if subcategories exist
-    if (maxLevel >= 0 && selectedPath.length <= maxLevel) {
-      setFilteredProducts([]);
-      return;
-    }
+    console.log('🔍 QUOTES: Filtering with:', {
+      selectedCategory,
+      selectedPath,
+      productsCount: products.length
+    });
 
-    // If we reach here, user has selected the complete path
+    // Show products even if not all subcategory levels are selected
     let filtered = products.filter(p => p.isActive && p.categoryId === selectedCategory);
+    console.log('🔥 QUOTES: After category filter:', filtered.length, 'products');
 
-    // Filter by the complete category path
+    // Filter by subcategories using ID matching (like purchase orders)
     if (selectedPath.length > 0) {
+      const targetSubcategory = selectedPath[selectedPath.length - 1]; // Get the most specific
+      console.log('🔥 QUOTES: Filtering by subcategory:', targetSubcategory.name, 'ID:', targetSubcategory.id);
+      
       filtered = filtered.filter(product => {
-        // Check if product's subcategory path matches ALL selected path items
-        return selectedPath.every(pathItem => 
-          product.subcategoryPath.some(subPath => subPath.id === pathItem.id)
+        // Direct subcategory ID matching
+        const directMatch = 
+          product.subCategoryId === targetSubcategory.id ||
+          product.subSubCategoryId === targetSubcategory.id ||
+          product.subSubSubCategoryId === targetSubcategory.id;
+        
+        // Hierarchical matching - check if any level in path matches
+        const hierarchicalMatch = selectedPath.some(pathItem =>
+          product.subCategoryId === pathItem.id ||
+          product.subSubCategoryId === pathItem.id ||
+          product.subSubSubCategoryId === pathItem.id
         );
+        
+        console.log('🔥 QUOTES: Product check:', {
+          productName: product.name,
+          productSubIds: {
+            sub: product.subCategoryId,
+            subSub: product.subSubCategoryId,
+            subSubSub: product.subSubSubCategoryId
+          },
+          directMatch,
+          hierarchicalMatch
+        });
+        
+        return directMatch || hierarchicalMatch;
       });
+      console.log('🔥 QUOTES: After subcategory filter:', filtered.length, 'products');
     }
 
     // Filter by SKU/name search
