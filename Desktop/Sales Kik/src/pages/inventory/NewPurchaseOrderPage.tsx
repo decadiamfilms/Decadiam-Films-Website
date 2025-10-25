@@ -45,6 +45,7 @@ interface Product {
   costPrice: number;
   currentStock: number;
   categoryId: string;
+  mainCategoryId?: string;
   categoryName: string;
   subcategoryPath: { id: string; name: string; color: string }[];
   // Add the missing subcategory ID fields that the filtering logic expects
@@ -555,7 +556,8 @@ export default function NewPurchaseOrderPage() {
           description: product.description || '',
           costPrice: product.pricing?.cost_price || product.cost || 0,
           currentStock: product.inventory?.currentStock || product.currentStock || 0,
-          categoryId: product.categoryId,
+          categoryId: product.categoryId || product.mainCategoryId,
+          mainCategoryId: product.mainCategoryId,
           categoryName: product.categoryName || 'Unknown',
           subcategoryPath: product.subcategoryPath || [],
           // Add the missing subcategory ID fields from the product data
