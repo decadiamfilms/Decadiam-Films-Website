@@ -5,6 +5,8 @@ import UniversalHeader from '../../components/layout/UniversalHeader';
 import EnhancedQuoteModal from '../../components/quotes/EnhancedQuoteModal';
 import { generateQuoteTemplate } from '../../components/quotes/QuoteTemplate';
 import { dataService } from '../../services/api.service';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 import { 
   PlusIcon, MagnifyingGlassIcon, PencilIcon, DocumentDuplicateIcon,
   ShoppingCartIcon, TrashIcon, EyeIcon, CalendarIcon,
@@ -568,74 +570,50 @@ export default function QuotesPage() {
     setShowPreviewModal(true);
   };
 
-  const printQuote = (quote: Quote) => {
+  const printQuote = async (quote: Quote) => {
     try {
-      // Use the same PDF generation as viewQuotePDF but trigger print
-      const companyProfile = JSON.parse(localStorage.getItem('companyProfile') || '{}');
-      const companyName = localStorage.getItem('companyName');
-      const companyLogo = localStorage.getItem('companyLogo');
+      console.log('🖨️ Downloading PDF for printing quote:', quote.id);
       
-      if (companyName) companyProfile.name = companyName;
-      if (companyLogo) companyProfile.logo = companyLogo;
-      
-      const savedSettings = localStorage.getItem('saleskik-pdf-settings');
-      const pdfSettings = savedSettings ? 
-        JSON.parse(savedSettings).documentSettings?.quote || {} : 
-        { hideTotalPrice: false, hideItemPrice: false, hideItems: false };
-      
-      const activeTemplateId = localStorage.getItem('saleskik-active-template');
-      const savedTemplates = localStorage.getItem('saleskik-form-templates');
-      let template = null;
-      
-      if (savedTemplates && activeTemplateId) {
-        const templates = JSON.parse(savedTemplates);
-        template = templates.find((t: any) => t.id === activeTemplateId) || templates[0];
-      }
-      
-      const globalStyling = template?.globalStyling || {
-        fontFamily: 'Inter',
-        primaryColor: '#3b82f6',
-        secondaryColor: '#1d4ed8',
-        tableHeaderColor: '#3b82f6',
-        accentColor: '#059669'
-      };
-      
-      const quoteDataForTemplate = {
-        quoteId: quote.quoteId,
-        referenceNumber: quote.reference,
-        projectName: quote.projectName || quote.reference || 'Quote Request',
-        customer: {
-          name: quote.customerName,
-          email: quote.customerEmail,
-          phone: quote.customerPhone,
-          primaryContact: {
-            firstName: quote.customerName.split(' ')[0],
-            lastName: quote.customerName.split(' ').slice(1).join(' '),
-            email: quote.customerEmail,
-            mobile: quote.customerPhone
-          }
-        },
-        jobSections: quote.jobSections || [
-          {
-            id: '1',
-            name: 'Main Project',
-            items: []
-          }
-        ],
-        totals: {
-          subtotal: quote.amount / 1.1,
-          gst: quote.amount - (quote.amount / 1.1),
-          total: quote.amount
+      // Call our server-side PDF generation API
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/quotes/${quote.id}/pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         }
-      };
+      });
+
+      if (!response.ok) {
+        throw new Error(`PDF generation failed: ${response.status}`);
+      }
+
+      // Get the PDF blob
+      const pdfBlob = await response.blob();
       
-      // Generate HTML and trigger print
-      const htmlContent = generateQuoteTemplate(quoteDataForTemplate, globalStyling, companyProfile, pdfSettings);
-      const printWindow = window.open('', '_blank');
+      // Create a URL for the PDF blob and open it for printing
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+      const printWindow = window.open(pdfUrl, '_blank');
+      
       if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        printWindow.print();
+        printWindow.focus();
+        // For server-side PDFs, just trigger print
+        printWindow.onload = () => {
+          setTimeout(() => {
+            printWindow.print();
+          }, 500);
+        };
+        // Clean up the object URL after a delay
+        setTimeout(() => {
+          URL.revokeObjectURL(pdfUrl);
+        }, 2000);
+      } else {
+        // Fallback: trigger download
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pdfUrl;
+        downloadLink.download = `quote-${quote.quote_number || quote.quoteId}.pdf`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        URL.revokeObjectURL(pdfUrl);
       }
       
     } catch (error) {
@@ -666,10 +644,74 @@ export default function QuotesPage() {
     setShowEnhancedQuote(true);
   };
 
-  // Open quote PDF
+  // Open quote PDF (loads saved PDF file or generates new one)
   const viewQuotePDF = async (quote: Quote) => {
     try {
-      // Load company profile
+      console.log('📄 Loading PDF for quote:', quote.id);
+      
+      // First, try to load saved PDF file
+      const fileResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/quotes/${quote.id}/pdf-file`);
+      
+      if (fileResponse.ok) {
+        // Saved PDF found, open it directly
+        console.log('✅ Found saved PDF file, opening...');
+        const pdfBlob = await fileResponse.blob();
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        const pdfWindow = window.open(pdfUrl, '_blank');
+        
+        if (pdfWindow) {
+          pdfWindow.focus();
+          setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+          console.log('✅ Saved PDF opened in new tab');
+        } else {
+          // Fallback: trigger download
+          const downloadLink = document.createElement('a');
+          downloadLink.href = pdfUrl;
+          downloadLink.download = `quote-${quote.quote_number || quote.quoteId}.pdf`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          URL.revokeObjectURL(pdfUrl);
+          console.log('✅ Saved PDF downloaded');
+        }
+        return;
+      }
+      
+      // No saved PDF found, try generating new one
+      console.log('📄 No saved PDF found, generating new one...');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/quotes/${quote.id}/pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (response.ok) {
+        // Server-side generation successful
+        const pdfBlob = await response.blob();
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        const printWindow = window.open(pdfUrl, '_blank');
+        
+        if (printWindow) {
+          printWindow.focus();
+          setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+        } else {
+          // Fallback: trigger download
+          const downloadLink = document.createElement('a');
+          downloadLink.href = pdfUrl;
+          downloadLink.download = `quote-${quote.quote_number || quote.quoteId}.pdf`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          URL.revokeObjectURL(pdfUrl);
+        }
+        return;
+      }
+
+      // Server-side failed, use client-side fallback
+      console.log('📄 Server PDF failed (status:', response.status, '), using client-side generation...');
+      
+      // Load company profile for client-side generation
       const companyProfile = JSON.parse(localStorage.getItem('companyProfile') || '{}');
       const companyName = localStorage.getItem('companyName');
       const companyLogo = localStorage.getItem('companyLogo');
@@ -731,17 +773,85 @@ export default function QuotesPage() {
         }
       };
       
-      // Generate HTML using existing template
+      // Generate actual PDF file using jsPDF
+      console.log('📄 Generating client-side PDF with data:', quoteDataForTemplate);
       const htmlContent = generateQuoteTemplate(quoteDataForTemplate, globalStyling, companyProfile, pdfSettings);
       
-      // Open PDF in new window
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(htmlContent);
-        printWindow.document.close();
-        printWindow.onload = () => {
-          printWindow.focus();
-        };
+      if (!htmlContent || htmlContent.trim() === '') {
+        console.error('❌ generateQuoteTemplate returned empty content');
+        alert('Failed to generate PDF content. Please check quote data.');
+        return;
+      }
+      
+      console.log('📄 Generated HTML content, converting to PDF...');
+      
+      // Create temporary container for HTML content
+      const tempContainer = document.createElement('div');
+      tempContainer.innerHTML = htmlContent;
+      tempContainer.style.position = 'absolute';
+      tempContainer.style.left = '-9999px';
+      tempContainer.style.width = '210mm';
+      tempContainer.style.background = 'white';
+      tempContainer.style.padding = '20px';
+      document.body.appendChild(tempContainer);
+      
+      // Convert HTML to canvas, then to PDF
+      try {
+        const canvas = await html2canvas(tempContainer, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff'
+        });
+        
+        const imgData = canvas.toDataURL('image/png');
+        
+        // Create PDF
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const imgWidth = 210; // A4 width in mm
+        const pageHeight = 295; // A4 height in mm
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        let heightLeft = imgHeight;
+        
+        let position = 0;
+        
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+        
+        // Generate PDF blob and open in new tab
+        const pdfBlob = pdf.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        
+        // Open PDF in new tab
+        const pdfWindow = window.open(pdfUrl, '_blank');
+        if (pdfWindow) {
+          pdfWindow.focus();
+          // Clean up URL after delay
+          setTimeout(() => {
+            URL.revokeObjectURL(pdfUrl);
+          }, 1000);
+          console.log('✅ PDF opened in new tab');
+        } else {
+          // Fallback: trigger download
+          const downloadLink = document.createElement('a');
+          downloadLink.href = pdfUrl;
+          downloadLink.download = `quote-${quote.quote_number || quote.quoteId}.pdf`;
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          document.body.removeChild(downloadLink);
+          URL.revokeObjectURL(pdfUrl);
+          console.log('✅ PDF downloaded automatically');
+        }
+        
+      } finally {
+        // Clean up temporary container
+        document.body.removeChild(tempContainer);
       }
       
     } catch (error) {
@@ -1552,6 +1662,155 @@ export default function QuotesPage() {
                     className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                   >
                     Send Email
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quote Preview Modal */}
+        {showPreviewModal && previewQuote && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Quote Details</h2>
+                  <p className="text-sm text-gray-600">{previewQuote.quote_number || previewQuote.quoteId}</p>
+                </div>
+                <button
+                  onClick={() => setShowPreviewModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <XMarkIcon className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="p-6 space-y-6">
+                {/* Customer Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-3">Customer Information</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium">Name:</span> {previewQuote.customer?.name || previewQuote.customerName}</p>
+                      <p><span className="font-medium">Email:</span> {previewQuote.customer?.email || previewQuote.customerEmail}</p>
+                      <p><span className="font-medium">Phone:</span> {previewQuote.customer?.phone || previewQuote.customerPhone || 'Not provided'}</p>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-3">Quote Information</h3>
+                    <div className="space-y-2">
+                      <p><span className="font-medium">Status:</span> 
+                        <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                          previewQuote.status === 'sent' ? 'bg-blue-100 text-blue-800' :
+                          previewQuote.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                          previewQuote.status === 'declined' ? 'bg-red-100 text-red-800' :
+                          'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {(previewQuote.status || 'draft').charAt(0).toUpperCase() + (previewQuote.status || 'draft').slice(1)}
+                        </span>
+                      </p>
+                      <p><span className="font-medium">Date:</span> {new Date(previewQuote.created_at || previewQuote.quoteDate).toLocaleDateString()}</p>
+                      <p><span className="font-medium">Job Name:</span> {previewQuote.job_name || previewQuote.projectName || 'Not specified'}</p>
+                      <p><span className="font-medium">Total Amount:</span> ${(previewQuote.total_amount || previewQuote.amount || 0).toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Line Items */}
+                {previewQuote.line_items && previewQuote.line_items.length > 0 && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-3">Quote Items</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
+                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {previewQuote.line_items.map((item, index) => (
+                            <tr key={index}>
+                              <td className="px-6 py-4 whitespace-normal text-sm text-gray-900">{item.description}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">{item.quantity}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.unit_price.toFixed(2)}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">${item.total_amount.toFixed(2)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Customer Selected Options */}
+                {previewQuote.options && previewQuote.options.some((opt: any) => opt.is_selected) && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-3">Customer Selected Options</h3>
+                    <div className="space-y-3">
+                      {Object.entries(previewQuote.options.reduce((groups: any, option: any) => {
+                        if (option.is_selected) {
+                          if (!groups[option.category_name]) groups[option.category_name] = [];
+                          groups[option.category_name].push(option);
+                        }
+                        return groups;
+                      }, {})).map(([category, options]: [string, any[]]) => (
+                        <div key={category} className="bg-green-50 border border-green-200 rounded-lg p-4">
+                          <h4 className="font-medium text-green-800 mb-2 capitalize">{category}:</h4>
+                          {options.map((option: any, index: number) => (
+                            <div key={index} className="flex items-center justify-between bg-white p-3 rounded border border-green-200">
+                              <div className="flex items-center">
+                                <CheckIcon className="w-4 h-4 text-green-600 mr-2" />
+                                <div>
+                                  <span className="font-medium text-gray-900">{option.option_name}</span>
+                                  {option.description && (
+                                    <div className="text-sm text-gray-600">{option.description}</div>
+                                  )}
+                                  {option.selection_date && (
+                                    <div className="text-xs text-gray-500">Selected {new Date(option.selection_date).toLocaleDateString()}</div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="font-medium text-green-600">
+                                {option.option_price > 0 ? `+$${option.option_price.toFixed(2)}` : 'No charge'}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {previewQuote.notes && (
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-3">Notes</h3>
+                    <p className="text-gray-700 whitespace-pre-wrap">{previewQuote.notes}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowPreviewModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPreviewModal(false);
+                      viewQuotePDF(previewQuote);
+                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  >
+                    <DocumentTextIcon className="h-4 w-4 mr-2" />
+                    View PDF
                   </button>
                 </div>
               </div>

@@ -32,6 +32,7 @@ model Company {
   products    Product[]
   userGroups  UserGroup[]
   categories  Category[]
+  quote_templates QuoteTemplate[]
   
   // New Onboarding Relations
   settings            CompanySetting[]
@@ -92,6 +93,7 @@ model Product {
   pricing       ProductPricing[]
   inventory     ProductInventory[]
   supplier_products SupplierProduct[]
+  quote_line_items QuoteLineItem[]
   
   @@map("products")
 }
@@ -257,14 +259,132 @@ model Quote {
   customer     Customer @relation(fields: [customer_id], references: [id])
   company_id   String   @map("company_id")
   company      Company  @relation(fields: [company_id], references: [id])
-  status       String   @default("DRAFT")
-  total        Float    @default(0)
-  created_at   DateTime @default(now()) @map("created_at")
-  updated_at   DateTime @updatedAt @map("updated_at")
+  template_id  String?  @map("template_id")
+  template     QuoteTemplate? @relation(fields: [template_id], references: [id])
   
-  orders       Order[]
+  // Quote Details
+  reference_number     String? @map("reference_number")
+  job_name            String? @map("job_name") 
+  job_description     String? @map("job_description")
+  special_instructions String? @map("special_instructions")
+  delivery_address    String? @map("delivery_address")
+  billing_address     String? @map("billing_address")
+  
+  // Financial
+  subtotal       Float @default(0)
+  tax_amount     Float @default(0) @map("tax_amount")
+  discount_amount Float @default(0) @map("discount_amount")
+  total_amount   Float @default(0) @map("total_amount")
+  payment_terms  Int?  @map("payment_terms")
+  
+  // Status & Dates  
+  status         String   @default("DRAFT")
+  quote_date     DateTime @default(now()) @map("quote_date")
+  valid_until    DateTime? @map("valid_until")
+  sent_at        DateTime? @map("sent_at")
+  viewed_at      DateTime? @map("viewed_at") 
+  accepted_at    DateTime? @map("accepted_at")
+  
+  // Metadata
+  created_by String  @map("created_by")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  notes      String?
+  
+  // Relations
+  line_items QuoteLineItem[]
+  documents  QuoteDocument[]
+  orders     Order[]
   
   @@map("quotes")
+}
+
+// Quote Line Items
+model QuoteLineItem {
+  id          String @id @default(uuid())
+  quote_id    String @map("quote_id")
+  quote       Quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+  product_id  String @map("product_id")
+  product     Product @relation(fields: [product_id], references: [id])
+  
+  // Job Organization
+  job_section_name String? @map("job_section_name")
+  sort_order      Int     @default(0) @map("sort_order")
+  
+  // Product Details (snapshot at time of quote)
+  product_name    String @map("product_name")
+  product_code    String @map("product_code") 
+  description     String?
+  category_path   String? @map("category_path")
+  
+  // Pricing
+  quantity        Float  @default(1)
+  unit_price      Float  @map("unit_price")
+  total_price     Float  @map("total_price")
+  customer_tier   String? @map("customer_tier")
+  
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  
+  @@map("quote_line_items")
+}
+
+// Quote Templates for Customization
+model QuoteTemplate {
+  id         String @id @default(uuid())
+  company_id String @map("company_id")
+  company    Company @relation(fields: [company_id], references: [id])
+  
+  name       String
+  is_default Boolean @default(false) @map("is_default")
+  
+  // Company Branding
+  company_logo_url String? @map("company_logo_url")
+  company_name     String? @map("company_name")
+  company_address  String? @map("company_address")
+  company_phone    String? @map("company_phone")
+  company_email    String? @map("company_email")
+  company_website  String? @map("company_website")
+  
+  // Template Layout (JSON fields for flexibility)
+  header_template  Json? @map("header_template")
+  footer_template  Json? @map("footer_template")
+  color_scheme     Json? @map("color_scheme")
+  font_settings    Json? @map("font_settings")
+  layout_settings  Json? @map("layout_settings")
+  
+  // Content Templates  
+  terms_and_conditions String? @map("terms_and_conditions")
+  payment_terms_text   String? @map("payment_terms_text")
+  thank_you_message    String? @map("thank_you_message")
+  validity_message     String? @map("validity_message")
+  
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  quotes Quote[]
+  
+  @@map("quote_templates")
+}
+
+// Quote Documents (PDFs and attachments)
+model QuoteDocument {
+  id            String @id @default(uuid())
+  quote_id      String @map("quote_id")
+  quote         Quote  @relation(fields: [quote_id], references: [id], onDelete: Cascade)
+  
+  file_name     String @map("file_name")
+  file_path     String @map("file_path")
+  file_url      String? @map("file_url")
+  document_type String @map("document_type") // 'quote_pdf', 'terms_pdf', 'attachment'
+  file_size     Int?   @map("file_size")
+  mime_type     String? @map("mime_type")
+  
+  generated_at  DateTime @default(now()) @map("generated_at")
+  created_at    DateTime @default(now()) @map("created_at")
+  
+  @@map("quote_documents")
 }
 
 // Order System

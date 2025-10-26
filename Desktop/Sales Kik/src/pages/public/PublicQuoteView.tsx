@@ -45,9 +45,57 @@ export default function PublicQuoteView() {
     loadQuoteData();
   }, [quoteId, token]);
 
-  const loadQuoteData = () => {
+  // Calculate totals with selected options
+  const calculateTotalsWithOptions = () => {
+    if (!quoteData) return { subtotal: 0, gst: 0, total: 0, optionsTotal: 0 };
+
+    const baseSubtotal = quoteData.totals.subtotal;
+    
+    // Calculate additional cost from selected options
+    let optionsTotal = 0;
+    if (quoteData.optionGroups) {
+      Object.entries(quoteData.optionGroups).forEach(([category, options]: [string, any[]]) => {
+        const selectedOptionName = selectedOptions[category];
+        if (selectedOptionName) {
+          const selectedOption = options.find(opt => opt.name === selectedOptionName);
+          if (selectedOption) {
+            optionsTotal += selectedOption.price || 0;
+          }
+        }
+      });
+    }
+
+    const newSubtotal = baseSubtotal + optionsTotal;
+    const gst = newSubtotal * 0.1;
+    const total = newSubtotal + gst;
+
+    return {
+      subtotal: newSubtotal,
+      gst: gst,
+      total: total,
+      optionsTotal: optionsTotal
+    };
+  };
+
+  const loadQuoteData = async () => {
     try {
-      // Load public quotes from localStorage
+      // Load quote from database API
+      console.log('🔍 Loading public quote:', quoteId, 'with token:', token);
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/public/quotes/${quoteId}${token ? `?token=${token}` : ''}`);
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          setQuoteData(result.data);
+          setCustomerName(result.data.customer?.name || '');
+          setCustomerEmail(result.data.customer?.email || '');
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Fallback: Load public quotes from localStorage
       const savedPublicQuotes = JSON.parse(localStorage.getItem('saleskik-public-quotes') || '[]');
       const quote = savedPublicQuotes.find((q: any) => q.quoteId === quoteId && q.token === token);
 
@@ -101,8 +149,22 @@ export default function PublicQuoteView() {
         userAgent: navigator.userAgent
       };
 
+      // First, save selected options if any
+      if (Object.keys(selectedOptions).length > 0) {
+        await fetch(`${import.meta.env.VITE_API_URL}/api/quotes/${quoteData.id}/select-options`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            selected_options: selectedOptions,
+            customer_notes: customerNotes
+          })
+        });
+      }
+
       // Call API to record response
-      const apiResponse = await fetch(`/api/public/quote/${quoteData.quoteId}/respond`, {
+      const apiResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/public/quote/${quoteData.quoteId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -348,17 +410,39 @@ export default function PublicQuoteView() {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-gray-300 bg-gray-50">
-                  <td colSpan={3} className="py-3 px-4 text-right font-bold">Subtotal:</td>
+                  <td colSpan={3} className="py-3 px-4 text-right font-bold">Base Subtotal:</td>
                   <td className="py-3 px-4 text-right font-bold">${quoteData.totals.subtotal.toFixed(2)}</td>
                 </tr>
-                <tr className="bg-gray-50">
-                  <td colSpan={3} className="py-3 px-4 text-right font-bold">GST (10%):</td>
-                  <td className="py-3 px-4 text-right font-bold">${quoteData.totals.gst.toFixed(2)}</td>
-                </tr>
-                <tr className="bg-blue-50 border-t-2 border-blue-300">
-                  <td colSpan={3} className="py-3 px-4 text-right font-bold text-lg">Total:</td>
-                  <td className="py-3 px-4 text-right font-bold text-lg text-blue-600">${quoteData.totals.total.toFixed(2)}</td>
-                </tr>
+                {(() => {
+                  const totals = calculateTotalsWithOptions();
+                  return (
+                    <>
+                      {totals.optionsTotal > 0 && (
+                        <tr className="bg-amber-50">
+                          <td colSpan={3} className="py-3 px-4 text-right font-bold text-amber-800">Options Selected:</td>
+                          <td className="py-3 px-4 text-right font-bold text-amber-800">+${totals.optionsTotal.toFixed(2)}</td>
+                        </tr>
+                      )}
+                      <tr className="bg-gray-50">
+                        <td colSpan={3} className="py-3 px-4 text-right font-bold">Subtotal:</td>
+                        <td className="py-3 px-4 text-right font-bold">${totals.subtotal.toFixed(2)}</td>
+                      </tr>
+                      <tr className="bg-gray-50">
+                        <td colSpan={3} className="py-3 px-4 text-right font-bold">GST (10%):</td>
+                        <td className="py-3 px-4 text-right font-bold">${totals.gst.toFixed(2)}</td>
+                      </tr>
+                      <tr className="bg-blue-50 border-t-2 border-blue-300">
+                        <td colSpan={3} className="py-3 px-4 text-right font-bold text-lg">Total:</td>
+                        <td className={`py-3 px-4 text-right font-bold text-lg ${totals.optionsTotal > 0 ? 'text-green-600' : 'text-blue-600'}`}>
+                          ${totals.total.toFixed(2)}
+                          {totals.optionsTotal > 0 && (
+                            <span className="text-sm text-gray-500 ml-2">(+${totals.optionsTotal.toFixed(2)} options)</span>
+                          )}
+                        </td>
+                      </tr>
+                    </>
+                  );
+                })()}
               </tfoot>
             </table>
           </div>
@@ -410,6 +494,38 @@ export default function PublicQuoteView() {
               ))}
             </div>
             
+            {/* Selected Options Summary */}
+            {Object.keys(selectedOptions).length > 0 && (
+              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                <h4 className="font-medium text-green-800 mb-3">Your Current Selections:</h4>
+                <div className="space-y-2">
+                  {Object.entries(selectedOptions).map(([category, selectedName]) => {
+                    const options = quoteData.optionGroups[category];
+                    const selectedOption = options?.find((opt: any) => opt.name === selectedName);
+                    return (
+                      <div key={category} className="flex justify-between items-center bg-white p-2 rounded border border-green-200">
+                        <span className="font-medium text-gray-900 capitalize">{category}: {selectedName}</span>
+                        <span className="text-green-600 font-medium">
+                          {selectedOption?.price > 0 ? `+$${selectedOption.price.toFixed(2)}` : 'No extra cost'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {(() => {
+                    const totals = calculateTotalsWithOptions();
+                    return totals.optionsTotal > 0 && (
+                      <div className="border-t border-green-300 pt-2 mt-2">
+                        <div className="flex justify-between items-center font-bold text-green-800">
+                          <span>Total Options Cost:</span>
+                          <span>+${totals.optionsTotal.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-800 text-center">
                 💡 <strong>Note:</strong> Your selections will be included in your final quote response.

@@ -474,7 +474,7 @@ interface QuoteDetailsModalProps {
   onClose: () => void;
   onGenerateQuote: (finalQuoteData: FinalQuoteData) => void;
   onSaveDraft: () => void;
-  onQuoteCompleted: () => void;
+  onQuoteCompleted: (finalQuoteData?: FinalQuoteData) => void;
   customer: Customer;
   projectName: string;
   quoteId: string;
@@ -2532,9 +2532,10 @@ export default function QuoteDetailsModal({
           }}
           onQuoteGenerated={() => {
             setShowFinalQuote(false);
+            const dataToPass = finalQuoteData;
             setFinalQuoteData(null);
             onClose();
-            onQuoteCompleted();
+            onQuoteCompleted(dataToPass);
           }}
           quoteData={finalQuoteData}
         />

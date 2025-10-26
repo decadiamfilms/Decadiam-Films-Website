@@ -284,6 +284,7 @@ export default function EnhancedQuoteModal({
       projectName,
       referenceNumber,
       jobSections,
+      optionGroups, // Include options for customer selection
       deliveryDetails,
       totals: {
         subtotal: calculateSubtotal(),
@@ -411,6 +412,7 @@ Your SalesKik Team`;
         projectName,
         referenceNumber,
         jobSections,
+        optionGroups, // Include options
         deliveryDetails,
         totals: {
           subtotal: calculateSubtotal(),
@@ -1270,6 +1272,7 @@ Your SalesKik Team`;
           projectName,
           referenceNumber,
           jobSections,
+          optionGroups, // Include options
           deliveryDetails,
           totals: {
             subtotal: calculateSubtotal(),
@@ -1836,6 +1839,7 @@ Should you have any questions or require clarification on any items, please don'
                         projectName,
                         referenceNumber,
                         jobSections,
+                        optionGroups, // Include options
                         deliveryDetails,
                         totals: {
                           subtotal: calculateSubtotal(),
@@ -2037,6 +2041,7 @@ Should you have any questions or require clarification on any items, please don'
                             projectName,
                             referenceNumber,
                             jobSections,
+                            optionGroups, // Include options
                             deliveryDetails,
                             totals: {
                               subtotal: calculateSubtotal(),
