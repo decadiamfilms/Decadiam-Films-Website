@@ -27,6 +27,11 @@ interface StocktakeItem {
   sku: string;
   name: string;
   category: string;
+  categoryId?: string;
+  mainCategoryId?: string;
+  subCategoryId?: string;
+  subSubCategoryId?: string;
+  subSubSubCategoryId?: string;
   binLocation: string;
   systemQuantity: number;
   countedQuantity: number | null;
@@ -289,7 +294,49 @@ const StocktakeSessionPage: React.FC = () => {
       ];
 
       setSession(mockSession);
-      setItems(mockItems);
+      // Load products from database and convert to stocktake items
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/products`);
+        const result = await response.json();
+        
+        if (result.success && result.data.length > 0) {
+          const stocktakeItems: StocktakeItem[] = result.data.map((product: any, index: number) => ({
+            id: `item-${product.id}`,
+            productId: product.id,
+            sku: product.code,
+            name: product.name,
+            category: product.categoryName || 'Uncategorized',
+            // Add all category ID fields for filtering (like other pages)
+            categoryId: product.categoryId || product.mainCategoryId,
+            mainCategoryId: product.mainCategoryId,
+            subCategoryId: product.subCategoryId,
+            subSubCategoryId: product.subSubCategoryId,
+            subSubSubCategoryId: product.subSubSubCategoryId,
+            binLocation: `A${Math.floor(index / 10) + 1}-B${(index % 10) + 1}`,
+            systemQuantity: product.inventory?.currentStock || 0,
+            countedQuantity: null,
+            discrepancy: 0,
+            status: 'pending',
+            notes: '',
+            countedBy: '',
+            countedAt: ''
+          }));
+          setItems(stocktakeItems);
+          console.log('✅ StocktakeSession: Loaded products from database:', stocktakeItems.length);
+        } else {
+          setItems(mockItems);
+          console.log('📦 StocktakeSession: Using mock items fallback');
+        }
+      } catch (error) {
+        console.error('Failed to load products for stocktake:', error);
+        // Don't fall back to mock data if we already have real items loaded
+        if (items.length === 0) {
+          setItems(mockItems);
+          console.log('📦 StocktakeSession: Using mock items after error');
+        } else {
+          console.log('📦 StocktakeSession: Keeping existing real items');
+        }
+      }
     } catch (error) {
       console.error('Error loading stocktake session:', error);
     } finally {
@@ -305,13 +352,35 @@ const StocktakeSessionPage: React.FC = () => {
     
     const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
     
-    // Apply category filtering
+    // Apply category filtering using ID matching (like other pages)
     const matchesCategory = !selectedCategoryId || 
+      item.categoryId === selectedCategoryId ||
+      item.mainCategoryId === selectedCategoryId ||
       item.category.toLowerCase().includes(
         categories.find(cat => cat.id === selectedCategoryId)?.name?.toLowerCase() || ''
       );
     
+    // Debug logging for category filtering
+    if (selectedCategoryId) {
+      console.log('🔥 STOCKTAKE: Filter check:', {
+        itemName: item.name,
+        itemCategoryId: item.categoryId,
+        itemMainCategoryId: item.mainCategoryId,
+        selectedCategoryId,
+        matchesCategory
+      });
+    }
+    
     return matchesSearch && matchesStatus && matchesCategory;
+  });
+  
+  // Debug total filtering results
+  console.log('🔍 STOCKTAKE: Filtering results:', {
+    totalItems: items.length,
+    filteredItems: filteredItems.length,
+    selectedCategoryId,
+    searchQuery,
+    statusFilter
   });
 
   const openCountModal = (item: StocktakeItem) => {

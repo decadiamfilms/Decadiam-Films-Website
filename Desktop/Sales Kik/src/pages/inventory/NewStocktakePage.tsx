@@ -86,12 +86,37 @@ const NewStocktakePage: React.FC = () => {
       { id: '3', name: 'South Location', code: 'SOUTH' }
     ]);
 
-    setCategories([
-      { id: '1', name: 'Glass Panels', productCount: 245 },
-      { id: '2', name: 'Hardware', productCount: 1250 },
-      { id: '3', name: 'Fence Posts', productCount: 89 },
-      { id: '4', name: 'Frames', productCount: 156 }
-    ]);
+    // Load categories from database like other pages
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/categories`);
+      const result = await response.json();
+      if (result.success && result.data.length > 0) {
+        const transformedCategories = result.data.map((cat: any) => ({
+          id: cat.id,
+          name: cat.name,
+          productCount: cat.subcategories ? cat.subcategories.length : 0
+        }));
+        setCategories(transformedCategories);
+        console.log('✅ NewStocktake: Loaded categories from database:', transformedCategories.length);
+      } else {
+        // Fallback to mock categories
+        setCategories([
+          { id: '1', name: 'Glass Panels', productCount: 245 },
+          { id: '2', name: 'Hardware', productCount: 1250 },
+          { id: '3', name: 'Fence Posts', productCount: 89 },
+          { id: '4', name: 'Frames', productCount: 156 }
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to load categories for stocktake:', error);
+      // Fallback to mock categories
+      setCategories([
+        { id: '1', name: 'Glass Panels', productCount: 245 },
+        { id: '2', name: 'Hardware', productCount: 1250 },
+        { id: '3', name: 'Fence Posts', productCount: 89 },
+        { id: '4', name: 'Frames', productCount: 156 }
+      ]);
+    }
 
     setUsers([
       { id: '1', name: 'John Smith', email: 'john@eccohardware.com.au', role: 'Manager' },
