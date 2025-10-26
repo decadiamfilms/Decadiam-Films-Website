@@ -97,7 +97,7 @@ export default function CustomPricelistsPage() {
     if (selectedCustomer) {
       loadCustomerProducts();
     }
-  }, [selectedCustomer, selectedSubcategoryPath]);
+  }, [selectedCustomer, selectedSubcategoryPath, selectedCategory, selectedPath]);
 
   // Advanced cascading category logic (from NewQuotePage)
   const getSubcategoriesAtLevel = (level: number, parentId?: string) => {
@@ -272,43 +272,41 @@ export default function CustomPricelistsPage() {
 
   const loadCustomers = async () => {
     try {
-      console.log('🔍 PriceList: Loading customers from database...');
+      // Load customers using dataService like other pages
+      const customersData = await dataService.customers.getAll();
+      console.log('📡 PriceList: Customers from dataService:', customersData);
       
-      // Use direct API call like other pages
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/customers`);
-      const data = await response.json();
-      
-      console.log('📡 PriceList: API response:', data);
-      
-      if (data.success && data.data) {
-        const customersData = data.data;
-        console.log('📂 PriceList: Customers data:', customersData.length);
+      if (customersData && customersData.length > 0) {
+        const parsedCustomers = customersData.map((customer: any) => ({
+          id: customer.id,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          salesRepName: customer.sales_rep_name || customer.salesRepName,
+          createdAt: customer.created_at ? new Date(customer.created_at) : new Date(),
+          customPricesCount: 0
+        }));
         
-        if (Array.isArray(customersData) && customersData.length > 0) {
-          const parsedCustomers = customersData.map((customer: any) => ({
-            id: customer.id,
-            name: customer.name,
-            email: customer.email,
-            phone: customer.phone,
-            salesRepName: customer.sales_rep_name || customer.salesRepName,
-            createdAt: customer.created_at ? new Date(customer.created_at) : new Date(),
-            customPricesCount: 0 // Will be calculated from price lists
+        setCustomers(parsedCustomers);
+        console.log('✅ PriceList: Loaded database customers:', parsedCustomers.length, 'customers');
+      } else {
+        // Try localStorage fallback
+        const savedCustomers = localStorage.getItem('saleskik-customers');
+        if (savedCustomers) {
+          const parsedCustomers = JSON.parse(savedCustomers);
+          const customersWithDates = parsedCustomers.map((customer: any) => ({
+            ...customer,
+            createdAt: new Date(customer.createdAt || new Date()),
+            customPricesCount: 0
           }));
-          
-          setCustomers(parsedCustomers);
-          console.log('✅ PriceList: Loaded database customers:', parsedCustomers.length, 'customers');
-          console.log('📂 PriceList: Customer names:', parsedCustomers.map(c => c.name));
+          setCustomers(customersWithDates);
+          console.log('✅ PriceList: Loaded customers from localStorage:', customersWithDates.length);
         } else {
-          console.warn('⚠️ PriceList: No customers found in database');
           setCustomers([]);
         }
-      } else {
-        console.warn('⚠️ PriceList: API call failed or returned no success');
-        setCustomers([]);
       }
     } catch (error) {
       console.error('Error loading customers:', error);
-      // If both API and localStorage fail, set empty array
       setCustomers([]);
     }
   };
@@ -372,18 +370,66 @@ export default function CustomPricelistsPage() {
       console.log('Custom Price Lists: Loaded products from API:', allProducts.length, 'products');
       allProducts.forEach(p => console.log('- Product for pricing:', p.sku, p.name));
 
-      // Filter by category if selected (using cascading path)
+      // Filter by category if selected (using same logic as other pages)
       let filteredProducts = allProducts;
+      console.log('🔍 PRICELISTS: Filter debug:', {
+        selectedCategory,
+        selectedSubcategoryPath,
+        selectedPath,
+        totalProducts: allProducts.length,
+        firstProduct: allProducts[0] ? {
+          categoryId: allProducts[0].categoryId,
+          mainCategoryId: allProducts[0].mainCategoryId,
+          subCategoryId: allProducts[0].subCategoryId
+        } : 'none'
+      });
+      
       if (selectedCategory) {
+        // First filter by main category
         filteredProducts = allProducts.filter((product: any) => {
-          // Check if product matches any category in the selected path
-          return selectedSubcategoryPath.some(pathItem => 
-            product.categoryMappings?.some((mapping: any) => 
-              mapping.categoryId === pathItem.id || mapping.category?.id === pathItem.id
-            ) || 
-            product.categoryId === pathItem.id
-          );
+          const matches = product.categoryId === selectedCategory || 
+                         product.mainCategoryId === selectedCategory ||
+                         product.categoryName === categories.find(cat => cat.id === selectedCategory)?.name;
+          
+          console.log('🔥 PRICELISTS: Category filter check:', {
+            productName: product.name,
+            productCategoryId: product.categoryId,
+            productMainCategoryId: product.mainCategoryId,
+            selectedCategory,
+            matches
+          });
+          
+          return matches;
         });
+        
+        console.log('🔥 PRICELISTS: After category filter:', filteredProducts.length, 'products');
+        
+        // Then filter by subcategory if selected
+        if (selectedPath.length > 0) {
+          const targetSubcategory = selectedPath[selectedPath.length - 1];
+          console.log('🔥 PRICELISTS: Filtering by subcategory:', targetSubcategory.name, 'ID:', targetSubcategory.id);
+          
+          filteredProducts = filteredProducts.filter((product: any) => {
+            const matches = product.subCategoryId === targetSubcategory.id ||
+                           product.subSubCategoryId === targetSubcategory.id ||
+                           product.subSubSubCategoryId === targetSubcategory.id;
+            
+            console.log('🔥 PRICELISTS: Subcategory filter check:', {
+              productName: product.name,
+              productSubIds: {
+                sub: product.subCategoryId,
+                subSub: product.subSubCategoryId,
+                subSubSub: product.subSubSubCategoryId
+              },
+              targetId: targetSubcategory.id,
+              matches
+            });
+            
+            return matches;
+          });
+          
+          console.log('🔥 PRICELISTS: After subcategory filter:', filteredProducts.length, 'products');
+        }
       }
 
       // Get existing custom prices for this customer
@@ -417,6 +463,7 @@ export default function CustomPricelistsPage() {
 
       setProducts(productsForDisplay);
       console.log('Custom Price Lists: Displaying products:', productsForDisplay.length, 'products');
+      console.log('🎯 PRICELISTS: Setting filtered products in state:', productsForDisplay.map(p => p.name));
       productsForDisplay.forEach(p => console.log('- Display product:', p.sku, p.name));
 
     } catch (error) {
@@ -874,7 +921,7 @@ export default function CustomPricelistsPage() {
                         </td>
                       </tr>
                     ) : (
-                      filteredProducts.map((product) => (
+                      products.map((product) => (
                         <ProductRow
                           key={product.id}
                           product={product}
