@@ -30,6 +30,7 @@ import transferRoutes from './api/transfers/transfers.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { requestLogger } from './middleware/requestLogger';
 import { rateLimiter } from './middleware/rateLimiter';
+import backupService from './services/backup.service';
 
 dotenv.config();
 
@@ -213,15 +214,40 @@ app.get('/api/categories', async (req, res) => {
       };
     });
 
+    // Save successful data to backup for future outages
+    try {
+      await backupService.saveCompanyData('0e573687-3b53-498a-9e78-f198f16f8bcb', frontendCategories, []);
+      console.log('💾 Categories backup saved successfully');
+    } catch (backupError) {
+      console.error('⚠️ Failed to save categories backup:', backupError);
+    }
+    
     res.json({
       success: true,
       data: frontendCategories,
+      source: 'database'
     });
   } catch (error: any) {
     console.error('❌ Categories API Error:', error);
-    res.status(500).json({
+    
+    // Try to serve backup data
+    const backup = await backupService.loadCompanyData('0e573687-3b53-498a-9e78-f198f16f8bcb');
+    
+    if (backup && backup.categories.length > 0) {
+      console.log('🚀 Categories: Serving personalized backup data');
+      return res.json({
+        success: true,
+        data: backup.categories,
+        source: 'backup',
+        note: 'Database temporarily unavailable, serving your backed-up data'
+      });
+    }
+
+    // No backup available
+    res.status(503).json({
       success: false,
-      error: error.message,
+      error: 'Database and backup unavailable',
+      note: 'Please try again in a few moments'
     });
   }
 });
@@ -292,21 +318,51 @@ app.get('/api/products', async (req, res) => {
 
     console.log('✅ Products API: Returning', frontendProducts.length, 'products');
     
+    // Save successful products data to backup
+    try {
+      await backupService.saveCompanyData('0e573687-3b53-498a-9e78-f198f16f8bcb', [], frontendProducts);
+      console.log('💾 Products backup saved successfully');
+    } catch (backupError) {
+      console.error('⚠️ Failed to save products backup:', backupError);
+    }
+    
     res.json({
       success: true,
       data: frontendProducts,
       total: frontendProducts.length,
       page: 1,
-      totalPages: 1
+      totalPages: 1,
+      source: 'database'
     });
   } catch (error: any) {
     console.error('❌ Products API Error:', error);
-    res.status(500).json({
+    
+    // Try to serve backup data
+    const backup = await backupService.loadCompanyData('0e573687-3b53-498a-9e78-f198f16f8bcb');
+    
+    if (backup && backup.products.length > 0) {
+      console.log('🚀 Products: Serving personalized backup data');
+      return res.json({
+        success: true,
+        data: backup.products,
+        total: backup.products.length,
+        page: 1,
+        totalPages: 1,
+        source: 'backup',
+        note: 'Database temporarily unavailable, serving your backed-up products'
+      });
+    }
+
+    // No backup available
+    res.status(503).json({
       success: false,
-      error: error.message,
+      error: 'Database and backup unavailable',
+      note: 'Please try again in a few moments'
     });
   }
 });
+
+// Quotes API endpoints moved to external routes file
 
 // Customers API endpoint - temporarily disabled due to schema issues
 // app.get('/api/customers', async (req, res) => {
@@ -777,3 +833,6 @@ process.on('SIGINT', async () => {
 
 export default app;// force restart
  
+// force restart
+// force restart Tue Oct 28 17:02:47 AEDT 2025
+// activate backup Tue Oct 28 17:16:13 AEDT 2025

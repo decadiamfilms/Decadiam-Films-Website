@@ -35,19 +35,36 @@ export class BackupService {
 
   async saveCompanyData(companyId: string, categories: any[], products: any[]): Promise<void> {
     try {
-      const backupData: BackupData = {
-        timestamp: new Date(),
-        company_id: companyId,
-        categories,
-        products,
-        version: '1.0'
-      };
-
       const filename = `company-${companyId}.json`;
       const filepath = path.join(this.backupDir, filename);
       
+      // Load existing backup to merge data
+      let existingData: BackupData = {
+        timestamp: new Date(),
+        company_id: companyId,
+        categories: [],
+        products: [],
+        version: '1.0'
+      };
+      
+      try {
+        const existing = await fs.readFile(filepath, 'utf-8');
+        existingData = JSON.parse(existing);
+      } catch {
+        // No existing backup, use defaults
+      }
+      
+      // Merge new data with existing
+      const backupData: BackupData = {
+        timestamp: new Date(),
+        company_id: companyId,
+        categories: categories.length > 0 ? categories : existingData.categories,
+        products: products.length > 0 ? products : existingData.products,
+        version: '1.0'
+      };
+
       await fs.writeFile(filepath, JSON.stringify(backupData, null, 2));
-      console.log(`💾 Backup saved for company ${companyId}: ${categories.length} categories, ${products.length} products`);
+      console.log(`💾 Backup saved for company ${companyId}: ${backupData.categories.length} categories, ${backupData.products.length} products`);
       
     } catch (error) {
       console.error('Failed to save backup:', error);

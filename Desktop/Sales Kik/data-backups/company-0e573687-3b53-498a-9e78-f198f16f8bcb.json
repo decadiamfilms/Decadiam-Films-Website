@@ -1,0 +1,225 @@
+{
+  "timestamp": "2025-10-28T09:41:45.999Z",
+  "company_id": "0e573687-3b53-498a-9e78-f198f16f8bcb",
+  "categories": [
+    {
+      "id": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+      "name": "Pool Fencing",
+      "color": "#6B7280",
+      "isActive": true,
+      "isStructureComplete": false,
+      "subcategories": [
+        {
+          "id": "1760096649085",
+          "name": "Glass",
+          "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+          "color": "#3B82F6",
+          "isVisible": true,
+          "sortOrder": 1,
+          "level": 0,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096650843",
+          "name": "Mirror",
+          "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+          "color": "#10B981",
+          "isVisible": true,
+          "sortOrder": 2,
+          "level": 0,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096667670",
+          "name": "Spigots",
+          "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+          "parentId": "1760096650843",
+          "color": "#10B981",
+          "isVisible": true,
+          "sortOrder": 1,
+          "level": 1,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096651849",
+          "name": "Pool Fencing Glass",
+          "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+          "parentId": "1760096649085",
+          "color": "#3B82F6",
+          "isVisible": true,
+          "sortOrder": 1,
+          "level": 1,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096678934",
+          "name": "Core Drill",
+          "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+          "parentId": "1760096667670",
+          "color": "#10B981",
+          "isVisible": true,
+          "sortOrder": 1,
+          "level": 2,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096694569",
+          "name": "Base Plate",
+          "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+          "parentId": "1760096667670",
+          "color": "#10B981",
+          "isVisible": true,
+          "sortOrder": 2,
+          "level": 2,
+          "options": [],
+          "linkedFinalProducts": []
+        }
+      ],
+      "specialItems": [],
+      "createdBy": "database",
+      "createdAt": "2025-10-10T11:44:44.808Z",
+      "updatedAt": "2025-10-10T11:45:00.560Z"
+    },
+    {
+      "id": "4e80513e-fdf5-4521-90f0-f49230fee2c2",
+      "name": "Shower Screens",
+      "color": "#94e3fe",
+      "isActive": true,
+      "isStructureComplete": false,
+      "subcategories": [
+        {
+          "id": "1760096797773",
+          "name": "Shower Screen Glass",
+          "categoryId": "4e80513e-fdf5-4521-90f0-f49230fee2c2",
+          "color": "#3B82F6",
+          "isVisible": true,
+          "sortOrder": 1,
+          "level": 0,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096801644",
+          "name": "Hardware",
+          "categoryId": "4e80513e-fdf5-4521-90f0-f49230fee2c2",
+          "color": "#10B981",
+          "isVisible": true,
+          "sortOrder": 2,
+          "level": 0,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096807339",
+          "name": "knobs",
+          "categoryId": "4e80513e-fdf5-4521-90f0-f49230fee2c2",
+          "parentId": "1760096801644",
+          "color": "#10B981",
+          "isVisible": true,
+          "sortOrder": 1,
+          "level": 1,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096802800",
+          "name": "panels",
+          "categoryId": "4e80513e-fdf5-4521-90f0-f49230fee2c2",
+          "parentId": "1760096797773",
+          "color": "#3B82F6",
+          "isVisible": true,
+          "sortOrder": 1,
+          "level": 1,
+          "options": [],
+          "linkedFinalProducts": []
+        },
+        {
+          "id": "1760096825315",
+          "name": "handles",
+          "categoryId": "4e80513e-fdf5-4521-90f0-f49230fee2c2",
+          "parentId": "1760096801644",
+          "color": "#10B981",
+          "isVisible": true,
+          "sortOrder": 2,
+          "level": 1,
+          "options": [],
+          "linkedFinalProducts": []
+        }
+      ],
+      "specialItems": [],
+      "createdBy": "database",
+      "createdAt": "2025-10-10T11:47:11.327Z",
+      "updatedAt": "2025-10-10T11:47:11.373Z"
+    }
+  ],
+  "products": [
+    {
+      "id": "99f07433-73c9-4286-b940-dac28ecff286",
+      "code": "12F-100",
+      "name": "12mm Toughend Pool Fencing Glass",
+      "description": null,
+      "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+      "categoryName": "Unknown",
+      "productType": "Unknown",
+      "size": "",
+      "weight": 0,
+      "cost": 23,
+      "priceT1": 30,
+      "priceT2": 35,
+      "priceT3": 40,
+      "priceN": 45,
+      "inventory": {
+        "currentStock": 55,
+        "reorderPoint": 10,
+        "supplier": "Unknown",
+        "primaryLocation": "Main Warehouse"
+      },
+      "mainCategoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+      "subCategoryId": "1760096649085",
+      "subSubCategoryId": "1760096651849",
+      "subSubSubCategoryId": null,
+      "subcategoryPath": [],
+      "isActive": true,
+      "isUsedInDocuments": false,
+      "createdAt": "2025-10-13T03:20:15.041Z",
+      "updatedAt": "2025-10-18T06:47:08.726Z"
+    },
+    {
+      "id": "3a2584a3-7033-4d74-957e-b15c5db2f4c1",
+      "code": "MCDS",
+      "name": "Mirror Core Drill Spigot",
+      "description": null,
+      "categoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+      "categoryName": "Unknown",
+      "productType": "Unknown",
+      "size": "",
+      "weight": 0,
+      "cost": 23,
+      "priceT1": 12,
+      "priceT2": 14,
+      "priceT3": 18,
+      "priceN": 20,
+      "inventory": {
+        "currentStock": 34,
+        "reorderPoint": 10,
+        "supplier": "Unknown",
+        "primaryLocation": "Main Warehouse"
+      },
+      "mainCategoryId": "cd44a54c-9641-49ea-a176-6dfff6203a00",
+      "subCategoryId": "1760096650843",
+      "subSubCategoryId": "1760096667670",
+      "subSubSubCategoryId": "1760096678934",
+      "subcategoryPath": [],
+      "isActive": true,
+      "isUsedInDocuments": false,
+      "createdAt": "2025-10-13T07:09:11.586Z",
+      "updatedAt": "2025-10-18T23:54:45.091Z"
+    }
+  ],
+  "version": "1.0"
+}

@@ -71,9 +71,12 @@ export const generateQuoteTemplate = (quoteData: any, globalStyling: any, compan
         }
         
         .logo-image {
-            width: ${globalStyling.logoSize || 300}px;
-            height: ${globalStyling.logoSize || 180}px;
+            max-width: ${globalStyling.logoSize || 300}px;
+            max-height: ${globalStyling.logoSize || 180}px;
+            width: auto;
+            height: auto;
             object-fit: contain;
+            object-position: center;
             border-radius: 6px;
             margin-bottom: 8px;
         }
@@ -375,12 +378,14 @@ export const generateQuoteTemplate = (quoteData: any, globalStyling: any, compan
                 padding: 6px 12px !important;
             }
             
-            /* Force large logo in print/PDF */
+            /* Proper logo sizing in print/PDF */
             .logo-image, .company-logo {
-                width: 250px !important;
-                height: 150px !important;
                 max-width: 250px !important;
                 max-height: 150px !important;
+                width: auto !important;
+                height: auto !important;
+                object-fit: contain !important;
+                object-position: center !important;
             }
             
             /* Ensure single page */
@@ -398,7 +403,7 @@ export const generateQuoteTemplate = (quoteData: any, globalStyling: any, compan
                 <div class="company-info">
                     ${globalStyling.showLogo !== false ? (
                         companyProfile?.logo ? `
-                            <img src="${companyProfile.logo}" alt="Company Logo" class="logo-image" style="width: 300px !important; height: 180px !important; max-width: 300px !important; max-height: 180px !important;" />
+                            <img src="${companyProfile.logo}" alt="Company Logo" class="logo-image" style="max-width: 300px; max-height: 180px; width: auto; height: auto; object-fit: contain;" />
                         ` : `
                             <div class="company-logo">${(companyProfile?.name || 'C').charAt(0)}</div>
                         `

@@ -785,22 +785,35 @@ export default function QuotesPage() {
       
       console.log('📄 Generated HTML content, converting to PDF...');
       
-      // Create temporary container for HTML content
+      // Create temporary container for HTML content with proper styling
       const tempContainer = document.createElement('div');
       tempContainer.innerHTML = htmlContent;
       tempContainer.style.position = 'absolute';
       tempContainer.style.left = '-9999px';
-      tempContainer.style.width = '210mm';
+      tempContainer.style.top = '0';
+      tempContainer.style.width = '794px'; // A4 width in pixels at 96 DPI
+      tempContainer.style.minHeight = '1123px'; // A4 height in pixels at 96 DPI  
       tempContainer.style.background = 'white';
       tempContainer.style.padding = '20px';
+      tempContainer.style.fontFamily = 'Arial, sans-serif';
+      tempContainer.style.fontSize = '14px';
+      tempContainer.style.lineHeight = '1.4';
       document.body.appendChild(tempContainer);
       
-      // Convert HTML to canvas, then to PDF
+      // Wait for images and fonts to load
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Convert HTML to canvas, then to PDF with better quality
       try {
         const canvas = await html2canvas(tempContainer, {
-          scale: 2,
+          scale: 3, // Higher scale for better quality
           useCORS: true,
-          backgroundColor: '#ffffff'
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: tempContainer.scrollWidth,
+          height: tempContainer.scrollHeight,
+          windowWidth: 1200, // Standard browser width
+          windowHeight: 800
         });
         
         const imgData = canvas.toDataURL('image/png');

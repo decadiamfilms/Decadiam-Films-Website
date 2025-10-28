@@ -94,6 +94,8 @@ model Product {
   inventory     ProductInventory[]
   supplier_products SupplierProduct[]
   quote_line_items QuoteLineItem[]
+  order_line_items OrderLineItem[]
+  invoice_line_items InvoiceLineItem[]
   
   @@map("products")
 }
@@ -290,6 +292,7 @@ model Quote {
   created_at DateTime @default(now()) @map("created_at")
   updated_at DateTime @updatedAt @map("updated_at")
   notes      String?
+  option_data Json? @map("option_data") // Store options and customer selections
   
   // Relations
   line_items QuoteLineItem[]
@@ -397,33 +400,203 @@ model Order {
   company      Company  @relation(fields: [company_id], references: [id])
   quote_id     String?  @map("quote_id")
   quote        Quote?   @relation(fields: [quote_id], references: [id])
-  status       String   @default("PENDING")
-  total        Float    @default(0)
-  created_at   DateTime @default(now()) @map("created_at")
-  updated_at   DateTime @updatedAt @map("updated_at")
   
-  invoices     Invoice[]
+  // Order Details
+  reference_number     String? @map("reference_number")
+  project_name         String? @map("project_name")
+  job_name            String? @map("job_name")
+  job_description     String? @map("job_description")
+  special_instructions String? @map("special_instructions")
+  
+  // Delivery Information
+  delivery_method     String? @map("delivery_method") // "delivery", "pickup", "courier"
+  delivery_address    String? @map("delivery_address")
+  delivery_contact    String? @map("delivery_contact")
+  delivery_phone      String? @map("delivery_phone")
+  delivery_instructions String? @map("delivery_instructions")
+  delivery_date       DateTime? @map("delivery_date")
+  
+  // Financial Information
+  subtotal       Float @default(0)
+  tax_amount     Float @default(0) @map("tax_amount")
+  discount_amount Float @default(0) @map("discount_amount")
+  total_amount   Float @default(0) @map("total_amount")
+  payment_terms  String? @map("payment_terms")
+  
+  // Status & Tracking
+  status         String   @default("PENDING")
+  priority       String?  @default("NORMAL") // "LOW", "NORMAL", "HIGH", "URGENT"
+  order_date     DateTime @default(now()) @map("order_date")
+  due_date       DateTime? @map("due_date")
+  completed_date DateTime? @map("completed_date")
+  
+  // Options and Customization
+  option_data    Json? @map("option_data") // Store order options
+  custom_fields  Json? @map("custom_fields") // Additional custom data
+  
+  // Metadata
+  created_by String  @map("created_by")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  notes      String?
+  
+  // Relations
+  line_items OrderLineItem[]
+  documents  OrderDocument[]
+  invoices   Invoice[]
   
   @@map("orders")
+}
+
+// Order Line Items
+model OrderLineItem {
+  id          String @id @default(uuid())
+  order_id    String @map("order_id")
+  order       Order  @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product_id  String @map("product_id")
+  product     Product @relation(fields: [product_id], references: [id])
+  
+  // Item Details
+  sort_order       Int @default(0) @map("sort_order")
+  product_name     String @map("product_name")
+  product_code     String @map("product_code")
+  description      String
+  category_path    String? @map("category_path")
+  
+  // Quantity & Pricing
+  quantity         Int
+  unit_price       Float @map("unit_price")
+  total_price      Float @map("total_price")
+  customer_tier    String? @map("customer_tier")
+  
+  // Job Section
+  job_section_name String? @map("job_section_name")
+  
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  
+  @@map("order_line_items")
+}
+
+// Order Documents (PDFs and attachments)
+model OrderDocument {
+  id            String @id @default(uuid())
+  order_id      String @map("order_id")
+  order         Order  @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  
+  file_name     String @map("file_name")
+  file_path     String @map("file_path")
+  document_type String @map("document_type") // "pdf", "attachment", "photo"
+  file_size     Int?   @map("file_size")
+  uploaded_by   String? @map("uploaded_by")
+  
+  created_at    DateTime @default(now()) @map("created_at")
+  updated_at    DateTime @updatedAt @map("updated_at")
+  
+  @@map("order_documents")
 }
 
 // Invoice System
 model Invoice {
   id            String   @id @default(uuid())
   invoice_number String @map("invoice_number")
-  customerId    String
-  customer      Customer @relation(fields: [customerId], references: [id])
-  companyId     String
-  company       Company  @relation(fields: [companyId], references: [id])
-  orderId       String?
-  order         Order?   @relation(fields: [orderId], references: [id])
-  status        String   @default("DRAFT")
-  total         Float    @default(0)
-  due_date      DateTime? @map("due_date")
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  customer_id   String   @map("customer_id")
+  customer      Customer @relation(fields: [customer_id], references: [id])
+  company_id    String   @map("company_id")
+  company       Company  @relation(fields: [company_id], references: [id])
+  order_id      String?  @map("order_id")
+  order         Order?   @relation(fields: [order_id], references: [id])
+  
+  // Invoice Details
+  reference_number String? @map("reference_number")
+  project_name     String? @map("project_name")
+  job_name        String? @map("job_name")
+  job_description String? @map("job_description")
+  
+  // Financial Information
+  subtotal       Float @default(0)
+  tax_amount     Float @default(0) @map("tax_amount")
+  discount_amount Float @default(0) @map("discount_amount")
+  total_amount   Float @default(0) @map("total_amount")
+  
+  // Dates & Status
+  invoice_date   DateTime @default(now()) @map("invoice_date")
+  due_date       DateTime? @map("due_date")
+  paid_date      DateTime? @map("paid_date")
+  status         String   @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE, CANCELLED
+  
+  // Sales & Follow-up
+  sales_rep      String? @map("sales_rep")
+  needs_followup Boolean @default(false) @map("needs_followup")
+  followup_date  DateTime? @map("followup_date")
+  
+  // Flags
+  is_deleted     Boolean @default(false) @map("is_deleted")
+  is_archived    Boolean @default(false) @map("is_archived")
+  
+  // Options and Customization  
+  option_data    Json? @map("option_data") // Store invoice options
+  custom_fields  Json? @map("custom_fields") // Additional custom data
+  
+  // Metadata
+  created_by String  @map("created_by")
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  notes      String?
+  
+  // Relations
+  line_items InvoiceLineItem[]
+  documents  InvoiceDocument[]
   
   @@map("invoices")
+}
+
+// Invoice Line Items
+model InvoiceLineItem {
+  id          String @id @default(uuid())
+  invoice_id  String @map("invoice_id")
+  invoice     Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  product_id  String @map("product_id")
+  product     Product @relation(fields: [product_id], references: [id])
+  
+  // Item Details
+  sort_order       Int @default(0) @map("sort_order")
+  product_name     String @map("product_name")
+  product_code     String @map("product_code")
+  description      String
+  category_path    String? @map("category_path")
+  
+  // Quantity & Pricing
+  quantity         Int
+  unit_price       Float @map("unit_price")
+  total_price      Float @map("total_price")
+  customer_tier    String? @map("customer_tier")
+  
+  // Job Section
+  job_section_name String? @map("job_section_name")
+  
+  created_at DateTime @default(now()) @map("created_at")
+  updated_at DateTime @updatedAt @map("updated_at")
+  
+  @@map("invoice_line_items")
+}
+
+// Invoice Documents (PDFs and attachments)
+model InvoiceDocument {
+  id            String @id @default(uuid())
+  invoice_id    String @map("invoice_id")
+  invoice       Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  
+  file_name     String @map("file_name")
+  file_path     String @map("file_path")
+  document_type String @map("document_type") // "pdf", "attachment", "receipt"
+  file_size     Int?   @map("file_size")
+  uploaded_by   String? @map("uploaded_by")
+  
+  created_at    DateTime @default(now()) @map("created_at")
+  updated_at    DateTime @updatedAt @map("updated_at")
+  
+  @@map("invoice_documents")
 }
 
 // Location Management
