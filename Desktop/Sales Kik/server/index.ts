@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 // import companyRoutes from './api/company/company.routes';  
 // import userRoutes from './api/users/user.routes';
 // import productRoutes from './api/products/product.routes';
-// import customerRoutes from './api/customers/customer.routes';
+// import customerRoutes from './api/customers/customer.routes'; // Temporarily disabled
 import quoteRoutes from './api/quotes/quote.routes';
 import smsRoutes from './api/quotes/sms.routes';
 import emailRoutes from './api/quotes/email.routes';
@@ -23,7 +23,7 @@ import claudeRoutes from './api/ai/claude.routes';
 // import glassRoutes from './api/glass/glass.routes';
 // import { customPricelistsRoutes, pricingRouter } from './api/custom-pricelists/custom-pricelists.routes';
 import transferRoutes from './api/transfers/transfers.routes';
-// import stockflowRoutes from './api/stockflow/stockflow.routes';
+import stockflowRoutes from './api/stockflow/stockflow.routes';
 // import inventoryRoutes from './api/inventory/inventory.routes';
 // import purchaseOrderRoutes from './api/purchase-orders/purchase-orders.routes';
 // import jobRoutes from './api/jobs/job.routes';
@@ -69,7 +69,7 @@ app.use('/api', rateLimiter);
 // app.use('/api/modules', modulesRoutes);
 // app.use('/api/onboarding', onboardingRoutes);
 // app.use('/api/products', productRoutes);
-// app.use('/api/customers', customerRoutes);
+// app.use('/api/customers', customerRoutes); // Temporarily disabled due to TS cache issue
 // Temporary mock auth routes for development
 app.get('/api/auth/me', (req, res) => {
   res.json({
@@ -792,7 +792,7 @@ app.use('/api/ai/claude', claudeRoutes);
 // app.use('/api/custom-pricelists', customPricelistsRoutes);
 app.use('/api/transfers', transferRoutes);
 // app.use('/api/pricing', pricingRouter);
-// app.use('/api/stockflow', stockflowRoutes);
+app.use('/api/stockflow', stockflowRoutes);
 // app.use('/api/inventory', inventoryRoutes);
 // app.use('/api/purchase-orders', purchaseOrderRoutes);
 // app.use('/api/jobs', jobRoutes);

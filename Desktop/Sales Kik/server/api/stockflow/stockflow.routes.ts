@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { StockFlowController } from './stockflow.controller';
-import { authenticate } from '../../middleware/auth.middleware';
+// import { authenticate } from '../../middleware/auth.middleware'; // Temporarily disabled
 
 const router = Router();
 const stockFlowController = new StockFlowController();
 
 // Apply auth middleware to all routes
-router.use(authenticate);
+// router.use(authenticate); // Temporarily disabled for development
 
 // Inventory Management Routes
 router.get('/overview', stockFlowController.getInventoryOverview.bind(stockFlowController));
