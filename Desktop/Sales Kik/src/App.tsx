@@ -12,6 +12,8 @@ import RegisterPage from './pages/auth/RegisterPage';
 import { ModuleMarketplace } from './components/marketplace/ModuleMarketplace';
 import { ProtectedProductList } from './components/products/ProtectedProductList';
 import OnboardingWizard from './pages/OnboardingWizard';
+import PremiumOnboardingPage from './pages/PremiumOnboardingPage';
+import TourTestPage from './pages/TourTestPage';
 import { DashboardRouter } from './components/routing/DashboardRouter';
 import { MainDashboard } from './components/dashboard/MainDashboard';
 import { ModuleManagement } from './components/dashboard/ModuleManagement';
@@ -101,7 +103,10 @@ function App() {
           </Route>
 
           {/* Onboarding Flow */}
-          <Route path="/onboarding" element={<OnboardingWizard />} />
+          <Route path="/onboarding-old" element={<OnboardingWizard />} />
+          <Route path="/onboarding" element={<PremiumOnboardingPage />} />
+          <Route path="/onboarding-premium" element={<PremiumOnboardingPage />} />
+          <Route path="/tour-test" element={<TourTestPage />} />
           
           {/* Module Management Page */}
           <Route path="/modules" element={<ProtectedRoute><ModuleManagement /></ProtectedRoute>} />
