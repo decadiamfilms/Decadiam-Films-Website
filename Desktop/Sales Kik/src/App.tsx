@@ -13,7 +13,7 @@ import { ModuleMarketplace } from './components/marketplace/ModuleMarketplace';
 import { ProtectedProductList } from './components/products/ProtectedProductList';
 import OnboardingWizard from './pages/OnboardingWizard';
 import PremiumOnboardingPage from './pages/PremiumOnboardingPage';
-import TourTestPage from './pages/TourTestPage';
+import { GlobalTour } from './components/tour/SimpleTour';
 import { DashboardRouter } from './components/routing/DashboardRouter';
 import { MainDashboard } from './components/dashboard/MainDashboard';
 import { ModuleManagement } from './components/dashboard/ModuleManagement';
@@ -87,7 +87,7 @@ function App() {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gray-50" style={{ isolation: 'isolate' }}>
         <NotificationContainer />
         <Routes>
           {/* Public Routes (no authentication required) */}
@@ -106,7 +106,6 @@ function App() {
           <Route path="/onboarding-old" element={<OnboardingWizard />} />
           <Route path="/onboarding" element={<PremiumOnboardingPage />} />
           <Route path="/onboarding-premium" element={<PremiumOnboardingPage />} />
-          <Route path="/tour-test" element={<TourTestPage />} />
           
           {/* Module Management Page */}
           <Route path="/modules" element={<ProtectedRoute><ModuleManagement /></ProtectedRoute>} />
@@ -192,7 +191,10 @@ function App() {
           
           {/* Default Route - Redirect to Dashboard */}
           <Route path="/" element={<Navigate to="/dashboard" />} />
-        </Routes>
+          </Routes>
+        
+        {/* Global Tour Component */}
+        <GlobalTour />
       </div>
     );
   } catch (error) {
