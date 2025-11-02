@@ -21,6 +21,14 @@ export function DashboardRouter() {
   const API_URL = import.meta.env.PROD ? (import.meta.env.VITE_API_URL || 'http://localhost:5001') : '';
 
   useEffect(() => {
+    // Check if this is an employee first - immediate redirect
+    const employeeSession = localStorage.getItem('employee-session');
+    if (employeeSession) {
+      console.log('DashboardRouter: Employee detected, redirecting to employee dashboard');
+      window.location.href = '/employee-dashboard';
+      return;
+    }
+    
     checkOnboardingStatus();
   }, []);
 

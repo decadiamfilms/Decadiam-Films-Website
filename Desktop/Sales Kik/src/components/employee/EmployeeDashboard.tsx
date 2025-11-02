@@ -6,7 +6,7 @@ import {
   DocumentTextIcon, CubeIcon, UsersIcon, CalendarIcon,
   PlusIcon, ClockIcon, CheckCircleIcon, ChartBarIcon,
   CurrencyDollarIcon, ShoppingCartIcon, PhoneIcon,
-  MapPinIcon, BellIcon, UserCircleIcon, ChevronDownIcon
+  MapPinIcon, BellIcon
 } from '@heroicons/react/24/outline';
 
 interface Employee {
@@ -29,7 +29,6 @@ interface Employee {
 export default function EmployeeDashboard() {
   const navigate = useNavigate();
   const [showSidebar, setShowSidebar] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [employee, setEmployee] = useState<Employee | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -146,41 +145,6 @@ export default function EmployeeDashboard() {
               <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full"></span>
             </button>
             
-            <div className="relative">
-              <button 
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <UserCircleIcon className="w-6 h-6" />
-                <ChevronDownIcon className="w-4 h-4" />
-              </button>
-              
-              {showProfileMenu && (
-                <div className="absolute right-0 top-12 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
-                  <div className="px-4 py-2 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900">{employee?.firstName} {employee?.lastName}</p>
-                    <p className="text-xs text-gray-600">{employee?.position}</p>
-                  </div>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    My Profile
-                  </button>
-                  <button className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50">
-                    Time Tracking
-                  </button>
-                  <hr className="my-1" />
-                  <button 
-                    onClick={() => {
-                      localStorage.removeItem('accessToken');
-                      localStorage.removeItem('refreshToken');
-                      navigate('/login');
-                    }}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </div>
           </div>
         }
       />

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
 import ComprehensiveAdminDashboard from './AdminDashboard';
+import { SimpleTourButton, useAutoStartSimpleTour } from '../tour/SimpleTour';
 import { 
   CubeIcon, DocumentTextIcon, ChartBarIcon, UsersIcon,
   ShoppingCartIcon, CreditCardIcon, Cog6ToothIcon,
@@ -35,6 +36,9 @@ export function RoleBasedDashboard() {
   const [company, setCompany] = useState<Company | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSidebar, setShowSidebar] = useState(false);
+  
+  // Simple tour system for first-time users  
+  useAutoStartSimpleTour();
 
   useEffect(() => {
     fetchUserData();
@@ -874,6 +878,14 @@ function EmployeeDashboard({ user, company, showSidebar, setShowSidebar }: {
             </div>
           </div>
         </div>
+      </div>
+      
+      {/* Simple Tour Button */}
+      <SimpleTourButton />
+      
+      {/* Simple Test Element */}
+      <div className="fixed bottom-4 right-4 bg-red-500 text-white p-4 rounded-lg">
+        Test Element - Tour Integration
       </div>
     </div>
   );

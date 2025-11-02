@@ -4,6 +4,11 @@ import { motion } from 'framer-motion';
 import { useAppDispatch } from '../hooks/redux';
 import { register } from '../store/slices/authSlice';
 import { Modern2025Onboarding } from '../components/onboarding/Modern2025Onboarding';
+import { StripeOnboarding } from '../components/onboarding/StripeOnboarding';
+import { ModernOnboarding } from '../components/onboarding/ModernOnboarding';
+import { CleanOnboarding } from '../components/onboarding/CleanOnboarding';
+import { UltraModernOnboarding } from '../components/onboarding/UltraModernOnboarding';
+import { PopOnboarding } from '../components/onboarding/PopOnboarding';
 import { CheckCircleIcon, SparklesIcon } from '@heroicons/react/24/solid';
 
 interface OnboardingData {
@@ -72,7 +77,7 @@ export default function PremiumOnboardingPage() {
           {error}
         </div>
       )}
-      <Modern2025Onboarding onComplete={handleOnboardingComplete} />
+      <PopOnboarding onComplete={handleOnboardingComplete} />
     </div>
   );
 }

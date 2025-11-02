@@ -382,6 +382,7 @@ export const generateInvoiceTemplate = (invoiceData: any, globalStyling: any, co
                 </div>
             </div>
             
+            ${!pdfSettings.hideItems ? `
             <div class="items-section">
                 <div class="items-header">
                     INVOICE ITEMS
@@ -390,23 +391,27 @@ export const generateInvoiceTemplate = (invoiceData: any, globalStyling: any, co
                 <table class="items-table">
                     <thead>
                         <tr>
-                            <th style="width: 60%;">Description</th>
+                            <th style="width: ${pdfSettings.hideItemPrice && pdfSettings.hideTotalPrice ? '100' : '60'}%;">Description</th>
+                            ${!pdfSettings.hideItemPrice ? '<th style="width: 20%; text-align: right;">Rate</th>' : ''}
                             <th style="width: 20%; text-align: right;">Quantity</th>
-                            <th style="width: 20%; text-align: right;">Amount</th>
+                            ${!pdfSettings.hideTotalPrice ? '<th style="width: 20%; text-align: right;">Amount</th>' : ''}
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td class="item-description">
-                                <strong>${invoiceData.reference}</strong><br>
-                                ${invoiceData.notes ? `<small style="color: #6b7280;">${invoiceData.notes}</small>` : ''}
+                                <strong>${invoiceData.reference}</strong>
+                                ${!pdfSettings.hideDescription && invoiceData.notes ? `<br><small style="color: #6b7280;">${invoiceData.notes}</small>` : ''}
+                                ${!pdfSettings.hideProductType ? '<br><span style="color: #16a34a; font-weight: 600; background: #f0fdf4; padding: 2px 6px; border-radius: 3px; font-size: 11px;">INVOICE ITEM</span>' : ''}
                             </td>
+                            ${!pdfSettings.hideItemPrice ? `<td class="price-cell">$${invoiceData.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>` : ''}
                             <td class="price-cell">1</td>
-                            <td class="price-cell">$${invoiceData.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                            ${!pdfSettings.hideTotalPrice ? `<td class="price-cell">$${invoiceData.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>` : ''}
                         </tr>
                     </tbody>
                 </table>
             </div>
+            ` : ''}
             
             <div class="totals-section">
                 <table class="totals-table">
@@ -425,6 +430,7 @@ export const generateInvoiceTemplate = (invoiceData: any, globalStyling: any, co
                 </table>
             </div>
             
+            ${!pdfSettings.hidePaymentDetails ? `
             <div class="payment-section">
                 <h3>Payment Information</h3>
                 <p><strong>Payment Terms:</strong> Net 30 days</p>
@@ -432,6 +438,7 @@ export const generateInvoiceTemplate = (invoiceData: any, globalStyling: any, co
                 ${companyProfile?.bankDetails ? `<p><strong>Bank Details:</strong> ${companyProfile.bankDetails}</p>` : ''}
                 ${companyProfile?.paymentInstructions ? `<p>${companyProfile.paymentInstructions}</p>` : ''}
             </div>
+            ` : ''}
             
             <div class="status-section">
                 <div class="status-badge">
@@ -440,6 +447,33 @@ export const generateInvoiceTemplate = (invoiceData: any, globalStyling: any, co
                 ${invoiceData.originalOrderId ? `<p style="margin-top: 8px; font-size: 9px; color: #6b7280;">Converted from Order ${invoiceData.originalOrderId}</p>` : ''}
             </div>
         </div>
+        
+        <!-- Invoice Acceptance Signature Section -->
+        ${pdfSettings.insertAcceptanceSignature ? `
+        <div style="margin-top: 30px; border-top: 1px solid #e5e7eb; padding: 20px;">
+            <h2 style="font-size: 14px; font-weight: 600; color: #16a34a; margin-bottom: 20px; border-bottom: 2px solid #16a34a; padding-bottom: 8px;">Invoice Acknowledgment</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                <div>
+                    <p style="font-weight: 600; margin-bottom: 10px; color: #374151;">Received By</p>
+                    <div style="border-bottom: 2px solid #d1d5db; height: 50px; margin-bottom: 10px;"></div>
+                    <p style="font-size: 11px; color: #6b7280;">Print Name: _________________________</p>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 5px;">Date: _________________________</p>
+                </div>
+                <div>
+                    <p style="font-weight: 600; margin-bottom: 10px; color: #374151;">Authorized By</p>
+                    <div style="border-bottom: 2px solid #d1d5db; height: 50px; margin-bottom: 10px;"></div>
+                    <p style="font-size: 11px; color: #6b7280;">Print Name: _________________________</p>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 5px;">Date: _________________________</p>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding: 12px; background-color: #f0fdf4; border-radius: 6px; border-left: 4px solid #16a34a;">
+                <p style="font-size: 11px; color: #374151; line-height: 1.4;">
+                    <strong>By signing above, you acknowledge receipt of this invoice and confirm the accuracy of the charges. 
+                    Payment is due within the specified terms.</strong>
+                </p>
+            </div>
+        </div>
+        ` : ''}
         
         <div class="footer">
             <p>Thank you for your business!</p>

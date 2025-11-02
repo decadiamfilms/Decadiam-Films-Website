@@ -10,6 +10,7 @@ import {
 import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
 import { dataService } from '../../services/api.service';
+import { useAutoStartSimpleTour, SimpleTourButton } from '../tour/SimpleTour';
 
 interface Supplier {
   id: string;
@@ -115,6 +116,9 @@ interface SubcategoryPath {
 export function SupplierManagement() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  
+  // Auto-start supplier tour if continuing from customers
+  useAutoStartSimpleTour();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showAddSupplierModal, setShowAddSupplierModal] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);
@@ -596,7 +600,7 @@ export function SupplierManagement() {
 
       {/* Notes Modal */}
       {showNotesModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Supplier Notes</h3>
@@ -1285,7 +1289,7 @@ export function SupplierManagement() {
 
       {/* Location Form Modal */}
       {showLocationForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+        <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-60">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">
@@ -1474,7 +1478,7 @@ export function SupplierManagement() {
 
       {/* Contact Form Modal */}
       {showContactForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+        <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-60">
           <div className="bg-white rounded-lg p-6 w-full max-w-2xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">

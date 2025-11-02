@@ -19,5 +19,5 @@
     "types": ["node"]
   },
   "include": ["server/**/*", "server/types/**/*"],
-  "exclude": ["node_modules", "dist", "server/api/inventory", "server/api/purchase-orders"]
+  "exclude": ["node_modules", "dist", "server/api/inventory", "server/api/purchase-orders", "server/api/stripe"]
 }

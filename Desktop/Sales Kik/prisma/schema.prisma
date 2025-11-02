@@ -17,6 +17,9 @@ model Company {
   address             Json?
   logoUrl             String?  @map("logo_url")
   subscriptionStatus  String   @default("TRIAL") @map("subscription_status")
+  selectedPlan        String?  @map("selected_plan") // starter, professional, enterprise
+  stripeCustomerId    String?  @map("stripe_customer_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
   trialEndsAt         DateTime? @map("trial_ends_at")
   created_at          DateTime @default(now()) @map("created_at")
   updated_at          DateTime @updatedAt @map("updated_at")
@@ -40,6 +43,11 @@ model Company {
   onboarding_progress OnboardingProgress?
   notifications       Notification[]
   
+  // Delivery Management Relations
+  vehicles            Vehicle[]
+  drivers             Driver[]
+  delivery_runs       DeliveryRun[]
+  
   @@map("companies")
 }
 
@@ -56,6 +64,21 @@ model User {
   company      Company  @relation(fields: [company_id], references: [id])
   isActive     Boolean  @default(true) @map("is_active")
   lastLogin    DateTime? @map("last_login")
+  
+  // Two-Factor Authentication (2FA) - Enterprise Security
+  twoFactorSecret    String?   @map("two_factor_secret")    // TOTP secret key
+  twoFactorEnabled   Boolean   @default(false) @map("two_factor_enabled")  // 2FA status
+  backupCodes        String[]  @map("backup_codes")         // Emergency backup codes
+  twoFactorVerified  DateTime? @map("two_factor_verified")  // Last 2FA verification
+  
+  // Driver Capabilities (for employees who can also drive)
+  isDriver           Boolean   @default(false) @map("is_driver")          // Can this employee drive?
+  driverLicenseNumber String?  @unique @map("driver_license_number")      // Driver's license number
+  driverLicenseClass String?   @map("driver_license_class")               // C, LR, MR, HR, HC, MC
+  driverLicenseExpiry DateTime? @map("driver_license_expiry")             // License expiry date
+  driverPhone        String?   @map("driver_phone")                       // Driver contact phone
+  driverStatus       String?   @default("AVAILABLE") @map("driver_status") // AVAILABLE, ON_DELIVERY, OFF_DUTY
+  
   created_at   DateTime @default(now()) @map("created_at")
   updated_at   DateTime @updatedAt @map("updated_at")
   
@@ -63,6 +86,7 @@ model User {
   authSessions AuthSession[]
   groupMemberships UserGroupMembership[]
   notifications Notification[]
+  drivers Driver[] // If user is also a driver
   
   @@map("users")
 }
@@ -94,8 +118,6 @@ model Product {
   inventory     ProductInventory[]
   supplier_products SupplierProduct[]
   quote_line_items QuoteLineItem[]
-  order_line_items OrderLineItem[]
-  invoice_line_items InvoiceLineItem[]
   
   @@map("products")
 }
@@ -208,6 +230,7 @@ model Customer {
   pricing          ProductPricing[]
   additional_contacts CustomerContact[]
   price_lists      CustomerPriceList[]
+  deliveries       Delivery[]
   
   @@map("customers")
 }
@@ -298,6 +321,7 @@ model Quote {
   line_items QuoteLineItem[]
   documents  QuoteDocument[]
   orders     Order[]
+  deliveries Delivery[]
   
   @@map("quotes")
 }
@@ -400,203 +424,34 @@ model Order {
   company      Company  @relation(fields: [company_id], references: [id])
   quote_id     String?  @map("quote_id")
   quote        Quote?   @relation(fields: [quote_id], references: [id])
+  status       String   @default("PENDING")
+  total        Float    @default(0)
+  created_at   DateTime @default(now()) @map("created_at")
+  updated_at   DateTime @updatedAt @map("updated_at")
   
-  // Order Details
-  reference_number     String? @map("reference_number")
-  project_name         String? @map("project_name")
-  job_name            String? @map("job_name")
-  job_description     String? @map("job_description")
-  special_instructions String? @map("special_instructions")
-  
-  // Delivery Information
-  delivery_method     String? @map("delivery_method") // "delivery", "pickup", "courier"
-  delivery_address    String? @map("delivery_address")
-  delivery_contact    String? @map("delivery_contact")
-  delivery_phone      String? @map("delivery_phone")
-  delivery_instructions String? @map("delivery_instructions")
-  delivery_date       DateTime? @map("delivery_date")
-  
-  // Financial Information
-  subtotal       Float @default(0)
-  tax_amount     Float @default(0) @map("tax_amount")
-  discount_amount Float @default(0) @map("discount_amount")
-  total_amount   Float @default(0) @map("total_amount")
-  payment_terms  String? @map("payment_terms")
-  
-  // Status & Tracking
-  status         String   @default("PENDING")
-  priority       String?  @default("NORMAL") // "LOW", "NORMAL", "HIGH", "URGENT"
-  order_date     DateTime @default(now()) @map("order_date")
-  due_date       DateTime? @map("due_date")
-  completed_date DateTime? @map("completed_date")
-  
-  // Options and Customization
-  option_data    Json? @map("option_data") // Store order options
-  custom_fields  Json? @map("custom_fields") // Additional custom data
-  
-  // Metadata
-  created_by String  @map("created_by")
-  created_at DateTime @default(now()) @map("created_at")
-  updated_at DateTime @updatedAt @map("updated_at")
-  notes      String?
-  
-  // Relations
-  line_items OrderLineItem[]
-  documents  OrderDocument[]
-  invoices   Invoice[]
+  invoices     Invoice[]
+  deliveries   Delivery[]
   
   @@map("orders")
-}
-
-// Order Line Items
-model OrderLineItem {
-  id          String @id @default(uuid())
-  order_id    String @map("order_id")
-  order       Order  @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  product_id  String @map("product_id")
-  product     Product @relation(fields: [product_id], references: [id])
-  
-  // Item Details
-  sort_order       Int @default(0) @map("sort_order")
-  product_name     String @map("product_name")
-  product_code     String @map("product_code")
-  description      String
-  category_path    String? @map("category_path")
-  
-  // Quantity & Pricing
-  quantity         Int
-  unit_price       Float @map("unit_price")
-  total_price      Float @map("total_price")
-  customer_tier    String? @map("customer_tier")
-  
-  // Job Section
-  job_section_name String? @map("job_section_name")
-  
-  created_at DateTime @default(now()) @map("created_at")
-  updated_at DateTime @updatedAt @map("updated_at")
-  
-  @@map("order_line_items")
-}
-
-// Order Documents (PDFs and attachments)
-model OrderDocument {
-  id            String @id @default(uuid())
-  order_id      String @map("order_id")
-  order         Order  @relation(fields: [order_id], references: [id], onDelete: Cascade)
-  
-  file_name     String @map("file_name")
-  file_path     String @map("file_path")
-  document_type String @map("document_type") // "pdf", "attachment", "photo"
-  file_size     Int?   @map("file_size")
-  uploaded_by   String? @map("uploaded_by")
-  
-  created_at    DateTime @default(now()) @map("created_at")
-  updated_at    DateTime @updatedAt @map("updated_at")
-  
-  @@map("order_documents")
 }
 
 // Invoice System
 model Invoice {
   id            String   @id @default(uuid())
   invoice_number String @map("invoice_number")
-  customer_id   String   @map("customer_id")
-  customer      Customer @relation(fields: [customer_id], references: [id])
-  company_id    String   @map("company_id")
-  company       Company  @relation(fields: [company_id], references: [id])
-  order_id      String?  @map("order_id")
-  order         Order?   @relation(fields: [order_id], references: [id])
-  
-  // Invoice Details
-  reference_number String? @map("reference_number")
-  project_name     String? @map("project_name")
-  job_name        String? @map("job_name")
-  job_description String? @map("job_description")
-  
-  // Financial Information
-  subtotal       Float @default(0)
-  tax_amount     Float @default(0) @map("tax_amount")
-  discount_amount Float @default(0) @map("discount_amount")
-  total_amount   Float @default(0) @map("total_amount")
-  
-  // Dates & Status
-  invoice_date   DateTime @default(now()) @map("invoice_date")
-  due_date       DateTime? @map("due_date")
-  paid_date      DateTime? @map("paid_date")
-  status         String   @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE, CANCELLED
-  
-  // Sales & Follow-up
-  sales_rep      String? @map("sales_rep")
-  needs_followup Boolean @default(false) @map("needs_followup")
-  followup_date  DateTime? @map("followup_date")
-  
-  // Flags
-  is_deleted     Boolean @default(false) @map("is_deleted")
-  is_archived    Boolean @default(false) @map("is_archived")
-  
-  // Options and Customization  
-  option_data    Json? @map("option_data") // Store invoice options
-  custom_fields  Json? @map("custom_fields") // Additional custom data
-  
-  // Metadata
-  created_by String  @map("created_by")
-  created_at DateTime @default(now()) @map("created_at")
-  updated_at DateTime @updatedAt @map("updated_at")
-  notes      String?
-  
-  // Relations
-  line_items InvoiceLineItem[]
-  documents  InvoiceDocument[]
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id])
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id])
+  orderId       String?
+  order         Order?   @relation(fields: [orderId], references: [id])
+  status        String   @default("DRAFT")
+  total         Float    @default(0)
+  due_date      DateTime? @map("due_date")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   
   @@map("invoices")
-}
-
-// Invoice Line Items
-model InvoiceLineItem {
-  id          String @id @default(uuid())
-  invoice_id  String @map("invoice_id")
-  invoice     Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  product_id  String @map("product_id")
-  product     Product @relation(fields: [product_id], references: [id])
-  
-  // Item Details
-  sort_order       Int @default(0) @map("sort_order")
-  product_name     String @map("product_name")
-  product_code     String @map("product_code")
-  description      String
-  category_path    String? @map("category_path")
-  
-  // Quantity & Pricing
-  quantity         Int
-  unit_price       Float @map("unit_price")
-  total_price      Float @map("total_price")
-  customer_tier    String? @map("customer_tier")
-  
-  // Job Section
-  job_section_name String? @map("job_section_name")
-  
-  created_at DateTime @default(now()) @map("created_at")
-  updated_at DateTime @updatedAt @map("updated_at")
-  
-  @@map("invoice_line_items")
-}
-
-// Invoice Documents (PDFs and attachments)
-model InvoiceDocument {
-  id            String @id @default(uuid())
-  invoice_id    String @map("invoice_id")
-  invoice       Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  
-  file_name     String @map("file_name")
-  file_path     String @map("file_path")
-  document_type String @map("document_type") // "pdf", "attachment", "receipt"
-  file_size     Int?   @map("file_size")
-  uploaded_by   String? @map("uploaded_by")
-  
-  created_at    DateTime @default(now()) @map("created_at")
-  updated_at    DateTime @updatedAt @map("updated_at")
-  
-  @@map("invoice_documents")
 }
 
 // Location Management
@@ -993,4 +848,278 @@ model Notification {
   updated_at DateTime @updatedAt @map("updated_at")
   
   @@map("notifications")
+}
+
+// ============= DELIVERY MANAGEMENT SYSTEM =============
+// Fleet Management - Vehicle Information
+model Vehicle {
+  id                String   @id @default(uuid())
+  company_id        String   @map("company_id")
+  company           Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  
+  // Vehicle Details
+  registration      String   @unique // License plate / registration number
+  make              String   // Toyota, Ford, etc.
+  model             String   // Hilux, Transit, etc.
+  year              Int?     // Year of manufacture
+  type              String   @default("TRUCK") // TRUCK, VAN, UTE, TRAILER
+  
+  // Capacity & Specifications  
+  max_weight        Float?   @map("max_weight")      // Max weight capacity (kg)
+  max_volume        Float?   @map("max_volume")      // Max volume capacity (m³)
+  load_capacity     Json?    @map("load_capacity")   // Length, width, height dimensions
+  
+  // Operational Details
+  fuel_type         String?  @map("fuel_type")       // PETROL, DIESEL, ELECTRIC
+  current_location  Json?    @map("current_location") // GPS coordinates when parked
+  base_location     Json?    @map("base_location")    // Default starting point
+  
+  // Status & Maintenance
+  status            String   @default("AVAILABLE") // AVAILABLE, IN_USE, MAINTENANCE, OUT_OF_SERVICE
+  last_service      DateTime? @map("last_service")
+  next_service      DateTime? @map("next_service")
+  odometer_reading  Int?     @default(0) @map("odometer_reading")
+  
+  // Insurance & Compliance
+  insurance_expiry  DateTime? @map("insurance_expiry")
+  registration_expiry DateTime? @map("registration_expiry")
+  roadworthy_expiry DateTime? @map("roadworthy_expiry")
+  
+  // System Fields
+  is_active         Boolean  @default(true) @map("is_active")
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  delivery_runs     DeliveryRun[]
+  vehicle_drivers   VehicleDriver[]
+  
+  @@map("vehicles")
+}
+
+// Driver Management
+model Driver {
+  id                String   @id @default(uuid())
+  company_id        String   @map("company_id")
+  company           Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  user_id           String?  @map("user_id") // Link to User table if driver is also an employee
+  user              User?    @relation(fields: [user_id], references: [id])
+  
+  // Driver Details
+  first_name        String   @map("first_name")
+  last_name         String   @map("last_name")
+  license_number    String   @unique @map("license_number")
+  license_class     String   @map("license_class") // C, LR, MR, HR, HC, MC
+  license_expiry    DateTime @map("license_expiry")
+  
+  // Contact Information
+  phone             String?
+  email             String?
+  emergency_contact Json?    @map("emergency_contact")
+  
+  // Employment Details
+  employee_id       String?  @map("employee_id")
+  start_date        DateTime @default(now()) @map("start_date")
+  hourly_rate       Float?   @map("hourly_rate")
+  
+  // Operational Status
+  status            String   @default("AVAILABLE") // AVAILABLE, ON_DELIVERY, OFF_DUTY, UNAVAILABLE
+  current_location  Json?    @map("current_location") // GPS coordinates
+  
+  // System Fields
+  is_active         Boolean  @default(true) @map("is_active")
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  delivery_runs     DeliveryRun[]
+  vehicle_drivers   VehicleDriver[]
+  
+  @@map("drivers")
+}
+
+// Vehicle-Driver Assignment (allows multiple drivers per vehicle)
+model VehicleDriver {
+  id         String   @id @default(uuid())
+  vehicle_id String   @map("vehicle_id")
+  vehicle    Vehicle  @relation(fields: [vehicle_id], references: [id], onDelete: Cascade)
+  driver_id  String   @map("driver_id")
+  driver     Driver   @relation(fields: [driver_id], references: [id], onDelete: Cascade)
+  
+  // Assignment Details
+  is_primary Boolean  @default(false) @map("is_primary") // Primary driver for this vehicle
+  assigned_at DateTime @default(now()) @map("assigned_at")
+  
+  @@unique([vehicle_id, driver_id])
+  @@map("vehicle_drivers")
+}
+
+// Delivery Runs - Main delivery scheduling table
+model DeliveryRun {
+  id                String   @id @default(uuid())
+  company_id        String   @map("company_id")
+  company           Company  @relation(fields: [company_id], references: [id], onDelete: Cascade)
+  
+  // Run Identification
+  run_number        String   @unique @map("run_number") // DR-20250102-001
+  run_name          String?  @map("run_name")           // Optional descriptive name
+  
+  // Assignment Details
+  vehicle_id        String   @map("vehicle_id")
+  vehicle           Vehicle  @relation(fields: [vehicle_id], references: [id])
+  driver_id         String   @map("driver_id")
+  driver            Driver   @relation(fields: [driver_id], references: [id])
+  
+  // Scheduling
+  planned_date      DateTime @map("planned_date")      // Date of delivery
+  start_time        DateTime? @map("start_time")       // Calculated start time from depot
+  estimated_duration Int?    @map("estimated_duration") // Total estimated duration (minutes)
+  
+  // Route Details
+  starting_location Json     @map("starting_location")  // Starting point (usually depot)
+  total_distance    Float?   @map("total_distance")     // Total route distance (km)
+  total_stops       Int      @default(0) @map("total_stops")
+  
+  // Status Tracking
+  status            String   @default("PLANNED") // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  actual_start_time DateTime? @map("actual_start_time")
+  actual_end_time   DateTime? @map("actual_end_time")
+  
+  // Route Optimization Data
+  optimized_route   Json?    @map("optimized_route")    // Store Google Maps route data
+  route_updated_at  DateTime? @map("route_updated_at")
+  
+  // System Fields
+  created_by        String   @map("created_by")         // User who created the run
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+  notes             String?
+  
+  // Relations
+  deliveries        Delivery[]
+  route_optimizations RouteOptimization[]
+  
+  @@map("delivery_runs")
+}
+
+// Individual Deliveries - Each stop on a delivery run
+model Delivery {
+  id                String   @id @default(uuid())
+  delivery_run_id   String   @map("delivery_run_id")
+  delivery_run      DeliveryRun @relation(fields: [delivery_run_id], references: [id], onDelete: Cascade)
+  
+  // Delivery Identification
+  delivery_number   String   @unique @map("delivery_number") // DEL-20250102-001
+  
+  // Order/Quote Integration
+  order_id          String?  @map("order_id")
+  order             Order?   @relation(fields: [order_id], references: [id])
+  quote_id          String?  @map("quote_id")
+  quote             Quote?   @relation(fields: [quote_id], references: [id])
+  
+  // Customer Information
+  customer_id       String   @map("customer_id")
+  customer          Customer @relation(fields: [customer_id], references: [id])
+  
+  // Delivery Address & Contact
+  delivery_address  Json     @map("delivery_address")   // Full address with GPS coordinates
+  delivery_contact  Json?    @map("delivery_contact")   // Contact person details
+  
+  // Scheduling & Timing
+  sequence_order    Int      @map("sequence_order")      // Order in the delivery run (1, 2, 3...)
+  scheduled_time    DateTime? @map("scheduled_time")     // When customer expects delivery
+  time_window_start DateTime? @map("time_window_start")  // Earliest acceptable time
+  time_window_end   DateTime? @map("time_window_end")    // Latest acceptable time
+  
+  // Estimated Times (calculated by system)
+  estimated_arrival DateTime? @map("estimated_arrival")  // System calculated ETA
+  estimated_departure DateTime? @map("estimated_departure") // When to leave previous stop
+  unloading_time    Int      @default(30) @map("unloading_time") // Minutes to unload
+  
+  // Actual Times (recorded by driver)
+  actual_arrival    DateTime? @map("actual_arrival")
+  actual_departure  DateTime? @map("actual_departure")
+  
+  // Delivery Details
+  delivery_items    Json?    @map("delivery_items")     // Items being delivered
+  special_instructions String? @map("special_instructions")
+  access_notes      String?  @map("access_notes")       // Gate codes, access instructions
+  
+  // Status & Completion
+  status            String   @default("PLANNED") // PLANNED, EN_ROUTE, ARRIVED, DELIVERED, FAILED
+  delivery_notes    String?  @map("delivery_notes")
+  completion_photos Json?    @map("completion_photos")  // Proof of delivery photos
+  recipient_name    String?  @map("recipient_name")     // Who received the delivery
+  signature_data    String?  @map("signature_data")     // Digital signature (base64)
+  
+  // Customer Communication
+  notification_sent Boolean  @default(false) @map("notification_sent")
+  notification_type String?  @map("notification_type")  // SMS, EMAIL, BOTH
+  customer_phone    String?  @map("customer_phone")     // Phone for SMS notifications
+  customer_email    String?  @map("customer_email")     // Email for notifications
+  
+  // System Fields
+  created_at        DateTime @default(now()) @map("created_at")
+  updated_at        DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  notifications     DeliveryNotification[]
+  
+  @@map("deliveries")
+}
+
+// Delivery Notifications Log
+model DeliveryNotification {
+  id            String   @id @default(uuid())
+  delivery_id   String   @map("delivery_id")
+  delivery      Delivery @relation(fields: [delivery_id], references: [id], onDelete: Cascade)
+  
+  // Notification Details
+  type          String   // SMS, EMAIL
+  recipient     String   // Phone number or email address
+  message       String   // Message content
+  status        String   @default("PENDING") // PENDING, SENT, DELIVERED, FAILED
+  
+  // Timing
+  scheduled_at  DateTime? @map("scheduled_at")  // When to send (for scheduled notifications)
+  sent_at       DateTime? @map("sent_at")       // When actually sent
+  delivered_at  DateTime? @map("delivered_at")  // When delivered (if available)
+  
+  // Response Tracking
+  response_data Json?    @map("response_data")  // API response from SMS/email provider
+  error_message String?  @map("error_message")  // Error details if failed
+  
+  created_at    DateTime @default(now()) @map("created_at")
+  updated_at    DateTime @updatedAt @map("updated_at")
+  
+  @@map("delivery_notifications")
+}
+
+// Route Optimization History - Store optimization results for analysis
+model RouteOptimization {
+  id                String   @id @default(uuid())
+  delivery_run_id   String   @map("delivery_run_id")
+  delivery_run      DeliveryRun @relation(fields: [delivery_run_id], references: [id], onDelete: Cascade)
+  
+  // Optimization Input
+  input_stops       Json     @map("input_stops")       // Original stops before optimization
+  constraints       Json?    @map("constraints")       // Time windows, vehicle capacity, etc.
+  
+  // Optimization Output
+  optimized_sequence Json    @map("optimized_sequence") // Optimal stop sequence
+  estimated_distance Float?  @map("estimated_distance") // Total distance
+  estimated_duration Int?    @map("estimated_duration") // Total time (minutes)
+  
+  // Google Maps API Data
+  google_route_data Json?    @map("google_route_data")  // Raw API response
+  waypoints         Json?    @map("waypoints")          // Optimized waypoint order
+  
+  // Optimization Metadata
+  algorithm_version String?  @map("algorithm_version")  // Which optimization algorithm used
+  processing_time   Int?     @map("processing_time")    // How long optimization took (ms)
+  optimization_score Float?  @map("optimization_score") // Quality score of optimization
+  
+  created_at        DateTime @default(now()) @map("created_at")
+  
+  @@map("route_optimizations")
 }

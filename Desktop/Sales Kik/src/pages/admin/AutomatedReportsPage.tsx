@@ -249,7 +249,7 @@ export default function AutomatedReportsPage() {
 
       {/* Automated Reporting Dashboard - Temporarily Disabled */}
       {showDashboard && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl p-6 max-w-md">
             <h3 className="text-lg font-bold mb-4">Automated Reports</h3>
             <p className="text-gray-600 mb-4">Automated reporting system temporarily disabled during development.</p>

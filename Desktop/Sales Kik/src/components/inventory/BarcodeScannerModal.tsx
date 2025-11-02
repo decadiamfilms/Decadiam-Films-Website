@@ -163,7 +163,7 @@ const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 </div>
                 {/* Instructions */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center">
-                  <p className="text-sm bg-black bg-opacity-50 px-3 py-1 rounded">
+                  <p className="text-sm bg-white bg-opacity-90 px-3 py-1 rounded">
                     Point camera at barcode
                   </p>
                 </div>

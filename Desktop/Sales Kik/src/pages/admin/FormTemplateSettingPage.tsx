@@ -434,6 +434,32 @@ export default function FormTemplateSettingPage() {
             isDefault: true,
             createdAt: new Date(),
             updatedAt: new Date()
+          },
+          {
+            id: 'corporate-red',
+            name: 'Executive Burgundy',
+            documentType: 'Template',
+            description: 'Sophisticated executive design with warm burgundy accents and premium typography',
+            fields: [],
+            globalStyling: {
+              fontFamily: 'Inter',
+              primaryColor: '#991b1b',
+              secondaryColor: '#7f1d1d',
+              backgroundColor: '#ffffff',
+              headerStyle: 'gradient',
+              logoPosition: 'left',
+              tableStyle: 'modern',
+              headerBackgroundColor: '#fef2f2',
+              tableHeaderColor: '#991b1b',
+              textColor: '#374151',
+              accentColor: '#dc2626',
+              logoSize: 42,
+              showCompanyName: true,
+              showLogo: true
+            },
+            isDefault: true,
+            createdAt: new Date(),
+            updatedAt: new Date()
           }
         ];
       setTemplates(defaultTemplates);
@@ -1117,6 +1143,209 @@ export default function FormTemplateSettingPage() {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (template.id === 'corporate-red') {
+      return (
+        <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-lg overflow-hidden" style={{ fontFamily: globalStyling.fontFamily }}>
+          {/* Elegant Header with Gradient */}
+          <div 
+            className="p-8 border-b"
+            style={{ 
+              background: `linear-gradient(135deg, ${globalStyling.headerBackgroundColor} 0%, #ffffff 50%, #fef7f7 100%)`,
+              borderBottomColor: globalStyling.primaryColor,
+              borderBottomWidth: '3px'
+            }}
+          >
+            <div className="flex justify-between items-start">
+              {/* Left: Company Info with Elegant Logo */}
+              <div className="flex items-center gap-6">
+                <div 
+                  className="w-16 h-16 rounded-full flex items-center justify-center shadow-md"
+                  style={{ 
+                    backgroundColor: globalStyling.primaryColor,
+                    color: 'white',
+                    fontSize: '24px',
+                    fontWeight: '700'
+                  }}
+                >
+                  {companyProfile?.name?.substring(0, 2).toUpperCase() || 'SK'}
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold mb-1" style={{ color: globalStyling.primaryColor }}>
+                    {companyProfile?.name || 'Your Company'}
+                  </h1>
+                  <div className="text-sm" style={{ color: globalStyling.textColor }}>
+                    Professional Services & Solutions
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: Quote Details in Card */}
+              <div 
+                className="bg-white rounded-lg p-4 shadow-sm border"
+                style={{ borderColor: globalStyling.primaryColor }}
+              >
+                <div className="text-center">
+                  <div className="font-bold text-xl mb-2" style={{ color: globalStyling.primaryColor }}>QUOTATION</div>
+                  <div className="text-sm space-y-1" style={{ color: globalStyling.textColor }}>
+                    <div><span className="font-medium">Quote No:</span> QUO-001</div>
+                    <div><span className="font-medium">Date:</span> {new Date().toLocaleDateString()}</div>
+                    <div><span className="font-medium">Valid Until:</span> {new Date(Date.now() + 30*24*60*60*1000).toLocaleDateString()}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Content Section */}
+          <div className="p-8">
+            {/* From/To Section with Enhanced Cards */}
+            <div className="grid grid-cols-2 gap-8 mb-10">
+              <div 
+                className="p-5 rounded-lg border"
+                style={{ 
+                  backgroundColor: '#fefefe',
+                  borderColor: globalStyling.primaryColor,
+                  borderWidth: '1px'
+                }}
+              >
+                <h3 className="font-bold mb-3 pb-2 border-b" style={{ color: globalStyling.primaryColor }}>From</h3>
+                <div className="text-sm space-y-1" style={{ color: globalStyling.textColor }}>
+                  <div className="font-semibold">{companyProfile?.name || 'Your Company'}</div>
+                  <div>{companyProfile?.contactName || 'Contact Name'}</div>
+                  <div className="flex items-center gap-2">
+                    <span>📧</span>
+                    <span>{companyProfile?.email || 'email@company.com'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>📞</span>
+                    <span>{companyProfile?.phone || 'Phone Number'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>🌐</span>
+                    <span>{companyProfile?.website || 'website.com'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span>📍</span>
+                    <span>{companyProfile?.address || 'Company Address'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div 
+                className="p-5 rounded-lg border"
+                style={{ 
+                  backgroundColor: '#fefefe',
+                  borderColor: '#e5e7eb',
+                  borderWidth: '1px'
+                }}
+              >
+                <h3 className="font-bold mb-3 pb-2 border-b" style={{ color: globalStyling.primaryColor }}>Bill To</h3>
+                <div className="text-sm space-y-1" style={{ color: globalStyling.textColor }}>
+                  <div className="font-semibold">[Customer Company]</div>
+                  <div>[Customer Contact]</div>
+                  <div>[Customer Email]</div>
+                  <div>[Customer Phone]</div>
+                  <div>[Customer Address]</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Elegant Items Table */}
+            <div className="mb-10">
+              <h3 className="font-bold mb-4 text-lg" style={{ color: globalStyling.primaryColor }}>Quote Items</h3>
+              <div className="rounded-lg overflow-hidden border" style={{ borderColor: '#e5e7eb' }}>
+                <table className="w-full">
+                  <thead>
+                    <tr style={{ background: `linear-gradient(135deg, ${globalStyling.tableHeaderColor} 0%, ${globalStyling.secondaryColor} 100%)` }}>
+                      <th className="p-4 text-left text-sm font-semibold text-white">Description</th>
+                      <th className="p-4 text-left text-sm font-semibold text-white">Rate</th>
+                      <th className="p-4 text-center text-sm font-semibold text-white">Qty</th>
+                      <th className="p-4 text-center text-sm font-semibold text-white">Tax</th>
+                      <th className="p-4 text-center text-sm font-semibold text-white">Disc</th>
+                      <th className="p-4 text-right text-sm font-semibold text-white">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="hover:bg-gray-50">
+                      <td className="p-4 border-b border-gray-100">
+                        <div className="font-medium" style={{ color: globalStyling.textColor }}>[Premium Item Description]</div>
+                        <div className="text-xs mt-1" style={{ color: '#6b7280' }}>Professional grade materials and expert installation</div>
+                      </td>
+                      <td className="p-4 border-b border-gray-100 text-sm" style={{ color: globalStyling.textColor }}>$[Rate]</td>
+                      <td className="p-4 border-b border-gray-100 text-center text-sm" style={{ color: globalStyling.textColor }}>[Qty]</td>
+                      <td className="p-4 border-b border-gray-100 text-center text-sm" style={{ color: globalStyling.textColor }}>[Tax%]</td>
+                      <td className="p-4 border-b border-gray-100 text-center text-sm" style={{ color: globalStyling.textColor }}>[Disc%]</td>
+                      <td className="p-4 border-b border-gray-100 text-right font-semibold" style={{ color: globalStyling.primaryColor }}>$[Amount]</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Enhanced Bottom Section */}
+            <div className="grid grid-cols-3 gap-8">
+              {/* Payment Instructions */}
+              <div 
+                className="p-5 rounded-lg"
+                style={{ backgroundColor: '#fefefe', border: '1px solid #e5e7eb' }}
+              >
+                <h4 className="font-bold mb-3" style={{ color: globalStyling.primaryColor }}>
+                  💳 Payment Options
+                </h4>
+                <div className="text-sm space-y-2" style={{ color: globalStyling.textColor }}>
+                  <div><strong>Email Transfer:</strong><br/>{companyProfile?.email || 'payment@company.com'}</div>
+                  <div><strong>Cheque Payable To:</strong><br/>{companyProfile?.name || 'Company Name'}</div>
+                  <div><strong>Bank Transfer:</strong><br/>Contact for details</div>
+                </div>
+              </div>
+
+              {/* Terms & Notes */}
+              <div>
+                <h4 className="font-bold mb-3" style={{ color: globalStyling.primaryColor }}>
+                  📋 Terms & Notes
+                </h4>
+                <div className="text-xs leading-relaxed" style={{ color: '#6b7280' }}>
+                  • Payment due within 30 days<br/>
+                  • Quote valid for 30 days<br/>
+                  • Professional installation included<br/>
+                  • All materials warranty covered<br/>
+                  • [Additional Terms]
+                </div>
+              </div>
+
+              {/* Totals & Signature */}
+              <div>
+                <div 
+                  className="p-4 rounded-lg mb-6"
+                  style={{ backgroundColor: '#fef7f7', border: `1px solid ${globalStyling.primaryColor}` }}
+                >
+                  <div className="text-right text-sm space-y-2" style={{ color: globalStyling.textColor }}>
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <strong>$[Subtotal]</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax:</span>
+                      <span>$[Tax]</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Discount:</span>
+                      <span>$[Discount]</span>
+                    </div>
+                    <div className="border-t pt-2 flex justify-between font-bold text-lg">
+                      <span>Total:</span>
+                      <span style={{ color: globalStyling.primaryColor }}>$[Total]</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
         </div>

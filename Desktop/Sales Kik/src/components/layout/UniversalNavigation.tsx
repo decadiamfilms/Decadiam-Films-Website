@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SessionManager from '../../utils/sessionManager';
+import { usePermissions } from '../../context/PermissionContext';
 import { 
   HomeIcon, UsersIcon, CubeIcon, DocumentTextIcon, 
   ShoppingCartIcon, CreditCardIcon, ChartBarIcon,
-  Cog6ToothIcon, ArrowRightOnRectangleIcon,
+  Cog6ToothIcon, ArrowRightOnRectangleIcon, QuestionMarkCircleIcon,
   CalendarIcon, ArchiveBoxIcon, UserGroupIcon, 
   PuzzlePieceIcon, ListBulletIcon, ClipboardDocumentCheckIcon,
-  ChevronDownIcon, Bars3Icon, XMarkIcon, RectangleStackIcon
+  ChevronDownIcon, Bars3Icon, XMarkIcon, RectangleStackIcon,
+  TruckIcon, MapIcon, ClockIcon
 } from '@heroicons/react/24/outline';
 
 interface UniversalNavigationProps {
@@ -22,9 +24,11 @@ interface UniversalNavigationProps {
 export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', userRole = 'ADMIN', isOpen, onClose, onOpen }: UniversalNavigationProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { canAccessMenu, isAdmin } = usePermissions();
   const [showInventoryDropdown, setShowInventoryDropdown] = useState(false);
   const [showCompanySettingsDropdown, setShowCompanySettingsDropdown] = useState(false);
   const [showQuotesOrdersDropdown, setShowQuotesOrdersDropdown] = useState(false);
+  const [showLogisticsDropdown, setShowLogisticsDropdown] = useState(false);
   const [showContactsDropdown, setShowContactsDropdown] = useState(false);
   const [showAdminToolsDropdown, setShowAdminToolsDropdown] = useState(false);
   const [hoverTimeout, setHoverTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -241,6 +245,7 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                   <li>
                     <button
                       onClick={() => setShowInventoryDropdown(!showInventoryDropdown)}
+                      data-tour="inventory-link"
                       className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
                         isCurrentPage('/inventory')
                           ? 'text-amber-600 bg-amber-50'
@@ -268,18 +273,20 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                           Stock Check & Management
                         </a>
                       </li>
-                      <li>
-                        <a 
-                          href="/inventory/purchase-orders" 
-                          className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg ml-3 transition-colors ${
-                            isCurrentPage('/inventory/purchase-orders')
-                              ? 'text-amber-600 bg-amber-50'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          Purchase Orders
-                        </a>
-                      </li>
+                      {canAccessMenu('purchase') && (
+                        <li>
+                          <a 
+                            href="/inventory/purchase-orders" 
+                            className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg ml-3 transition-colors ${
+                              isCurrentPage('/inventory/purchase-orders')
+                                ? 'text-amber-600 bg-amber-50'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            Purchase Orders
+                          </a>
+                        </li>
+                      )}
                       <li>
                         <a 
                           href="/inventory/stocktakes" 
@@ -349,6 +356,7 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                       <li>
                         <a 
                           href="/quotes" 
+                          data-tour="quotes-link"
                           className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg ml-3 transition-colors ${
                             location.pathname === '/quotes'
                               ? 'text-amber-600 bg-amber-50'
@@ -407,6 +415,26 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                         </a>
                       </li>
                     </>
+                  )}
+                  
+                  {/* Logistics & Delivery - Temporary Simple Link */}
+                  {canAccessMenu('logistics') && (
+                    <li>
+                      <a 
+                        href="/logistics/delivery-scheduling" 
+                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          isCurrentPage('/logistics')
+                            ? 'text-amber-600 bg-amber-50'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <TruckIcon className="w-5 h-5 mr-3" />
+                        Logistics
+                        <span className="ml-2 text-xs bg-emerald-100 text-emerald-600 px-2 py-1 rounded">
+                          NEW
+                        </span>
+                      </a>
+                    </li>
                   )}
 
                 </>
@@ -473,6 +501,20 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                   {finalUserRole === 'EMPLOYEE' ? 'My Profile' : 'Settings'}
                 </a>
               </li>
+
+              <li>
+                <a 
+                  href="/help"
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isCurrentPage('/help')
+                      ? 'text-amber-600 bg-amber-50'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <QuestionMarkCircleIcon className="w-5 h-5 mr-3" />
+                  Help & Support
+                </a>
+              </li>
               
               <li>
                 <button 
@@ -509,6 +551,7 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                       <li>
                         <a 
                           href="/inventory/builder" 
+                          data-tour="categories-link"
                           className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg ml-3 transition-colors ${
                             isCurrentPage('/inventory/builder')
                               ? 'text-amber-600 bg-amber-50'
@@ -520,23 +563,27 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                       </li>
                       
                       {/* Product Management */}
-                      <li>
-                        <a 
-                          href="/products" 
-                          className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg ml-3 transition-colors ${
-                            isCurrentPage('/products')
-                              ? 'text-amber-600 bg-amber-50'
-                              : 'text-gray-600 hover:bg-gray-50'
-                          }`}
-                        >
-                          Product Management
-                        </a>
-                      </li>
+                      {canAccessMenu('products') && (
+                        <li>
+                          <a 
+                            href="/products" 
+                            data-tour="products-link"
+                            className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg ml-3 transition-colors ${
+                              isCurrentPage('/products')
+                                ? 'text-amber-600 bg-amber-50'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            Product Management
+                          </a>
+                        </li>
+                      )}
                       
                       {/* Contacts/Customers */}
                       <li>
                         <a 
                           href="/customers" 
+                          data-tour="customers-link"
                           className={`flex items-center px-6 py-2 text-sm font-medium rounded-lg ml-3 transition-colors ${
                             location.pathname === '/customers'
                               ? 'text-amber-600 bg-amber-50'
@@ -825,19 +872,21 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
                       {finalUserRole === 'MANAGER' ? 'Management' : 'My Tools'}
                     </p>
                   </li>
-                  <li>
-                    <a 
-                      href="/products" 
-                      className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                        isCurrentPage('/products')
-                          ? 'text-amber-600 bg-amber-50'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <CubeIcon className="w-5 h-5 mr-3" />
-                      Product Management
-                    </a>
-                  </li>
+                  {canAccessMenu('products') && (
+                    <li>
+                      <a 
+                        href="/products" 
+                        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          isCurrentPage('/products')
+                            ? 'text-amber-600 bg-amber-50'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <CubeIcon className="w-5 h-5 mr-3" />
+                        Product Management
+                      </a>
+                    </li>
+                  )}
                   <li>
                     <a 
                       href="/stockflow" 
@@ -904,7 +953,7 @@ export function UniversalNavigation({ currentPage, userPlan = 'SMALL_BUSINESS', 
       {/* Overlay - only on mobile */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-20 z-40 md:hidden"
+          className="fixed inset-0 bg-white bg-opacity-50 z-40 md:hidden"
           onClick={onClose}
         />
       )}

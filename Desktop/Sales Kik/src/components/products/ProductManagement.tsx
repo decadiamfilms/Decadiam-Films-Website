@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
 import HybridBulkUpload from './HybridBulkUpload';
+import { useAutoStartSimpleTour, SimpleTourButton } from '../tour/SimpleTour';
 import { 
   PlusIcon, MagnifyingGlassIcon, PencilIcon, TrashIcon, 
   PhotoIcon, DocumentArrowDownIcon, CubeIcon, 
@@ -182,6 +183,9 @@ interface Subcategory {
 
 export default function ProductManagement() {
   const navigate = useNavigate();
+  
+  // Auto-start product tour if continuing from categories
+  useAutoStartSimpleTour();
 
   // Helper function to reconstruct subcategory path from database IDs
   const reconstructSubcategoryPath = (mainCategoryId: string, subCategoryId: string, subSubCategoryId: string, subSubSubCategoryId: string, categories: Category[]) => {

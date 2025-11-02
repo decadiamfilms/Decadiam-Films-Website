@@ -1,6 +1,10 @@
 import React from 'react';
+import { useAutoStartSimpleTour, SimpleTourButton } from '../../components/tour/SimpleTour';
 
 const ProductsPage: React.FC = () => {
+  // Auto-start tour if continuing from categories
+  useAutoStartSimpleTour();
+
   return (
     <div>
       <div className="mb-8">
@@ -13,6 +17,9 @@ const ProductsPage: React.FC = () => {
           Products module coming soon...
         </div>
       </div>
+      
+      {/* Simple Tour Button */}
+      <SimpleTourButton />
     </div>
   );
 };

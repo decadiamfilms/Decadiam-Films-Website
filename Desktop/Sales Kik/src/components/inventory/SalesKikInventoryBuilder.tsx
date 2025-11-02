@@ -4,6 +4,7 @@ import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
 import CategoryEditor from '../products/CategoryEditor';
 import SubcategoryLibrary from '../products/SubcategoryLibrary';
+import { useAutoStartSimpleTour, SimpleTourButton } from '../tour/SimpleTour';
 import { 
   PlusIcon, XMarkIcon, EyeIcon, CogIcon, 
   ArrowRightIcon, DocumentArrowDownIcon, ArrowUpTrayIcon,
@@ -137,6 +138,10 @@ export default function SalesKikInventoryBuilder() {
   // Sidebar state
   const [showSidebar, setShowSidebar] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  
+  // Auto-start simple tour for continuations
+  useAutoStartSimpleTour();
+  
 
   const tabs = [
     { id: 'structure', name: 'Category Structure', icon: AdjustmentsHorizontalIcon, description: 'Build categories with library integration' },
@@ -563,6 +568,7 @@ function CategoryStructureBuilder({ categories, onCategoriesUpdate, onLogAction 
         </div>
         <button
           onClick={addNewCategory}
+          data-tour="add-category"
           className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center gap-3 font-semibold mx-auto transform hover:-translate-y-1"
         >
           <PlusIcon className="w-6 h-6" />
@@ -1668,6 +1674,12 @@ function CorrectSystemPreview({ categories, products }: {
           </p>
         </div>
       </div>
+      
+      {/* Tour Controls */}
+      <TourControls />
+      
+      {/* Simple Tour Button */}
+      <SimpleTourButton />
     </div>
   );
 }

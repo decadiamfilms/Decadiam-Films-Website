@@ -17,7 +17,11 @@ import { GlobalTour } from './components/tour/SimpleTour';
 import { DashboardRouter } from './components/routing/DashboardRouter';
 import { MainDashboard } from './components/dashboard/MainDashboard';
 import { ModuleManagement } from './components/dashboard/ModuleManagement';
+import { PermissionProvider } from './context/PermissionContext';
 import { EmployeeManagement } from './components/employees/EmployeeManagement';
+import EmployeeProfilePage from './pages/EmployeeProfilePage';
+import HelpPage from './pages/HelpPage';
+import GlobalErrorBoundary from './components/error/GlobalErrorBoundary';
 import { CustomerManagement } from './components/customers/CustomerManagement';
 import { SupplierManagement } from './components/suppliers/SupplierManagement';
 import { InventoryManagement } from './components/inventory/InventoryManagement';
@@ -50,8 +54,8 @@ import NewQuotePage from './pages/quotes/NewQuotePage';
 import NewOrderPage from './pages/orders/NewOrderPage';
 import OrdersPage from './pages/orders/OrdersPage';
 import InvoicesPage from './pages/invoices/InvoicesPage';
-import SettingsPage from './pages/settings/SettingsPage';
-import ProfilePage from './pages/profile/ProfilePage';
+import SettingsPage from './pages/settings/ComprehensiveSettingsPage';
+// import ProfilePage from './pages/profile/ProfilePage'; // Replaced with EmployeeProfilePage
 import CustomGlassPage from './pages/inventory/CustomGlassPage';
 import GlassModuleAdminPage from './pages/admin/GlassModuleAdminPage';
 import CompanyProfilePage from './pages/admin/company/CompanyProfilePage';
@@ -68,6 +72,8 @@ import StockCheckPage from './pages/inventory/StockCheckPage';
 import NewStocktakePage from './pages/inventory/NewStocktakePage';
 import StocktakeSessionPage from './pages/inventory/StocktakeSessionPage';
 import StocktakesPage from './pages/inventory/StocktakesPage';
+import DeliverySchedulingPage from './pages/logistics/DeliverySchedulingPage';
+import FleetManagementPage from './pages/logistics/FleetManagementPage';
 
 function App() {
   try {
@@ -87,9 +93,11 @@ function App() {
     }
 
     return (
-      <div className="min-h-screen bg-gray-50" style={{ isolation: 'isolate' }}>
-        <NotificationContainer />
-        <Routes>
+      <GlobalErrorBoundary>
+        <PermissionProvider>
+          <div className="min-h-screen bg-gray-50" style={{ isolation: 'isolate' }}>
+            <NotificationContainer />
+            <Routes>
           {/* Public Routes (no authentication required) */}
           <Route path="/quote/view/:quoteId" element={<PublicQuoteView />} />
           <Route path="/purchase-order/view/:orderId" element={<PublicPurchaseOrderView />} />
@@ -110,8 +118,7 @@ function App() {
           {/* Module Management Page */}
           <Route path="/modules" element={<ProtectedRoute><ModuleManagement /></ProtectedRoute>} />
           
-          {/* Profile Page */}
-          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          {/* Profile Page - Now handled by EmployeeProfilePage below */}
 
           {/* Protected Feature Routes */}
           <Route path="/customers" element={<ProtectedRoute><CustomerManagement /></ProtectedRoute>} />
@@ -151,6 +158,8 @@ function App() {
           <Route path="/admin/glass" element={<ProtectedRoute><GlassAdminPage /></ProtectedRoute>} />
           <Route path="/admin/custom-pricelists" element={<ProtectedRoute><CustomPricelistsPage /></ProtectedRoute>} />
           <Route path="/employee-dashboard" element={<ProtectedRoute><EmployeeDashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><EmployeeProfilePage /></ProtectedRoute>} />
+          <Route path="/help" element={<ProtectedRoute><HelpPage /></ProtectedRoute>} />
           <Route path="/quotes" element={<QuotesPage />} />
           <Route path="/quotes/new" element={<ProtectedRoute><NewQuotePage /></ProtectedRoute>} />
           <Route path="/quotes/new-real" element={
@@ -185,6 +194,13 @@ function App() {
           <Route path="/orders/new" element={<NewOrderPage />} />
           <Route path="/invoices" element={<ProtectedRoute><InvoicesPage /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+          
+          {/* Logistics Routes */}
+          <Route path="/logistics/delivery-scheduling" element={<ProtectedRoute><DeliverySchedulingPage /></ProtectedRoute>} />
+          <Route path="/logistics/route-optimization" element={<ProtectedRoute><DeliverySchedulingPage /></ProtectedRoute>} />
+          <Route path="/logistics/fleet-management" element={<ProtectedRoute><FleetManagementPage /></ProtectedRoute>} />
+          <Route path="/logistics/driver-management" element={<ProtectedRoute><FleetManagementPage /></ProtectedRoute>} />
+          <Route path="/logistics/delivery-tracking" element={<ProtectedRoute><DeliverySchedulingPage /></ProtectedRoute>} />
 
           {/* Dashboard Route - Smart redirect based on onboarding status */}
           <Route path="/dashboard" element={<ProtectedRoute><DashboardRouter /></ProtectedRoute>} />
@@ -195,8 +211,10 @@ function App() {
         
         {/* Global Tour Component */}
         <GlobalTour />
-      </div>
-    );
+        </div>
+      </PermissionProvider>
+    </GlobalErrorBoundary>
+  );
   } catch (error) {
     return (
       <div className="min-h-screen bg-red-50 flex items-center justify-center">

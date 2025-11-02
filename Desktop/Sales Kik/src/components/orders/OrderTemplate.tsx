@@ -474,10 +474,11 @@ export const generateOrderTemplate = (orderData: any, globalStyling: any, compan
                                         <div class="font-medium">${item.customName || item.product.name}</div>
                                         ${!pdfSettings.hideDescription ? `
                                         <div class="item-description">
-                                            ${!item.isCustom && item.product.code ? `<span style="color: #6b7280; font-weight: 500;">SKU:</span> ${item.product.code}` : ''}
-                                            ${item.isCustom ? '<span style="color: #7c3aed; font-weight: 600; background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 11px;">CUSTOM ITEM</span>' : ''}
+                                            ${!pdfSettings.hideProductType && !item.isCustom && item.product.code ? `<span style="color: #6b7280; font-weight: 500;">SKU:</span> ${item.product.code}` : ''}
+                                            ${!pdfSettings.hideProductType && item.isCustom ? '<span style="color: #7c3aed; font-weight: 600; background: #f3f4f6; padding: 2px 6px; border-radius: 3px; font-size: 11px;">CUSTOM ITEM</span>' : ''}
                                             ${section.name !== 'Main Project' ? `<span style="color: #059669; font-weight: 500;"> • Job:</span> ${section.name}` : ''}
-                                            ${section.description ? `<br><div style="color: #374151; font-style: italic; font-size: 12px; line-height: 1.4; margin-top: 4px;">${section.description}</div>` : ''}
+                                            ${section.description && !pdfSettings.hideCustomProcess ? `<br><div style="color: #374151; font-style: italic; font-size: 12px; line-height: 1.4; margin-top: 4px;">${section.description}</div>` : ''}
+                                            ${pdfSettings.showKitItems && item.kitItems ? `<br><div style="color: #059669; font-size: 11px; margin-top: 4px;"><strong>Kit includes:</strong> ${item.kitItems.join(', ')}</div>` : ''}
                                         </div>
                                         ` : ''}
                                     </td>
@@ -648,6 +649,33 @@ export const generateOrderTemplate = (orderData: any, globalStyling: any, compan
             </div>
             ` : ''}
         </div>
+        
+        <!-- Order Acceptance Signature Section -->
+        ${pdfSettings.insertAcceptanceSignature ? `
+        <div class="section" style="margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+            <h2 class="section-title">Order Confirmation</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
+                <div>
+                    <p style="font-weight: 600; margin-bottom: 10px; color: #374151;">Customer Signature</p>
+                    <div style="border-bottom: 2px solid #d1d5db; height: 50px; margin-bottom: 10px;"></div>
+                    <p style="font-size: 11px; color: #6b7280;">Print Name: _________________________</p>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 5px;">Date: _________________________</p>
+                </div>
+                <div>
+                    <p style="font-weight: 600; margin-bottom: 10px; color: #374151;">Order Processed By</p>
+                    <div style="border-bottom: 2px solid #d1d5db; height: 50px; margin-bottom: 10px;"></div>
+                    <p style="font-size: 11px; color: #6b7280;">Print Name: _________________________</p>
+                    <p style="font-size: 11px; color: #6b7280; margin-top: 5px;">Date: _________________________</p>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding: 12px; background-color: #f9fafb; border-radius: 6px; border-left: 4px solid ${globalStyling.primaryColor || '#3b82f6'};">
+                <p style="font-size: 11px; color: #374151; line-height: 1.4;">
+                    <strong>By signing above, you confirm this order and authorize processing. 
+                    Please review all details carefully before signing.</strong>
+                </p>
+            </div>
+        </div>
+        ` : ''}
         
         <!-- Footer -->
         <div class="footer">

@@ -107,7 +107,7 @@ export default function EmailDeliveryDashboard({ isOpen, onClose }: EmailDeliver
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
         
         {/* Header */}
@@ -431,7 +431,7 @@ export default function EmailDeliveryDashboard({ isOpen, onClose }: EmailDeliver
 
         {/* Email Details Modal */}
         {showEmailDetails && selectedEmail && (
-          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-60">
+          <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center p-4 z-60">
             <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
               <div className="flex items-center justify-between p-4 border-b border-gray-200">
                 <h4 className="font-medium text-gray-900">Email Details</h4>

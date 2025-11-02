@@ -10,6 +10,7 @@ import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
 import { useCategoryStructure } from '../../hooks/useCategoryStructure';
 import { dataService } from '../../services/api.service';
+import { useAutoStartSimpleTour, SimpleTourButton } from '../tour/SimpleTour';
 
 interface Customer {
   id: string;
@@ -103,6 +104,12 @@ interface Category {
 export function CustomerManagement() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  
+  // Auto-start customer tour if continuing from products
+  useAutoStartSimpleTour();
+  
+  // Debug: Show tour trigger status
+  console.log('CustomerManagement loaded, session storage:', sessionStorage.getItem('continue-tour'));
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [showAddCustomerModal, setShowAddCustomerModal] = useState(false);
   const [showConfirmCancel, setShowConfirmCancel] = useState(false);

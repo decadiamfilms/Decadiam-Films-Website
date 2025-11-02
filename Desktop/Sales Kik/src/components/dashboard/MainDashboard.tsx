@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QuickStartWizard from '../setup/QuickStartWizard';
+import { SimpleTourButton, useAutoStartSimpleTour } from '../tour/SimpleTour';
 import { 
   HomeIcon, 
   UsersIcon, 
@@ -38,6 +39,9 @@ export function MainDashboard() {
   const [showSidebar, setShowSidebar] = useState(false);
   const [showQuickStart, setShowQuickStart] = useState(false); // Temporarily disabled
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  
+  // Simple tour system for first-time users
+  useAutoStartSimpleTour();
 
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
 
@@ -659,6 +663,9 @@ function RegularDashboard() {
           </div>
         </div>
       </div>
+      
+      {/* Simple Tour Button */}
+      <SimpleTourButton />
     </div>
   );
 }

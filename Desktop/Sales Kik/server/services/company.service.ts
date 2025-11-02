@@ -13,6 +13,10 @@ export interface UpdateCompanyData {
   website?: string;
   address?: any;
   gstEnabled?: boolean;
+  logo?: string;
+  logoUrl?: string;
+  industry?: string;
+  teamSize?: string;
 }
 
 export interface PaymentProfileData {
@@ -24,12 +28,12 @@ export interface PaymentProfileData {
 }
 
 export class CompanyService {
-  async getCompany(companyId: string) {
+  async getCompany(company_id: string) {
     const company = await prisma.company.findUnique({
-      where: { id: companyId },
+      where: { id: company_id },
       include: {
-        paymentProfiles: true,
-        enabledModules: true,
+        settings: true,
+        modules: true,
         _count: {
           select: {
             users: true,
@@ -50,53 +54,53 @@ export class CompanyService {
     return company;
   }
 
-  async updateCompany(companyId: string, data: UpdateCompanyData) {
+  async updateCompany(company_id: string, data: UpdateCompanyData) {
     const company = await prisma.company.update({
-      where: { id: companyId },
+      where: { id: company_id },
       data,
     });
 
     return company;
   }
 
-  async uploadLogo(companyId: string, logoUrl: string) {
+  async uploadLogo(company_id: string, logoUrl: string) {
     const company = await prisma.company.update({
-      where: { id: companyId },
+      where: { id: company_id },
       data: { logoUrl },
     });
 
     return company;
   }
 
-  async createPaymentProfile(companyId: string, data: PaymentProfileData) {
+  async createPaymentProfile(company_id: string, data: PaymentProfileData) {
     // If setting as default, unset other defaults
     if (data.isDefault) {
-      await prisma.paymentProfile.updateMany({
-        where: { companyId, isDefault: true },
+      await prisma.companySetting.updateMany({
+        where: { company_id, isDefault: true },
         data: { isDefault: false },
       });
     }
 
-    const profile = await prisma.paymentProfile.create({
+    const profile = await prisma.companySetting.create({
       data: {
         ...data,
-        companyId,
+        company_id,
       },
     });
 
     return profile;
   }
 
-  async updatePaymentProfile(profileId: string, companyId: string, data: Partial<PaymentProfileData>) {
+  async updatePaymentProfile(profileId: string, company_id: string, data: Partial<PaymentProfileData>) {
     // If setting as default, unset other defaults
     if (data.isDefault) {
-      await prisma.paymentProfile.updateMany({
-        where: { companyId, isDefault: true },
+      await prisma.companySetting.updateMany({
+        where: { company_id, isDefault: true },
         data: { isDefault: false },
       });
     }
 
-    const profile = await prisma.paymentProfile.update({
+    const profile = await prisma.companySetting.update({
       where: { id: profileId },
       data,
     });
@@ -104,37 +108,37 @@ export class CompanyService {
     return profile;
   }
 
-  async deletePaymentProfile(profileId: string, companyId: string) {
+  async deletePaymentProfile(profileId: string, company_id: string) {
     // Check if it's the only profile
-    const count = await prisma.paymentProfile.count({
-      where: { companyId },
+    const count = await prisma.companySetting.count({
+      where: { company_id },
     });
 
     if (count <= 1) {
       throw new Error('Cannot delete the last payment profile');
     }
 
-    await prisma.paymentProfile.delete({
+    await prisma.companySetting.delete({
       where: { id: profileId },
     });
 
     return { success: true };
   }
 
-  async getPaymentProfiles(companyId: string) {
-    const profiles = await prisma.paymentProfile.findMany({
-      where: { companyId },
+  async getPaymentProfiles(company_id: string) {
+    const profiles = await prisma.companySetting.findMany({
+      where: { company_id },
       orderBy: { isDefault: 'desc' },
     });
 
     return profiles;
   }
 
-  async enableModule(companyId: string, moduleId: string, userId: string) {
-    const existingModule = await prisma.enabledModule.findUnique({
+  async enableModule(company_id: string, moduleId: string, userId: string) {
+    const existingModule = await prisma.companyModule.findUnique({
       where: {
-        companyId_moduleId: {
-          companyId,
+        company_id_moduleId: {
+          company_id,
           moduleId,
         },
       },
@@ -145,7 +149,7 @@ export class CompanyService {
         throw new Error('Module is already enabled');
       } else {
         // Re-enable the module
-        const module = await prisma.enabledModule.update({
+        const module = await prisma.companyModule.update({
           where: { id: existingModule.id },
           data: { isActive: true },
         });
@@ -153,9 +157,9 @@ export class CompanyService {
       }
     }
 
-    const module = await prisma.enabledModule.create({
+    const module = await prisma.companyModule.create({
       data: {
-        companyId,
+        company_id,
         moduleId,
         enabledBy: userId,
         isActive: true,
@@ -165,11 +169,11 @@ export class CompanyService {
     return module;
   }
 
-  async disableModule(companyId: string, moduleId: string) {
-    const module = await prisma.enabledModule.update({
+  async disableModule(company_id: string, moduleId: string) {
+    const module = await prisma.companyModule.update({
       where: {
-        companyId_moduleId: {
-          companyId,
+        company_id_moduleId: {
+          company_id,
           moduleId,
         },
       },
@@ -179,15 +183,15 @@ export class CompanyService {
     return module;
   }
 
-  async getEnabledModules(companyId: string) {
-    const modules = await prisma.enabledModule.findMany({
-      where: { companyId, isActive: true },
+  async getEnabledModules(company_id: string) {
+    const modules = await prisma.companyModule.findMany({
+      where: { company_id, isActive: true },
     });
 
     return modules;
   }
 
-  async getDashboardStats(companyId: string) {
+  async getDashboardStats(company_id: string) {
     const [
       totalCustomers,
       totalProducts,
@@ -196,12 +200,12 @@ export class CompanyService {
       unpaidInvoices,
       monthlyRevenue,
     ] = await Promise.all([
-      prisma.customer.count({ where: { companyId, isActive: true } }),
-      prisma.product.count({ where: { companyId, isActive: true } }),
-      prisma.quote.count({ where: { companyId, status: { in: ['SENT', 'VIEWED'] } } }),
-      prisma.order.count({ where: { companyId, status: { in: ['CONFIRMED', 'IN_PROGRESS'] } } }),
-      prisma.invoice.count({ where: { companyId, status: { in: ['UNPAID', 'OVERDUE'] } } }),
-      this.getMonthlyRevenue(companyId),
+      prisma.customer.count({ where: { company_id, isActive: true } }),
+      prisma.product.count({ where: { company_id, isActive: true } }),
+      prisma.quote.count({ where: { company_id, status: { in: ['SENT', 'VIEWED'] } } }),
+      prisma.order.count({ where: { company_id, status: { in: ['CONFIRMED', 'IN_PROGRESS'] } } }),
+      prisma.invoice.count({ where: { company_id, status: { in: ['UNPAID', 'OVERDUE'] } } }),
+      this.getMonthlyRevenue(company_id),
     ]);
 
     return {
@@ -214,14 +218,14 @@ export class CompanyService {
     };
   }
 
-  private async getMonthlyRevenue(companyId: string) {
+  private async getMonthlyRevenue(company_id: string) {
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
     const invoices = await prisma.invoice.findMany({
       where: {
-        companyId,
+        company_id,
         status: 'PAID',
         createdAt: { gte: startOfMonth },
       },

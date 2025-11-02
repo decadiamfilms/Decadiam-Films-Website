@@ -60,21 +60,50 @@ const CompanyProfilePage: React.FC = () => {
 
   const fetchCompanyData = async () => {
     try {
-      // Load saved data from localStorage
-      const savedProfile = localStorage.getItem('companyProfile');
-      if (savedProfile) {
-        try {
-          const parsed = JSON.parse(savedProfile);
-          setCompanyProfile(parsed);
-        } catch (error) {
-          console.error('Failed to parse saved company profile:', error);
+      // Try to fetch from API first
+      const response = await fetch('/api/company', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.data) {
+          // Map API data to component interface
+          setCompanyProfile({
+            id: result.data.id,
+            name: result.data.name || 'Your Company',
+            type: result.data.type || 'Business',
+            subscriptionStatus: result.data.subscriptionStatus || 'ACTIVE',
+            organizationIntegration: result.data.organizationIntegration,
+            logo: result.data.logoUrl || '',
+            abn: result.data.abnAcn || '',
+            address: typeof result.data.address === 'string' ? result.data.address : 
+                    `${result.data.address?.street || ''} ${result.data.address?.city || ''} ${result.data.address?.state || ''} ${result.data.address?.postcode || ''}`.trim(),
+            phone: result.data.phone || '',
+            email: result.data.email || '',
+            website: result.data.website || ''
+          });
+        }
+      } else {
+        console.log('API not available, using fallback data');
+        // Fallback to localStorage if API fails
+        const savedProfile = localStorage.getItem('companyProfile');
+        if (savedProfile) {
+          try {
+            const parsed = JSON.parse(savedProfile);
+            setCompanyProfile(parsed);
+          } catch (error) {
+            console.error('Failed to parse saved company profile:', error);
+          }
         }
       }
-      
-      // In production, fetch from API
-      setTimeout(() => setLoading(false), 500);
     } catch (error) {
       console.error('Failed to fetch company data:', error);
+      // Keep default fallback data
+    } finally {
       setLoading(false);
     }
   };

@@ -29,17 +29,30 @@ export function UniversalHeader({
 
   // Get user info
   const getUserInfo = () => {
+    console.log('UniversalHeader: Getting user info...');
+    
     const employeeSession = localStorage.getItem('employee-session');
+    console.log('Employee session exists:', !!employeeSession);
+    
     if (employeeSession) {
       try {
         const employee = JSON.parse(employeeSession);
+        console.log('Employee data in header:', employee);
+        
+        // Build full name from firstName and lastName
+        const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 
+                         employee.name || 'Employee';
+        
+        console.log('Built employee name:', fullName);
+        
         return {
-          name: employee.name || 'Employee',
+          name: fullName,
           email: employee.email || '',
           role: employee.role || 'EMPLOYEE',
           isEmployee: true
         };
       } catch (error) {
+        console.log('Error parsing employee session:', error);
         return {
           name: 'Employee',
           email: '',
@@ -49,10 +62,30 @@ export function UniversalHeader({
       }
     }
     
-    // Default admin user
+    // Check if admin user is logged in
+    const currentUser = localStorage.getItem('currentUser');
+    console.log('Current user exists:', !!currentUser);
+    
+    if (currentUser) {
+      try {
+        const user = JSON.parse(currentUser);
+        console.log('Admin user data in header:', user);
+        return {
+          name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.name || 'Admin User',
+          email: user.email || 'adambudai2806@gmail.com',
+          role: user.role || 'ADMIN',
+          isEmployee: false
+        };
+      } catch (error) {
+        console.log('Error parsing current user:', error);
+      }
+    }
+    
+    // Final fallback
+    console.log('Using fallback admin user');
     return {
       name: 'Adam Budai',
-      email: 'adam@eccohardware.com.au',
+      email: 'adambudai2806@gmail.com',
       role: 'ADMIN',
       isEmployee: false
     };
@@ -190,9 +223,17 @@ export function UniversalHeader({
 
             {/* Company Logo/Name */}
             <button
-              onClick={() => navigate('/settings')}
+              onClick={() => {
+                // Check if employee and redirect to appropriate settings
+                const employeeSession = localStorage.getItem('employee-session');
+                if (employeeSession) {
+                  navigate('/profile'); // Employee profile settings
+                } else {
+                  navigate('/settings'); // Admin company settings
+                }
+              }}
               className="flex items-center hover:opacity-80 transition-opacity h-16"
-              title="Company Settings"
+              title={userInfo.isEmployee ? "My Profile" : "Company Settings"}
             >
               {companyLogo ? (
                 <img 

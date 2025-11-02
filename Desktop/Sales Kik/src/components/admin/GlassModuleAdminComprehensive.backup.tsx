@@ -611,7 +611,7 @@ export default function GlassModuleAdminComprehensive() {
                         {showPatternPrompt && (
                           <>
                             {/* Backdrop */}
-                            <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowPatternPrompt(false)} />
+                            <div className="fixed inset-0 bg-white bg-opacity-90 z-40" onClick={() => setShowPatternPrompt(false)} />
                             
                             {/* Modal */}
                             <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg">

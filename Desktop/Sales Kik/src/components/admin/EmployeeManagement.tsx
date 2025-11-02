@@ -4,10 +4,215 @@ import UniversalNavigation from '../layout/UniversalNavigation';
 import UniversalHeader from '../layout/UniversalHeader';
 import { 
   PlusIcon, UserIcon, PencilIcon, TrashIcon, EyeIcon,
-  CheckIcon, XMarkIcon, ShieldCheckIcon, KeyIcon,
+  CheckIcon, XMarkIcon, ShieldCheckIcon, KeyIcon, CubeIcon,
   EnvelopeIcon, PhoneIcon, CalendarIcon, ClockIcon,
   UserCircleIcon, CogIcon, EyeSlashIcon
 } from '@heroicons/react/24/outline';
+
+interface GroupPermissions {
+  manageUsers: {
+    menuPage: boolean;
+    inviteUser: boolean;
+    viewLogs: boolean;
+    manageUserGroup: boolean;
+  };
+  manageCustomers: {
+    menuPage: boolean;
+    addNew: boolean;
+    activateDeactivate: boolean;
+    customerRoles: boolean;
+    inviteCustomer: boolean;
+    creditLimitView: boolean;
+    creditLimitEdit: boolean;
+    accountingTermsView: boolean;
+    accountingTermsEdit: boolean;
+    discounts: boolean;
+  };
+  manageSupplier: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+  };
+  manageManufacturers: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+  };
+  manageProducts: {
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    viewCostPrice: boolean;
+    viewNonRetailPrice: boolean;
+    viewProducts: boolean;
+  };
+  managePackages: {
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+  };
+  manageProductSpecification: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    copy: boolean;
+  };
+  pricingTemplate: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    copy: boolean;
+  };
+  customProcessPrice: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    copy: boolean;
+    viewCostPrice: boolean;
+    viewNonRetailPrice: boolean;
+  };
+  manageOrders: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    negativeCustomText: boolean;
+    changeIndividualPrices: boolean;
+    viewPrices: boolean;
+    superviseOrders: boolean;
+    viewOrders: boolean;
+    cancelOrder: boolean;
+    creditInvoice: boolean;
+  };
+  manageQuotes: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    negativeCustomText: boolean;
+    changeIndividualPrices: boolean;
+    viewPrices: boolean;
+    superviseQuotes: boolean;
+  };
+  manageInvoices: {
+    menuPage: boolean;
+    generate: boolean;
+    newPrices: boolean;
+    delete: boolean;
+    negativeCustomText: boolean;
+    changeIndividualPrices: boolean;
+    markSupplied: boolean;
+    draft: boolean;
+    print: boolean;
+    payInvoice: boolean;
+    showPrices: boolean;
+    approveDraftInvoice: boolean;
+    refreshXeroToken: boolean;
+  };
+  manageCustomText: {
+    menuPage: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+  };
+  manageDelivery: {
+    menuPage: boolean;
+    managePick: boolean;
+    addPick: boolean;
+    editPick: boolean;
+    deletePick: boolean;
+    addPickTruck: boolean;
+    editPickTruck: boolean;
+    deletePickTruck: boolean;
+    managePickSchedule: boolean;
+    schedule: boolean;
+    addTruck: boolean;
+    editTruck: boolean;
+    deleteTruck: boolean;
+    manageDelivery: boolean;
+  };
+  manageInventory: {
+    menuPageVisible: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    receiveStock: boolean;
+    removeStock: boolean;
+    adjustStock: boolean;
+    cancelSupply: boolean;
+  };
+  managePurchase: {
+    menuPageVisible: boolean;
+    addNew: boolean;
+    edit: boolean;
+    delete: boolean;
+    confirmPurchase: boolean;
+  };
+  manageJobs: {
+    manageTask: boolean;
+    addTask: boolean;
+    editTask: boolean;
+    deleteTask: boolean;
+    addJob: boolean;
+    editJob: boolean;
+    deleteJob: boolean;
+    viewJob: boolean;
+    editAllocation: boolean;
+    taskAllocation: boolean;
+    taskSubAllocation: boolean;
+    jobTaskAllocation: boolean;
+    jobTaskSubAllocation: boolean;
+  };
+  manageStock: {
+    stockInvoice: boolean;
+    addStockPrice: boolean;
+    editStockPrice: boolean;
+    randomStock: boolean;
+  };
+  modules: {
+    glassGlobleModule: boolean;
+    accessCustomGroup: boolean;
+    manageProcessPricing: boolean;
+    manageCustomText: boolean;
+    manageGlassTemplate: boolean;
+    managePricingTemplate: boolean;
+    manageOrders: boolean;
+    manageQuotes: boolean;
+    manageInvoices: boolean;
+    managePackages: boolean;
+    manageStock: boolean;
+    manageProcess: boolean;
+    manageCustomProcess: boolean;
+  };
+  companyAdmin: {
+    autoConfig: boolean;
+    deliverySetting: boolean;
+    companySetting: boolean;
+    accessCompanies: boolean;
+    exportCustom: boolean;
+    exportData: boolean;
+  };
+  dashboardReports: {
+    manageWarehouse: boolean;
+    salesReport: boolean;
+    invoiceReports: boolean;
+    statusManagement: boolean;
+  };
+  logistic: {
+    schedulePO: boolean;
+    accessLogistic: boolean;
+  };
+  productTypes: {
+    accessGlass: boolean;
+    accessHardware: boolean;
+    accessSuperset: boolean;
+  };
+}
 
 interface Employee {
   id: string;
@@ -22,13 +227,7 @@ interface Employee {
   hireDate: string;
   isActive: boolean;
   lastLogin?: Date;
-  permissions: {
-    canCreateQuotes: boolean;
-    canViewPricing: boolean;
-    canAccessInventory: boolean;
-    canViewReports: boolean;
-    canManageCustomers: boolean;
-  };
+  permissions: GroupPermissions;
   workSchedule: {
     startTime: string;
     endTime: string;
@@ -37,7 +236,259 @@ interface Employee {
   notes: string;
   createdAt: Date;
   updatedAt: Date;
+  // Driver capabilities
+  isDriver?: boolean;
+  driverInfo?: {
+    licenseNumber: string;
+    licenseClass: string;
+    licenseExpiry: string;
+    driverPhone: string;
+    driverStatus: 'AVAILABLE' | 'ON_DELIVERY' | 'OFF_DUTY' | 'UNAVAILABLE';
+  };
+  // Delivery assignments
+  upcomingDeliveries?: Array<{
+    id: string;
+    runNumber: string;
+    date: string;
+    time: string;
+    stops: number;
+    customers: string[];
+    vehicle: string;
+  }>;
 }
+
+// Default permissions for new employees
+const createDefaultEmployeePermissions = (): GroupPermissions => ({
+  manageUsers: {
+    menuPage: false,
+    inviteUser: false,
+    viewLogs: false,
+    manageUserGroup: false,
+  },
+  manageCustomers: {
+    menuPage: true,
+    addNew: true,
+    activateDeactivate: false,
+    customerRoles: false,
+    inviteCustomer: true,
+    creditLimitView: true,
+    creditLimitEdit: false,
+    accountingTermsView: true,
+    accountingTermsEdit: false,
+    discounts: false,
+  },
+  manageSupplier: {
+    menuPage: false,
+    addNew: false,
+    edit: false,
+    delete: false,
+  },
+  manageManufacturers: {
+    menuPage: false,
+    addNew: false,
+    edit: false,
+    delete: false,
+  },
+  manageProducts: {
+    addNew: false,           // Admin can enable this
+    edit: false,             // Admin can enable this
+    delete: false,           // Admin can enable this
+    viewCostPrice: false,    // Admin can enable this
+    viewNonRetailPrice: false, // Admin can enable this
+    viewProducts: false,     // Admin can enable this - NO access by default
+  },
+  managePackages: {
+    addNew: false,
+    edit: false,
+    delete: false,
+  },
+  manageProductSpecification: {
+    menuPage: false,
+    addNew: false,
+    edit: false,
+    delete: false,
+    copy: false,
+  },
+  pricingTemplate: {
+    menuPage: false,
+    addNew: false,
+    edit: false,
+    delete: false,
+    copy: false,
+  },
+  customProcessPrice: {
+    menuPage: false,
+    addNew: false,
+    edit: false,
+    delete: false,
+    copy: false,
+    viewCostPrice: false,
+    viewNonRetailPrice: true,
+  },
+  manageOrders: {
+    menuPage: true,
+    addNew: true,
+    edit: true,
+    delete: false,
+    negativeCustomText: false,
+    changeIndividualPrices: false,
+    viewPrices: true,
+    superviseOrders: false,
+    viewOrders: true,
+    cancelOrder: false,
+    creditInvoice: false,
+  },
+  manageQuotes: {
+    menuPage: true,
+    addNew: true,
+    edit: true,
+    delete: false,
+    negativeCustomText: false,
+    changeIndividualPrices: false,
+    viewPrices: true,
+    superviseQuotes: false,
+  },
+  manageInvoices: {
+    menuPage: true,
+    generate: true,
+    newPrices: false,
+    delete: false,
+    negativeCustomText: false,
+    changeIndividualPrices: false,
+    markSupplied: true,
+    draft: true,
+    print: true,
+    payInvoice: false,
+    showPrices: true,
+    approveDraftInvoice: false,
+    refreshXeroToken: false,
+  },
+  manageCustomText: {
+    menuPage: false,
+    addNew: false,
+    edit: false,
+    delete: false,
+  },
+  manageDelivery: {
+    menuPage: false,
+    managePick: false,
+    addPick: false,
+    editPick: false,
+    deletePick: false,
+    addPickTruck: false,
+    editPickTruck: false,
+    deletePickTruck: false,
+    managePickSchedule: false,
+    schedule: false,
+    addTruck: false,
+    editTruck: false,
+    deleteTruck: false,
+    manageDelivery: false,
+  },
+  manageInventory: {
+    menuPageVisible: true,
+    addNew: false,
+    edit: false,
+    delete: false,
+    receiveStock: false,
+    removeStock: false,
+    adjustStock: false,
+    cancelSupply: false,
+  },
+  managePurchase: {
+    menuPageVisible: false, // Admin can enable this
+    addNew: false,         // Admin can enable this
+    edit: false,           // Admin can enable this
+    delete: false,         // Admin can enable this
+    confirmPurchase: false, // Admin can enable this
+  },
+  manageJobs: {
+    manageTask: false,
+    addTask: false,
+    editTask: false,
+    deleteTask: false,
+    addJob: false,
+    editJob: false,
+    deleteJob: false,
+    viewJob: true,
+    editAllocation: false,
+    taskAllocation: false,
+    taskSubAllocation: false,
+    jobTaskAllocation: false,
+    jobTaskSubAllocation: false,
+  },
+  manageStock: {
+    stockInvoice: false,
+    addStockPrice: false,
+    editStockPrice: false,
+    randomStock: false,
+  },
+  modules: {
+    glassGlobleModule: false,
+    accessCustomGroup: false,
+    manageProcessPricing: false,
+    manageCustomText: false,
+    manageGlassTemplate: false,
+    managePricingTemplate: false,
+    manageOrders: true,
+    manageQuotes: true,
+    manageInvoices: true,
+    managePackages: false,
+    manageStock: false,
+    manageProcess: false,
+    manageCustomProcess: false,
+  },
+  companyAdmin: {
+    autoConfig: false,
+    deliverySetting: false,
+    companySetting: false,
+    accessCompanies: false,
+    exportCustom: false,
+    exportData: false,
+  },
+  dashboardReports: {
+    manageWarehouse: false,
+    salesReport: true,
+    invoiceReports: true,
+    statusManagement: false,
+  },
+  logistic: {
+    schedulePO: false,
+    accessLogistic: false,
+  },
+  productTypes: {
+    accessGlass: true,
+    accessHardware: true,
+    accessSuperset: true,
+  },
+});
+
+// Migrate old permission structure to new structure
+const migratePermissions = (oldPermissions: any): GroupPermissions => {
+  // If it's already the new structure, return as-is
+  if (oldPermissions?.manageQuotes?.menuPage !== undefined) {
+    return oldPermissions;
+  }
+
+  // If it's the old structure, migrate it
+  if (oldPermissions?.canCreateQuotes !== undefined) {
+    const newPerms = createDefaultEmployeePermissions();
+    
+    // Map old permissions to new structure
+    newPerms.manageQuotes.addNew = oldPermissions.canCreateQuotes || false;
+    newPerms.manageQuotes.menuPage = oldPermissions.canCreateQuotes || false;
+    newPerms.manageProducts.viewCostPrice = oldPermissions.canViewPricing || false;
+    newPerms.manageInventory.menuPageVisible = oldPermissions.canAccessInventory || false;
+    newPerms.dashboardReports.salesReport = oldPermissions.canViewReports || false;
+    newPerms.manageCustomers.addNew = oldPermissions.canManageCustomers || false;
+    newPerms.manageCustomers.menuPage = oldPermissions.canManageCustomers || false;
+    
+    return newPerms;
+  }
+
+  // Fallback to default permissions
+  return createDefaultEmployeePermissions();
+};
 
 export default function EmployeeManagement() {
   const navigate = useNavigate();
@@ -73,13 +524,7 @@ export default function EmployeeManagement() {
             hireDate: '2023-01-15',
             isActive: true,
             lastLogin: new Date(),
-            permissions: {
-              canCreateQuotes: true,
-              canViewPricing: true,
-              canAccessInventory: true,
-              canViewReports: true,
-              canManageCustomers: true
-            },
+            permissions: createDefaultEmployeePermissions(),
             workSchedule: {
               startTime: '08:00',
               endTime: '17:00',
@@ -101,13 +546,7 @@ export default function EmployeeManagement() {
             position: 'Sales Representative',
             hireDate: '2023-06-20',
             isActive: true,
-            permissions: {
-              canCreateQuotes: true,
-              canViewPricing: false, // Can't see cost prices
-              canAccessInventory: true,
-              canViewReports: false,
-              canManageCustomers: false
-            },
+            permissions: createDefaultEmployeePermissions(),
             workSchedule: {
               startTime: '09:00',
               endTime: '18:00',
@@ -334,17 +773,23 @@ export default function EmployeeManagement() {
               <div className="mb-4">
                 <h5 className="text-sm font-medium text-gray-900 mb-2">Permissions</h5>
                 <div className="flex flex-wrap gap-1">
-                  {employee.permissions.canCreateQuotes && (
+                  {employee.permissions.manageQuotes?.addNew && (
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Quotes</span>
                   )}
-                  {employee.permissions.canViewPricing && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Pricing</span>
+                  {employee.permissions.manageOrders?.addNew && (
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Orders</span>
                   )}
-                  {employee.permissions.canAccessInventory && (
-                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Inventory</span>
+                  {employee.permissions.manageInvoices?.generate && (
+                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded">Invoices</span>
                   )}
-                  {employee.permissions.canViewReports && (
-                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Reports</span>
+                  {employee.permissions.manageProducts?.viewProducts && (
+                    <span className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">Products</span>
+                  )}
+                  {employee.permissions.managePurchase?.menuPageVisible && (
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Purchase Orders</span>
+                  )}
+                  {employee.permissions.companyAdmin?.companySetting && (
+                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">Admin</span>
                   )}
                 </div>
               </div>
@@ -550,13 +995,7 @@ function EmployeeForm({ employee, onSave, onCancel }: {
     position: employee?.position || '',
     hireDate: employee?.hireDate || new Date().toISOString().split('T')[0],
     isActive: employee?.isActive ?? true,
-    permissions: employee?.permissions || {
-      canCreateQuotes: true,
-      canViewPricing: false,
-      canAccessInventory: true,
-      canViewReports: false,
-      canManageCustomers: false
-    },
+    permissions: migratePermissions(employee?.permissions),
     workSchedule: employee?.workSchedule || {
       startTime: '09:00',
       endTime: '17:00',
@@ -575,9 +1014,9 @@ function EmployeeForm({ employee, onSave, onCancel }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-500 bg-opacity-75">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-white bg-opacity-95">
       <div className="flex items-center justify-center min-h-screen p-4">
-        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="relative bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200">
           <div className="p-8">
             <div className="flex items-center justify-between mb-8">
               <div>
@@ -722,70 +1161,353 @@ function EmployeeForm({ employee, onSave, onCancel }: {
               {/* Permissions */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">🔒 System Permissions</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.canCreateQuotes}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          permissions: { ...prev.permissions, canCreateQuotes: e.target.checked }
-                        }))}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Can create quotes</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.canViewPricing}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          permissions: { ...prev.permissions, canViewPricing: e.target.checked }
-                        }))}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Can view cost pricing</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.canAccessInventory}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          permissions: { ...prev.permissions, canAccessInventory: e.target.checked }
-                        }))}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Can access inventory</span>
-                    </label>
+                <div className="space-y-6">
+                  {/* Core Business Operations */}
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <h5 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                      <ShieldCheckIcon className="w-5 h-5" />
+                      Core Business Operations
+                    </h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageQuotes.menuPage}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageQuotes: { ...prev.permissions.manageQuotes, menuPage: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Access Quotes Menu</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageQuotes.addNew}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageQuotes: { ...prev.permissions.manageQuotes, addNew: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Create Quotes</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageOrders.menuPage}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageOrders: { ...prev.permissions.manageOrders, menuPage: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Access Orders Menu</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageOrders.addNew}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageOrders: { ...prev.permissions.manageOrders, addNew: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Create Orders</span>
+                        </label>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageInvoices.menuPage}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageInvoices: { ...prev.permissions.manageInvoices, menuPage: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Access Invoices Menu</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageInvoices.generate}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageInvoices: { ...prev.permissions.manageInvoices, generate: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Generate Invoices</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageCustomers.menuPage}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageCustomers: { ...prev.permissions.manageCustomers, menuPage: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Access Customers Menu</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageCustomers.addNew}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageCustomers: { ...prev.permissions.manageCustomers, addNew: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Create Customers</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.canViewReports}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          permissions: { ...prev.permissions, canViewReports: e.target.checked }
-                        }))}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Can view reports</span>
-                    </label>
-                    <label className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={formData.permissions.canManageCustomers}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          permissions: { ...prev.permissions, canManageCustomers: e.target.checked }
-                        }))}
-                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
-                      />
-                      <span className="text-sm text-gray-700">Can manage customers</span>
-                    </label>
+
+                  {/* Product Management - Admin Controlled */}
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <h5 className="font-semibold text-red-900 mb-3 flex items-center gap-2">
+                      <CubeIcon className="w-5 h-5" />
+                      Product Management (Admin Control Required)
+                    </h5>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.manageProducts.viewProducts}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              manageProducts: { ...prev.permissions.manageProducts, viewProducts: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-red-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Access Products Menu</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.manageProducts.addNew}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              manageProducts: { ...prev.permissions.manageProducts, addNew: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-red-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Add New Products</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.manageProducts.edit}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              manageProducts: { ...prev.permissions.manageProducts, edit: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-red-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Edit Products</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.manageProducts.delete}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              manageProducts: { ...prev.permissions.manageProducts, delete: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-red-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Delete Products</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.manageProducts.viewCostPrice}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              manageProducts: { ...prev.permissions.manageProducts, viewCostPrice: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-red-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">View Cost Pricing</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Purchase Orders - Admin Controlled */}
+                  <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                    <h5 className="font-semibold text-orange-900 mb-3 flex items-center gap-2">
+                      <KeyIcon className="w-5 h-5" />
+                      Purchase Orders (Admin Control Required)
+                    </h5>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.managePurchase.menuPageVisible}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              managePurchase: { ...prev.permissions.managePurchase, menuPageVisible: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Access Purchase Orders Menu</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.managePurchase.addNew}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              managePurchase: { ...prev.permissions.managePurchase, addNew: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Create Purchase Orders</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.managePurchase.edit}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              managePurchase: { ...prev.permissions.managePurchase, edit: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Edit Purchase Orders</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={formData.permissions.managePurchase.confirmPurchase}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            permissions: { 
+                              ...prev.permissions, 
+                              managePurchase: { ...prev.permissions.managePurchase, confirmPurchase: e.target.checked }
+                            }
+                          }))}
+                          className="h-4 w-4 text-orange-600 border-gray-300 rounded"
+                        />
+                        <span className="text-sm text-gray-700">Confirm/Approve Purchases</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Additional Permissions */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <h5 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <CogIcon className="w-5 h-5" />
+                      Additional Access
+                    </h5>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.manageInventory.menuPageVisible}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                manageInventory: { ...prev.permissions.manageInventory, menuPageVisible: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-gray-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Access Inventory</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.dashboardReports.salesReport}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                dashboardReports: { ...prev.permissions.dashboardReports, salesReport: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-gray-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">View Sales Reports</span>
+                        </label>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={formData.permissions.companyAdmin.companySetting}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              permissions: { 
+                                ...prev.permissions, 
+                                companyAdmin: { ...prev.permissions.companyAdmin, companySetting: e.target.checked }
+                              }
+                            }))}
+                            className="h-4 w-4 text-gray-600 border-gray-300 rounded"
+                          />
+                          <span className="text-sm text-gray-700">Company Settings Access</span>
+                        </label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
