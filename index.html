@@ -1550,6 +1550,10 @@
                     loadingScreen.classList.add('hidden');
                 }
             }, 6000); // 6 seconds fallback (4.5s + buffer)
+            
+            // Initialize all effects after loading screen
+            addMagneticEffect();
+            addScrollReveal();
         });
 
         // Navigation Scroll Effect
@@ -1726,11 +1730,6 @@
         }
 
 
-        // Initialize all effects after page load
-        window.addEventListener('load', function() {
-            addMagneticEffect();
-            addScrollReveal();
-        });
     </script>
 </body>
 </html>
