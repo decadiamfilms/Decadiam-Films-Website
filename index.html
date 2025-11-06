@@ -1242,7 +1242,7 @@
 <body>
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
-        <video id="loading-video" autoplay muted playsinline preload="auto" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
+        <video id="loading-video" autoplay muted playsinline preload="metadata" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
             <source src="Decadiam Films intro 2024.mp4" type="video/mp4">
         </video>
     </div>
@@ -1525,51 +1525,44 @@
             const loadingVideo = document.getElementById('loading-video');
             let hasEnded = false;
             
-            // Ensure video doesn't loop
+            // Configure video immediately
             loadingVideo.loop = false;
+            loadingVideo.playbackRate = 1.5; // Set speed immediately
             
-            // Speed up the video playback
-            loadingVideo.playbackRate = 1.5; // 1.5x speed
+            // Ensure video starts playing
+            loadingVideo.play().catch(e => console.log('Video autoplay failed:', e));
             
             function hideLoadingScreen() {
                 if (!hasEnded) {
                     hasEnded = true;
                     loadingVideo.pause();
+                    loadingVideo.currentTime = 0; // Reset video
                     loadingScreen.classList.add('fading');
-                    
-                    // Ensure we're at the top of the page
-                    window.scrollTo(0, 0);
                     
                     // Hide completely after fade finishes
                     setTimeout(() => {
-                        loadingScreen.classList.add('hidden');
-                        loadingScreen.remove(); // Remove from DOM to prevent any interference
-                        // Ensure we start at the hero section (top of page)
+                        loadingScreen.remove(); // Remove from DOM completely
                         window.scrollTo({ top: 0, behavior: 'instant' });
-                    }, 1000); // 1 second fade duration
+                        
+                        // Initialize effects after loading screen is gone
+                        addMagneticEffect();
+                        addScrollReveal();
+                    }, 1000);
                 }
             }
             
-            // Hide loading screen when video ends
-            loadingVideo.addEventListener('ended', hideLoadingScreen);
-            
-            // Also hide at specific time if video is long
+            // Hide at 3 seconds (4.5 / 1.5 speed = 3 seconds real time)
             loadingVideo.addEventListener('timeupdate', function() {
-                if (loadingVideo.currentTime >= 4.5) {
+                if (loadingVideo.currentTime >= 3 && !hasEnded) {
                     hideLoadingScreen();
                 }
             });
             
-            // Fallback in case video doesn't load or play
-            setTimeout(() => {
-                hideLoadingScreen();
-            }, 6000); // 6 seconds fallback
+            // Hide when video naturally ends
+            loadingVideo.addEventListener('ended', hideLoadingScreen);
             
-            // Initialize all effects after loading screen
-            setTimeout(() => {
-                addMagneticEffect();
-                addScrollReveal();
-            }, 1500);
+            // Fallback timeout
+            setTimeout(hideLoadingScreen, 5000);
         });
 
         // Navigation Scroll Effect
