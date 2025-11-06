@@ -1523,54 +1523,64 @@
         document.addEventListener('DOMContentLoaded', function() {
             const loadingScreen = document.getElementById('loading-screen');
             const loadingVideo = document.getElementById('loading-video');
-            let isComplete = false;
             
-            function completeLoading() {
-                if (isComplete) return;
-                isComplete = true;
+            console.log('Initializing loading screen...');
+            
+            if (!loadingVideo || !loadingScreen) {
+                console.log('Loading elements not found');
+                return;
+            }
+            
+            // Force disable looping completely
+            loadingVideo.loop = false;
+            loadingVideo.removeAttribute('loop');
+            
+            console.log('Video duration:', loadingVideo.duration);
+            console.log('Video loop property:', loadingVideo.loop);
+            
+            // Only listen for the video ending naturally
+            loadingVideo.addEventListener('ended', function() {
+                console.log('Video ended naturally - hiding loading screen');
                 
-                console.log('Completing loading screen...');
+                // Immediately prevent any restart
                 loadingVideo.pause();
-                loadingVideo.currentTime = 0;
-                loadingVideo.src = ''; // Clear video source to prevent any looping
+                loadingVideo.removeAttribute('src');
+                loadingVideo.load(); // Clear the video completely
                 
                 loadingScreen.style.opacity = '0';
                 loadingScreen.style.transition = 'opacity 1s ease';
                 
                 setTimeout(() => {
                     loadingScreen.remove();
-                    addMagneticEffect();
-                    addScrollReveal();
+                    console.log('Loading screen removed from DOM');
+                    if (typeof addMagneticEffect === 'function') addMagneticEffect();
+                    if (typeof addScrollReveal === 'function') addScrollReveal();
                 }, 1000);
-            }
-            
-            // Set video properties immediately
-            loadingVideo.loop = false;
-            loadingVideo.autoplay = false;
-            loadingVideo.controls = false;
-            
-            // Wait for video to load then start with proper settings
-            loadingVideo.addEventListener('loadeddata', function() {
-                console.log('Video loaded, starting playback...');
-                loadingVideo.playbackRate = 1.3;
-                loadingVideo.currentTime = 0;
-                loadingVideo.play().catch(e => {
-                    console.log('Video play failed:', e);
-                    completeLoading(); // If video fails, just hide loading screen
-                });
             });
             
-            // End loading screen when video ends
-            loadingVideo.addEventListener('ended', function() {
-                console.log('Video ended naturally');
-                completeLoading();
+            // Start video with settings
+            loadingVideo.currentTime = 0;
+            loadingVideo.playbackRate = 1.0; // Normal speed first
+            
+            loadingVideo.play().then(() => {
+                console.log('Video started at normal speed');
+                // Set speed after it starts playing
+                setTimeout(() => {
+                    loadingVideo.playbackRate = 1.3;
+                    console.log('Video speed changed to 1.3x');
+                }, 100);
+            }).catch(e => {
+                console.log('Video failed to play:', e);
+                loadingScreen.style.display = 'none';
             });
             
-            // Force load the video
-            loadingVideo.load();
-            
-            // Absolute fallback
-            setTimeout(completeLoading, 8000);
+            // Only emergency fallback if something goes very wrong
+            setTimeout(() => {
+                if (loadingScreen && loadingScreen.style.opacity !== '0') {
+                    console.log('Emergency fallback - removing loading screen');
+                    loadingScreen.remove();
+                }
+            }, 10000);
         });
 
         // Navigation Scroll Effect
