@@ -1242,7 +1242,7 @@
 <body>
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
-        <video id="loading-video" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
+        <video id="loading-video" autoplay muted playsinline preload="auto" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
             <source src="Decadiam Films intro 2024.mp4" type="video/mp4">
         </video>
     </div>
@@ -1523,13 +1523,18 @@
         window.addEventListener('load', function() {
             const loadingScreen = document.getElementById('loading-screen');
             const loadingVideo = document.getElementById('loading-video');
+            let hasEnded = false;
+            
+            // Ensure video doesn't loop
+            loadingVideo.loop = false;
             
             // Speed up the video playback
             loadingVideo.playbackRate = 1.5; // 1.5x speed
             
-            // Start fade out at 4.5 seconds
-            loadingVideo.addEventListener('timeupdate', function() {
-                if (loadingVideo.currentTime >= 4.5 && !loadingScreen.classList.contains('fading')) {
+            function hideLoadingScreen() {
+                if (!hasEnded) {
+                    hasEnded = true;
+                    loadingVideo.pause();
                     loadingScreen.classList.add('fading');
                     
                     // Ensure we're at the top of the page
@@ -1538,22 +1543,33 @@
                     // Hide completely after fade finishes
                     setTimeout(() => {
                         loadingScreen.classList.add('hidden');
+                        loadingScreen.remove(); // Remove from DOM to prevent any interference
                         // Ensure we start at the hero section (top of page)
                         window.scrollTo({ top: 0, behavior: 'instant' });
                     }, 1000); // 1 second fade duration
                 }
+            }
+            
+            // Hide loading screen when video ends
+            loadingVideo.addEventListener('ended', hideLoadingScreen);
+            
+            // Also hide at specific time if video is long
+            loadingVideo.addEventListener('timeupdate', function() {
+                if (loadingVideo.currentTime >= 4.5) {
+                    hideLoadingScreen();
+                }
             });
             
-            // Fallback in case video doesn't load
+            // Fallback in case video doesn't load or play
             setTimeout(() => {
-                if (!loadingScreen.classList.contains('hidden')) {
-                    loadingScreen.classList.add('hidden');
-                }
-            }, 6000); // 6 seconds fallback (4.5s + buffer)
+                hideLoadingScreen();
+            }, 6000); // 6 seconds fallback
             
             // Initialize all effects after loading screen
-            addMagneticEffect();
-            addScrollReveal();
+            setTimeout(() => {
+                addMagneticEffect();
+                addScrollReveal();
+            }, 1500);
         });
 
         // Navigation Scroll Effect
