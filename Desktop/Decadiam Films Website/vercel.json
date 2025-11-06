@@ -1,10 +1,27 @@
 {
-  "functions": {
-    "api/contact.js": {
-      "runtime": "@vercel/node"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/contact.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "**/*.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "**/*.{css,js,png,jpg,jpeg,gif,svg,mp4,webm,avif}",
+      "use": "@vercel/static"
     }
-  },
-  "env": {
-    "RESEND_API_KEY": "@resend-api-key"
-  }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
+    }
+  ]
 }
