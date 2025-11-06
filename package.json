@@ -2,6 +2,9 @@
   "name": "decadiam-films-website",
   "version": "1.0.0",
   "description": "Decadiam Films - Award-winning film production company website",
+  "engines": {
+    "node": "18.x"
+  },
   "dependencies": {
     "resend": "^3.0.0"
   }
