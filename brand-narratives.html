@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brand Narratives - DECADIAM FILMS</title>
+    <meta name="description" content="Brand Narratives - Innovative commercial content that transforms brand stories into compelling visual experiences. Commercial work by Decadiam Films.">
+    
+    <link rel="icon" href="logo-vertical.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #007AFF;
+            --light-blue: #40A9FF;
+            --dark: #000000;
+            --darker: #000000;
+            --light: #ffffff;
+            --gray: #1a1a1a;
+            --text-light: #e0e0e0;
+            --text-dim: #888888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 3rem;
+            background: rgba(0, 0, 0, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            height: 60px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            font-weight: 400;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--primary-blue);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-links a:hover::before {
+            width: 100%;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-blue);
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--primary-blue);
+            color: var(--light);
+        }
+
+        /* Hero Section */
+        .project-hero {
+            height: 70vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            margin-top: 80px;
+        }
+
+        .project-hero-content {
+            text-align: center;
+            max-width: 800px;
+            padding: 0 2rem;
+        }
+
+        .project-category {
+            font-size: 0.9rem;
+            color: var(--primary-blue);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .project-title {
+            font-size: clamp(3rem, 6vw, 5rem);
+            font-weight: 800;
+            color: var(--light);
+            line-height: 0.9;
+            margin-bottom: 2rem;
+            letter-spacing: -2px;
+        }
+
+        .project-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 3rem;
+            line-height: 1.6;
+        }
+
+        .project-status {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: rgba(0, 122, 255, 0.1);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 25px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Content Sections */
+        .section {
+            padding: 6rem 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--light);
+        }
+
+        .section p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: start;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .client-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .client-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .client-card:hover {
+            border-color: var(--primary-blue);
+            transform: translateY(-5px);
+        }
+
+        .client-logo {
+            height: 60px;
+            width: 100%;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .client-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--light);
+            margin-bottom: 0.5rem;
+        }
+
+        .client-project {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 3rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-placeholder-text {
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .service-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .service-item:hover {
+            border-color: var(--primary-blue);
+            background: rgba(0, 122, 255, 0.05);
+        }
+
+        .service-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        .service-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--light);
+            margin-bottom: 1rem;
+        }
+
+        .service-description {
+            font-size: 0.95rem;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .nav { padding: 1rem 2rem; }
+            .section { padding: 4rem 2rem; }
+            .two-column { grid-template-columns: 1fr; gap: 3rem; }
+            .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .project-hero { height: 60vh; margin-top: 70px; }
+            .section { padding: 3rem 1.5rem; }
+            .client-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .nav { padding: 1rem 1.5rem; }
+            .project-hero-content { padding: 0 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <img src="logo-horizontal.png" alt="Decadiam Films" class="logo">
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#projects">Projects</a></li>
+                <li><a href="index.html#awards">Awards</a></li>
+                <li><a href="index.html#contact">Contact</a></li>
+            </ul>
+            <button class="back-btn" onclick="window.location.href='index.html'">← Back</button>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
+
+    <!-- Project Hero -->
+    <section class="project-hero">
+        <div class="project-hero-content">
+            <div class="project-category">Commercial</div>
+            <h1 class="project-title">Brand Narratives</h1>
+            <p class="project-subtitle">
+                Innovative commercial content that transforms brand stories 
+                into compelling visual experiences for Australia's leading companies.
+            </p>
+            <span class="project-status">Ongoing</span>
+        </div>
+    </section>
+
+    <!-- Project Overview -->
+    <section class="section">
+        <div class="two-column">
+            <div>
+                <h2>Our Approach</h2>
+                <p>
+                    We believe every brand has a unique story worth telling. Our commercial work 
+                    goes beyond traditional advertising to create authentic connections between 
+                    brands and their audiences through compelling visual narratives.
+                </p>
+                <p>
+                    From concept development to final delivery, we collaborate closely with brands 
+                    and agencies to ensure each project reflects the client's vision while 
+                    maintaining our signature cinematic quality.
+                </p>
+            </div>
+            <div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number">50+</div>
+                        <div class="stat-label">Campaigns</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">25+</div>
+                        <div class="stat-label">Brands</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">100M+</div>
+                        <div class="stat-label">Views</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">3</div>
+                        <div class="stat-label">Years</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Showcase Reel -->
+    <section class="section">
+        <h2>Commercial Showcase</h2>
+        <div class="video-placeholder">
+            <div class="video-placeholder-text">Commercial Reel Coming Soon</div>
+        </div>
+    </section>
+
+    <!-- Services -->
+    <section class="section">
+        <h2>Services</h2>
+        <div class="services-grid">
+            <div class="service-item">
+                <div class="service-icon">🎬</div>
+                <h3 class="service-title">Brand Films</h3>
+                <p class="service-description">
+                    Long-form brand documentaries and narrative pieces that dive deep 
+                    into company culture and values.
+                </p>
+            </div>
+            <div class="service-item">
+                <div class="service-icon">📺</div>
+                <h3 class="service-title">TV Commercials</h3>
+                <p class="service-description">
+                    High-impact television advertisements designed for maximum audience 
+                    engagement and brand recall.
+                </p>
+            </div>
+            <div class="service-item">
+                <div class="service-icon">📱</div>
+                <h3 class="service-title">Digital Content</h3>
+                <p class="service-description">
+                    Social media content, web videos, and digital campaigns optimized 
+                    for online platforms and mobile viewing.
+                </p>
+            </div>
+            <div class="service-item">
+                <div class="service-icon">🏢</div>
+                <h3 class="service-title">Corporate Videos</h3>
+                <p class="service-description">
+                    Professional corporate communications, training videos, and 
+                    internal brand messaging content.
+                </p>
+            </div>
+            <div class="service-item">
+                <div class="service-icon">🎭</div>
+                <h3 class="service-title">Product Launches</h3>
+                <p class="service-description">
+                    Dynamic product reveal videos and launch campaigns that create 
+                    excitement and drive consumer interest.
+                </p>
+            </div>
+            <div class="service-item">
+                <div class="service-icon">🌟</div>
+                <h3 class="service-title">Event Coverage</h3>
+                <p class="service-description">
+                    Comprehensive event documentation and live streaming services 
+                    for corporate events and brand activations.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Client Portfolio -->
+    <section class="section">
+        <h2>Recent Collaborations</h2>
+        <div class="client-grid">
+            <div class="client-card">
+                <div class="client-logo">Tech Startup</div>
+                <h3 class="client-name">InnovateAI</h3>
+                <p class="client-project">Brand Launch Campaign</p>
+            </div>
+            <div class="client-card">
+                <div class="client-logo">Retail Brand</div>
+                <h3 class="client-name">Urban Threads</h3>
+                <p class="client-project">Seasonal Collection Film</p>
+            </div>
+            <div class="client-card">
+                <div class="client-logo">Financial Services</div>
+                <h3 class="client-name">Future Finance</h3>
+                <p class="client-project">Corporate Culture Series</p>
+            </div>
+            <div class="client-card">
+                <div class="client-logo">Food & Beverage</div>
+                <h3 class="client-name">Artisan Coffee Co.</h3>
+                <p class="client-project">Product Story Documentary</p>
+            </div>
+            <div class="client-card">
+                <div class="client-logo">Healthcare</div>
+                <h3 class="client-name">WellnessTech</h3>
+                <p class="client-project">App Launch Campaign</p>
+            </div>
+            <div class="client-card">
+                <div class="client-logo">Automotive</div>
+                <h3 class="client-name">Electric Motors</h3>
+                <p class="client-project">Sustainability Film</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Process -->
+    <section class="section">
+        <h2>Our Process</h2>
+        <div class="two-column">
+            <div>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; font-size: 1.5rem;">Discovery & Strategy</h3>
+                <p>
+                    We begin every project with deep research into your brand, audience, and 
+                    objectives. This foundation ensures our creative solutions align perfectly 
+                    with your business goals.
+                </p>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; margin-top: 2rem; font-size: 1.5rem;">Creative Development</h3>
+                <p>
+                    Our team develops multiple creative concepts, storyboards, and treatment 
+                    options, collaborating with you to refine the vision until it's perfect.
+                </p>
+            </div>
+            <div>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; font-size: 1.5rem;">Production Excellence</h3>
+                <p>
+                    With meticulous planning and professional crew, we execute the production 
+                    with precision, maintaining the highest quality standards throughout the shoot.
+                </p>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; margin-top: 2rem; font-size: 1.5rem;">Post & Delivery</h3>
+                <p>
+                    Our post-production team crafts the final piece with attention to every 
+                    detail, delivering content optimized for your specific distribution channels.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Mobile menu placeholder
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            alert('Mobile menu would open here. This is a placeholder for mobile navigation.');
+        });
+    </script>
+</body>
+</html>
