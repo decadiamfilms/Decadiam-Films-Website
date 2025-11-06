@@ -29,7 +29,7 @@ export default async function handler(req, res) {
 
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: 'Decadiam Films Website <noreply@decadiamfilms.com>',
+      from: 'Decadiam Films <onboarding@resend.dev>',
       to: ['liambudai04@gmail.com'],
       subject: `New Contact Form Submission from ${name}`,
       html: `
