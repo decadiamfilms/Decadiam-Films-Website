@@ -1099,6 +1099,51 @@
         }
 
         /* Responsive */
+        /* Large Monitors (1440px+) */
+        @media (min-width: 1440px) {
+            .nav { padding: 1.5rem 4rem; }
+            .section { padding: 8rem 4rem; }
+            .hero-content { 
+                left: 4rem; 
+                bottom: 4rem; 
+                max-width: 700px;
+            }
+            .hero-title { font-size: 5.5rem; }
+            .hero-description { font-size: 1.3rem; max-width: 600px; }
+            .about-content { padding: 0 4rem; max-width: 1000px; }
+            .about-title { font-size: 4.5rem; }
+            .about-text { max-width: 800px; }
+            .about-text p { font-size: 1.3rem; }
+            .projects-grid { 
+                grid-template-columns: repeat(2, 1fr);
+                gap: 4rem;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            .awards-grid { 
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            .contact-content { 
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            .footer-content { padding: 0 4rem; }
+            .scroll-indicator { right: 4rem; }
+        }
+
+        /* Ultra-wide Monitors (1920px+) */
+        @media (min-width: 1920px) {
+            .hero-content { max-width: 800px; }
+            .hero-title { font-size: 6rem; }
+            .about-content { max-width: 1100px; }
+            .about-title { font-size: 5rem; }
+            .section { max-width: 1600px; margin: 0 auto; }
+            .projects-grid { max-width: 1400px; }
+            .awards-grid { max-width: 1400px; }
+            .contact-content { max-width: 1400px; }
+        }
+
         @media (max-width: 1024px) {
             .nav { padding: 1.5rem 2rem; }
             .section { padding: 6rem 2rem; }
@@ -1114,11 +1159,46 @@
         @media (max-width: 768px) {
             .nav-links { display: none; }
             .mobile-menu-btn { display: block; }
-            .hero-cta { flex-direction: column; align-items: flex-start; }
-            .about-hero { height: 60vh; background-attachment: scroll; }
+            .hero { height: 100vh; }
+            .hero-content { left: 1.5rem; bottom: 2rem; right: 1.5rem; }
+            .hero-title { font-size: 2.5rem; }
+            .hero-description { font-size: 1rem; }
+            .hero-cta { 
+                flex-direction: column; 
+                align-items: flex-start; 
+                gap: 1rem;
+                width: 100%;
+            }
+            .btn { 
+                width: 100%;
+                text-align: center;
+                padding: 1.2rem 2rem;
+            }
+            .about-hero { 
+                height: 60vh; 
+                background-attachment: scroll; 
+                background-position: center;
+            }
             .about-content { padding: 0 2rem; }
+            .about-title { font-size: 2rem; }
             .about-text p { font-size: 1rem; }
-            .form { padding: 2rem; }
+            .projects-grid { 
+                grid-template-columns: 1fr; 
+                gap: 2rem;
+            }
+            .project-card { margin: 0 1rem; }
+            .awards-grid { 
+                grid-template-columns: 1fr; 
+                gap: 2rem;
+                padding: 0 1rem;
+            }
+            .form { padding: 2rem 1.5rem; }
+            .contact-content { 
+                grid-template-columns: 1fr; 
+                gap: 3rem; 
+                padding: 0 1rem;
+            }
+            .footer-content { padding: 0 2rem; }
             .footer-main { 
                 grid-template-columns: 1fr; 
                 gap: 3rem; 
@@ -1130,17 +1210,32 @@
                 gap: 2rem; 
             }
             .footer-social-links { 
-                justify-content: center; 
+                justify-content: center;
+                gap: 1.5rem;
             }
-            .hero-content { left: 1.5rem; bottom: 2rem; }
             .scroll-indicator { right: 1.5rem; }
         }
 
         @media (max-width: 480px) {
-            .section { padding: 4rem 1.5rem; }
+            .section { padding: 3rem 1rem; }
             .nav { padding: 1rem 1.5rem; }
-            .hero-content { left: 1.5rem; bottom: 2rem; }
-            .form { padding: 1.5rem; }
+            .hero-content { left: 1rem; bottom: 2rem; right: 1rem; }
+            .hero-title { font-size: 2rem; line-height: 1.1; }
+            .hero-description { font-size: 0.9rem; margin-bottom: 2rem; }
+            .about-hero { height: 50vh; }
+            .about-content { padding: 0 1rem; }
+            .about-title { font-size: 1.8rem; }
+            .about-text p { font-size: 0.95rem; }
+            .project-card { margin: 0; }
+            .project-info { padding: 2rem 1.5rem; }
+            .project-title { font-size: 1.5rem; }
+            .project-description { font-size: 0.9rem; }
+            .award-card { padding: 2rem 1.5rem; }
+            .award-title { font-size: 1.2rem; }
+            .form { padding: 1.5rem 1rem; }
+            .contact-content { padding: 0; }
+            .footer-content { padding: 0 1rem; }
+            .footer-logo { height: 60px; }
         }
     </style>
 </head>

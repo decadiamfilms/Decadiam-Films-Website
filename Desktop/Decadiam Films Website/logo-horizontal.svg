@@ -1,0 +1,8 @@
+<svg width="300" height="80" viewBox="0 0 300 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Symbol -->
+  <rect x="10" y="15" width="40" height="50" rx="5" fill="none" stroke="#ffffff" stroke-width="2"/>
+  <rect x="20" y="25" width="20" height="30" rx="2" fill="#007AFF"/>
+  
+  <!-- Text -->
+  <text x="70" y="45" font-family="Inter, sans-serif" font-size="24" font-weight="600" fill="#ffffff">DECADIAM FILMS</text>
+</svg>
