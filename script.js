@@ -8,36 +8,6 @@ document.addEventListener('DOMContentLoaded', function() {
     initProjectThumbnails();
 });
 
-// Global function to hide loading screen (called by video onended)
-function hideLoadingScreen() {
-    const loadingScreen = document.getElementById('loading-screen');
-    const heroVideo = document.getElementById('hero-video');
-    
-    if (loadingScreen) {
-        // Fade out loading screen
-        loadingScreen.style.opacity = '0';
-        loadingScreen.style.transition = 'opacity 1s ease';
-        
-        // Start hero video
-        if (heroVideo) {
-            heroVideo.style.opacity = '1';
-            heroVideo.play().catch(e => console.log('Hero video play failed:', e));
-            
-            // After a brief moment, fade video to lower opacity for better text readability
-            setTimeout(() => {
-                heroVideo.style.transition = 'opacity 2s ease';
-                heroVideo.style.opacity = '0.4';
-            }, 2000);
-        }
-        
-        // Remove loading screen after transition
-        setTimeout(() => {
-            if (loadingScreen.parentNode) {
-                loadingScreen.parentNode.removeChild(loadingScreen);
-            }
-        }, 1000);
-    }
-}
 
 // Mobile menu functionality
 function initMobileMenu() {
@@ -198,23 +168,7 @@ function initContactForm() {
 
 // Video error handling
 document.addEventListener('DOMContentLoaded', () => {
-    const introVideo = document.getElementById('intro-video');
     const heroVideo = document.getElementById('hero-video');
-    
-    // Handle intro video errors
-    if (introVideo) {
-        introVideo.addEventListener('error', () => {
-            console.log('Intro video failed to load, hiding loading screen');
-            hideLoadingScreen();
-        });
-        
-        // Fallback timeout for intro video
-        setTimeout(() => {
-            if (document.getElementById('loading-screen')) {
-                hideLoadingScreen();
-            }
-        }, 5000);
-    }
     
     // Handle hero video errors
     if (heroVideo) {
