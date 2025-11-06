@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Human Stories - DECADIAM FILMS</title>
+    <meta name="description" content="Human Stories - In-depth documentary work examining contemporary social issues through intimate character portraits and investigative storytelling.">
+    
+    <link rel="icon" href="logo-vertical.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #007AFF;
+            --light-blue: #40A9FF;
+            --dark: #000000;
+            --darker: #000000;
+            --light: #ffffff;
+            --gray: #1a1a1a;
+            --text-light: #e0e0e0;
+            --text-dim: #888888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 3rem;
+            background: rgba(0, 0, 0, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            height: 60px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            font-weight: 400;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--primary-blue);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-links a:hover::before {
+            width: 100%;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-blue);
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--primary-blue);
+            color: var(--light);
+        }
+
+        /* Hero Section */
+        .project-hero {
+            height: 70vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            margin-top: 80px;
+        }
+
+        .project-hero-content {
+            text-align: center;
+            max-width: 800px;
+            padding: 0 2rem;
+        }
+
+        .project-category {
+            font-size: 0.9rem;
+            color: var(--primary-blue);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .project-title {
+            font-size: clamp(3rem, 6vw, 5rem);
+            font-weight: 800;
+            color: var(--light);
+            line-height: 0.9;
+            margin-bottom: 2rem;
+            letter-spacing: -2px;
+        }
+
+        .project-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 3rem;
+            line-height: 1.6;
+        }
+
+        .project-status {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: rgba(0, 122, 255, 0.1);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 25px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Content Sections */
+        .section {
+            padding: 6rem 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--light);
+        }
+
+        .section p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: start;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .documentary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 3rem;
+            margin: 3rem 0;
+        }
+
+        .documentary-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .documentary-card:hover {
+            border-color: var(--primary-blue);
+            transform: translateY(-5px);
+        }
+
+        .documentary-image {
+            height: 200px;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .documentary-info {
+            padding: 2rem;
+        }
+
+        .documentary-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--light);
+            margin-bottom: 1rem;
+        }
+
+        .documentary-description {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .documentary-status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 122, 255, 0.1);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 3rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-placeholder-text {
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .approach-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .approach-item {
+            background: rgba(255, 255, 255, 0.03);
+            border-left: 4px solid var(--primary-blue);
+            padding: 2rem;
+            border-radius: 0 10px 10px 0;
+        }
+
+        .approach-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--light);
+            margin-bottom: 1rem;
+        }
+
+        .approach-description {
+            font-size: 0.95rem;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .quote-section {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 3rem;
+            border-radius: 15px;
+            border-left: 4px solid var(--primary-blue);
+            margin: 3rem 0;
+            text-align: center;
+        }
+
+        .quote-text {
+            font-size: 1.3rem;
+            font-style: italic;
+            color: var(--light);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .quote-author {
+            color: var(--primary-blue);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9rem;
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .nav { padding: 1rem 2rem; }
+            .section { padding: 4rem 2rem; }
+            .two-column { grid-template-columns: 1fr; gap: 3rem; }
+            .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .project-hero { height: 60vh; margin-top: 70px; }
+            .section { padding: 3rem 1.5rem; }
+            .documentary-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .nav { padding: 1rem 1.5rem; }
+            .project-hero-content { padding: 0 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <img src="logo-horizontal.png" alt="Decadiam Films" class="logo">
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#projects">Projects</a></li>
+                <li><a href="index.html#awards">Awards</a></li>
+                <li><a href="index.html#contact">Contact</a></li>
+            </ul>
+            <button class="back-btn" onclick="window.location.href='index.html'">← Back</button>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
+
+    <!-- Project Hero -->
+    <section class="project-hero">
+        <div class="project-hero-content">
+            <div class="project-category">Documentary</div>
+            <h1 class="project-title">Human Stories</h1>
+            <p class="project-subtitle">
+                In-depth documentary work examining contemporary social issues 
+                through intimate character portraits and investigative storytelling.
+            </p>
+            <span class="project-status">Development</span>
+        </div>
+    </section>
+
+    <!-- Project Overview -->
+    <section class="section">
+        <div class="two-column">
+            <div>
+                <h2>Our Mission</h2>
+                <p>
+                    Documentary filmmaking is about more than capturing reality—it's about 
+                    finding the extraordinary within the ordinary, giving voice to the unheard, 
+                    and illuminating the human condition through authentic storytelling.
+                </p>
+                <p>
+                    Our documentary work focuses on contemporary Australian social issues, 
+                    exploring how global challenges manifest in local communities and 
+                    individual lives.
+                </p>
+            </div>
+            <div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number">8</div>
+                        <div class="stat-label">Projects</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">150+</div>
+                        <div class="stat-label">Hours Filmed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">50+</div>
+                        <div class="stat-label">Interviews</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">5</div>
+                        <div class="stat-label">States</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Documentary Showcase -->
+    <section class="section">
+        <h2>Current Projects</h2>
+        <div class="documentary-grid">
+            <div class="documentary-card">
+                <div class="documentary-image">
+                    Climate Voices Preview
+                </div>
+                <div class="documentary-info">
+                    <h3 class="documentary-title">Climate Voices</h3>
+                    <p class="documentary-description">
+                        Following young Australian climate activists as they navigate 
+                        the intersection of environmental urgency and political reality.
+                    </p>
+                    <span class="documentary-status">In Production</span>
+                </div>
+            </div>
+            
+            <div class="documentary-card">
+                <div class="documentary-image">
+                    Digital Divide Story
+                </div>
+                <div class="documentary-info">
+                    <h3 class="documentary-title">Connected/Disconnected</h3>
+                    <p class="documentary-description">
+                        Exploring how technology creates both connection and isolation 
+                        in remote Australian communities during the digital age.
+                    </p>
+                    <span class="documentary-status">Post-Production</span>
+                </div>
+            </div>
+            
+            <div class="documentary-card">
+                <div class="documentary-image">
+                    Housing Crisis Doc
+                </div>
+                <div class="documentary-info">
+                    <h3 class="documentary-title">Home Truths</h3>
+                    <p class="documentary-description">
+                        An intimate look at Australia's housing affordability crisis 
+                        through the eyes of three generations of one Sydney family.
+                    </p>
+                    <span class="documentary-status">Development</span>
+                </div>
+            </div>
+            
+            <div class="documentary-card">
+                <div class="documentary-image">
+                    Mental Health Series
+                </div>
+                <div class="documentary-info">
+                    <h3 class="documentary-title">Breaking Point</h3>
+                    <p class="documentary-description">
+                        A web series examining mental health support systems in 
+                        regional Australia and the people working to improve them.
+                    </p>
+                    <span class="documentary-status">Pre-Production</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Approach -->
+    <section class="section">
+        <h2>Our Approach</h2>
+        <div class="approach-grid">
+            <div class="approach-item">
+                <h3 class="approach-title">Authentic Relationships</h3>
+                <p class="approach-description">
+                    We invest significant time building trust with our subjects, 
+                    ensuring their stories are told with dignity and authenticity.
+                </p>
+            </div>
+            <div class="approach-item">
+                <h3 class="approach-title">Long-form Storytelling</h3>
+                <p class="approach-description">
+                    Our documentaries develop over months or years, allowing us to 
+                    capture genuine character development and societal change.
+                </p>
+            </div>
+            <div class="approach-item">
+                <h3 class="approach-title">Ethical Journalism</h3>
+                <p class="approach-description">
+                    We maintain the highest ethical standards, ensuring our work 
+                    contributes positively to public discourse and understanding.
+                </p>
+            </div>
+            <div class="approach-item">
+                <h3 class="approach-title">Cinematic Quality</h3>
+                <p class="approach-description">
+                    While honoring documentary traditions, we bring cinematic 
+                    production values to create visually compelling narratives.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quote Section -->
+    <section class="section">
+        <div class="quote-section">
+            <p class="quote-text">
+                "Documentary filmmaking is about finding the universal truths within 
+                individual experiences, creating empathy and understanding across 
+                social and cultural divides."
+            </p>
+            <p class="quote-author">— Liam Budai, Director</p>
+        </div>
+    </section>
+
+    <!-- Process -->
+    <section class="section">
+        <h2>Our Process</h2>
+        <div class="two-column">
+            <div>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; font-size: 1.5rem;">Research & Development</h3>
+                <p>
+                    Every documentary begins with extensive research, community engagement, 
+                    and careful consideration of how to approach sensitive subjects respectfully.
+                </p>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; margin-top: 2rem; font-size: 1.5rem;">Pre-Production</h3>
+                <p>
+                    We develop relationships with subjects, secure necessary permissions, 
+                    and plan our shooting approach to minimize disruption to people's lives.
+                </p>
+            </div>
+            <div>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; font-size: 1.5rem;">Production</h3>
+                <p>
+                    Using minimal, unobtrusive equipment, we capture authentic moments 
+                    while maintaining the trust and comfort of our documentary subjects.
+                </p>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; margin-top: 2rem; font-size: 1.5rem;">Post-Production & Distribution</h3>
+                <p>
+                    Our editing process involves ongoing collaboration with subjects to 
+                    ensure accurate representation, followed by strategic distribution planning.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Impact -->
+    <section class="section">
+        <h2>Creating Impact</h2>
+        <p>
+            We believe documentary films have the power to create meaningful social change. 
+            Our projects are designed not just to inform and entertain, but to inspire action 
+            and contribute to important conversations about the future of Australian society.
+        </p>
+        <p>
+            Through partnerships with advocacy organizations, educational institutions, and 
+            community groups, we ensure our documentaries reach audiences who can benefit 
+            most from the stories we tell.
+        </p>
+        
+        <div class="video-placeholder">
+            <div class="video-placeholder-text">Documentary Reel Coming Soon</div>
+        </div>
+    </section>
+
+    <script>
+        // Mobile menu placeholder
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            alert('Mobile menu would open here. This is a placeholder for mobile navigation.');
+        });
+    </script>
+</body>
+</html>

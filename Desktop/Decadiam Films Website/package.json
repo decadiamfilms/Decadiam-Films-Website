@@ -1,0 +1,28 @@
+{
+  "name": "decadiam-films-website",
+  "version": "1.0.0",
+  "description": "Decadiam Films - Award-winning film production company website",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build step needed'",
+    "start": "echo 'Static site - deploy to Vercel'"
+  },
+  "dependencies": {
+    "resend": "^3.0.0"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-username/decadiam-films-website.git"
+  },
+  "keywords": [
+    "film",
+    "production",
+    "cinema",
+    "website",
+    "vercel"
+  ],
+  "author": "Liam Budai - Decadiam Films",
+  "license": "MIT"
+}

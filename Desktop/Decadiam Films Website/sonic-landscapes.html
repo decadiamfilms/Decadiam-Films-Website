@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sonic Landscapes - DECADIAM FILMS</title>
+    <meta name="description" content="Sonic Landscapes - Collaborative visual storytelling with emerging and established artists, creating immersive experiences that amplify musical narratives.">
+    
+    <link rel="icon" href="logo-vertical.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #007AFF;
+            --light-blue: #40A9FF;
+            --dark: #000000;
+            --darker: #000000;
+            --light: #ffffff;
+            --gray: #1a1a1a;
+            --text-light: #e0e0e0;
+            --text-dim: #888888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 3rem;
+            background: rgba(0, 0, 0, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            height: 60px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            font-weight: 400;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--primary-blue);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-links a:hover::before {
+            width: 100%;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-blue);
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--primary-blue);
+            color: var(--light);
+        }
+
+        /* Hero Section */
+        .project-hero {
+            height: 70vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            margin-top: 80px;
+        }
+
+        .project-hero-content {
+            text-align: center;
+            max-width: 800px;
+            padding: 0 2rem;
+        }
+
+        .project-category {
+            font-size: 0.9rem;
+            color: var(--primary-blue);
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .project-title {
+            font-size: clamp(3rem, 6vw, 5rem);
+            font-weight: 800;
+            color: var(--light);
+            line-height: 0.9;
+            margin-bottom: 2rem;
+            letter-spacing: -2px;
+        }
+
+        .project-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 3rem;
+            line-height: 1.6;
+        }
+
+        .project-status {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: rgba(0, 122, 255, 0.1);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 25px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Content Sections */
+        .section {
+            padding: 6rem 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--light);
+        }
+
+        .section p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: start;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .music-video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 3rem;
+            margin: 3rem 0;
+        }
+
+        .music-video-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .music-video-card:hover {
+            border-color: var(--primary-blue);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 122, 255, 0.2);
+        }
+
+        .video-thumbnail {
+            height: 220px;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .play-icon {
+            font-size: 3rem;
+            color: var(--primary-blue);
+            opacity: 0.8;
+        }
+
+        .video-info {
+            padding: 2rem;
+        }
+
+        .artist-name {
+            font-size: 0.8rem;
+            color: var(--primary-blue);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .song-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--light);
+            margin-bottom: 1rem;
+        }
+
+        .video-description {
+            color: var(--text-light);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .video-status {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 122, 255, 0.1);
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            border-radius: 15px;
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .video-placeholder {
+            width: 100%;
+            height: 400px;
+            background: linear-gradient(135deg, var(--gray) 0%, var(--dark) 100%);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 3rem 0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .video-placeholder-text {
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .genre-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .genre-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .genre-item:hover {
+            border-color: var(--primary-blue);
+            background: rgba(0, 122, 255, 0.05);
+        }
+
+        .genre-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.8;
+        }
+
+        .genre-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--light);
+            margin-bottom: 0.5rem;
+        }
+
+        .genre-count {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .collaboration-section {
+            background: rgba(255, 255, 255, 0.02);
+            padding: 3rem;
+            border-radius: 15px;
+            border-left: 4px solid var(--primary-blue);
+            margin: 3rem 0;
+        }
+
+        .collaboration-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--light);
+            margin-bottom: 2rem;
+        }
+
+        .artist-testimonials {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+
+        .testimonial {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 2rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .testimonial-text {
+            font-style: italic;
+            color: var(--text-light);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .testimonial-author {
+            color: var(--primary-blue);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .nav { padding: 1rem 2rem; }
+            .section { padding: 4rem 2rem; }
+            .two-column { grid-template-columns: 1fr; gap: 3rem; }
+            .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .project-hero { height: 60vh; margin-top: 70px; }
+            .section { padding: 3rem 1.5rem; }
+            .music-video-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .nav { padding: 1rem 1.5rem; }
+            .project-hero-content { padding: 0 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <img src="logo-horizontal.png" alt="Decadiam Films" class="logo">
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#projects">Projects</a></li>
+                <li><a href="index.html#awards">Awards</a></li>
+                <li><a href="index.html#contact">Contact</a></li>
+            </ul>
+            <button class="back-btn" onclick="window.location.href='index.html'">← Back</button>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
+
+    <!-- Project Hero -->
+    <section class="project-hero">
+        <div class="project-hero-content">
+            <div class="project-category">Music Video</div>
+            <h1 class="project-title">Sonic Landscapes</h1>
+            <p class="project-subtitle">
+                Collaborative visual storytelling with emerging and established artists, 
+                creating immersive experiences that amplify musical narratives and artistic vision.
+            </p>
+            <span class="project-status">Featured</span>
+        </div>
+    </section>
+
+    <!-- Project Overview -->
+    <section class="section">
+        <div class="two-column">
+            <div>
+                <h2>Visual Music</h2>
+                <p>
+                    Music videos are a unique art form where sound and image merge to create 
+                    something greater than the sum of their parts. We approach each project 
+                    as a creative collaboration, working closely with artists to translate 
+                    their musical vision into compelling visual narratives.
+                </p>
+                <p>
+                    Our portfolio spans multiple genres and artistic styles, from intimate 
+                    performance pieces to elaborate concept videos, always with a focus on 
+                    authentic artistic expression and technical excellence.
+                </p>
+            </div>
+            <div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number">35+</div>
+                        <div class="stat-label">Music Videos</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">50+</div>
+                        <div class="stat-label">Artists</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">10M+</div>
+                        <div class="stat-label">Total Views</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">8</div>
+                        <div class="stat-label">Genres</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Music Videos -->
+    <section class="section">
+        <h2>Featured Work</h2>
+        <div class="music-video-grid">
+            <div class="music-video-card">
+                <div class="video-thumbnail">
+                    <div class="play-icon">▶</div>
+                </div>
+                <div class="video-info">
+                    <div class="artist-name">Luna Echo</div>
+                    <h3 class="song-title">"Midnight Waves"</h3>
+                    <p class="video-description">
+                        A dreamlike exploration of memory and longing, shot entirely 
+                        at night across Sydney's coastline using innovative lighting techniques.
+                    </p>
+                    <span class="video-status">2.5M Views</span>
+                </div>
+            </div>
+            
+            <div class="music-video-card">
+                <div class="video-thumbnail">
+                    <div class="play-icon">▶</div>
+                </div>
+                <div class="video-info">
+                    <div class="artist-name">The Drift</div>
+                    <h3 class="song-title">"Electric Nights"</h3>
+                    <p class="video-description">
+                        High-energy performance video combining neon aesthetics with 
+                        kinetic camera work to match the band's electronic rock sound.
+                    </p>
+                    <span class="video-status">1.8M Views</span>
+                </div>
+            </div>
+            
+            <div class="music-video-card">
+                <div class="video-thumbnail">
+                    <div class="play-icon">▶</div>
+                </div>
+                <div class="video-info">
+                    <div class="artist-name">Sienna Rose</div>
+                    <h3 class="song-title">"Paper Hearts"</h3>
+                    <p class="video-description">
+                        Intimate acoustic performance interwoven with a parallel narrative 
+                        about love and loss, featuring handcrafted practical effects.
+                    </p>
+                    <span class="video-status">950K Views</span>
+                </div>
+            </div>
+            
+            <div class="music-video-card">
+                <div class="video-thumbnail">
+                    <div class="play-icon">▶</div>
+                </div>
+                <div class="video-info">
+                    <div class="artist-name">Horizon Collective</div>
+                    <h3 class="song-title">"Rise Up"</h3>
+                    <p class="video-description">
+                        Social justice anthem featuring real activists and community 
+                        members, blending documentary and narrative filmmaking styles.
+                    </p>
+                    <span class="video-status">3.2M Views</span>
+                </div>
+            </div>
+            
+            <div class="music-video-card">
+                <div class="video-thumbnail">
+                    <div class="play-icon">▶</div>
+                </div>
+                <div class="video-info">
+                    <div class="artist-name">Digital Nomad</div>
+                    <h3 class="song-title">"Synthetic Dreams"</h3>
+                    <p class="video-description">
+                        Futuristic concept video exploring AI and human consciousness, 
+                        featuring cutting-edge visual effects and virtual environments.
+                    </p>
+                    <span class="video-status">1.4M Views</span>
+                </div>
+            </div>
+            
+            <div class="music-video-card">
+                <div class="video-thumbnail">
+                    <div class="play-icon">▶</div>
+                </div>
+                <div class="video-info">
+                    <div class="artist-name">Coastal Vibes</div>
+                    <h3 class="song-title">"Summer's End"</h3>
+                    <p class="video-description">
+                        Nostalgic summer anthem captured across Australia's most beautiful 
+                        beaches, celebrating youth and friendship through golden hour cinematography.
+                    </p>
+                    <span class="video-status">2.1M Views</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Genre Expertise -->
+    <section class="section">
+        <h2>Genre Expertise</h2>
+        <div class="genre-grid">
+            <div class="genre-item">
+                <div class="genre-icon">🎸</div>
+                <h3 class="genre-name">Rock/Alternative</h3>
+                <p class="genre-count">12 Videos</p>
+            </div>
+            <div class="genre-item">
+                <div class="genre-icon">🎵</div>
+                <h3 class="genre-name">Pop</h3>
+                <p class="genre-count">8 Videos</p>
+            </div>
+            <div class="genre-item">
+                <div class="genre-icon">🎹</div>
+                <h3 class="genre-name">Electronic</h3>
+                <p class="genre-count">6 Videos</p>
+            </div>
+            <div class="genre-item">
+                <div class="genre-icon">🎤</div>
+                <h3 class="genre-name">Hip-Hop/R&B</h3>
+                <p class="genre-count">5 Videos</p>
+            </div>
+            <div class="genre-item">
+                <div class="genre-icon">🎻</div>
+                <h3 class="genre-name">Indie/Folk</h3>
+                <p class="genre-count">4 Videos</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Showcase Reel -->
+    <section class="section">
+        <h2>Music Video Reel</h2>
+        <div class="video-placeholder">
+            <div class="video-placeholder-text">Music Video Showcase Reel</div>
+        </div>
+    </section>
+
+    <!-- Artist Collaborations -->
+    <section class="section">
+        <div class="collaboration-section">
+            <h2 class="collaboration-title">Artist Collaborations</h2>
+            <p style="color: var(--text-light); font-size: 1.1rem; line-height: 1.8; margin-bottom: 2rem;">
+                Our approach to music video production is deeply collaborative. We believe the best 
+                results come from understanding not just the song, but the artist's vision, story, 
+                and artistic journey.
+            </p>
+            
+            <div class="artist-testimonials">
+                <div class="testimonial">
+                    <p class="testimonial-text">
+                        "Working with Decadiam Films transformed how I think about visual storytelling. 
+                        They didn't just make a video for my song—they helped me discover new layers 
+                        of meaning in my own music."
+                    </p>
+                    <p class="testimonial-author">— Luna Echo, Singer-Songwriter</p>
+                </div>
+                
+                <div class="testimonial">
+                    <p class="testimonial-text">
+                        "The team's attention to detail and creative vision exceeded our expectations. 
+                        They captured the energy of our live performance while adding cinematic 
+                        elements that elevated the entire experience."
+                    </p>
+                    <p class="testimonial-author">— The Drift, Electronic Rock Band</p>
+                </div>
+                
+                <div class="testimonial">
+                    <p class="testimonial-text">
+                        "From concept to final edit, Decadiam Films made the process collaborative 
+                        and inspiring. They understood our message and helped us reach a much 
+                        wider audience through their visual storytelling."
+                    </p>
+                    <p class="testimonial-author">— Horizon Collective, Social Impact Group</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Production Process -->
+    <section class="section">
+        <h2>Our Process</h2>
+        <div class="two-column">
+            <div>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; font-size: 1.5rem;">Creative Development</h3>
+                <p>
+                    We start with deep listening sessions, understanding not just the song but 
+                    the artist's vision, target audience, and budget considerations. Multiple 
+                    creative concepts are developed and refined together.
+                </p>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; margin-top: 2rem; font-size: 1.5rem;">Pre-Production</h3>
+                <p>
+                    Detailed planning includes location scouting, casting, equipment selection, 
+                    and timeline development. We ensure every element serves the artistic vision 
+                    while staying within budget.
+                </p>
+            </div>
+            <div>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; font-size: 1.5rem;">Production Day(s)</h3>
+                <p>
+                    Efficient, professional shoots that maintain creative energy while capturing 
+                    all necessary footage. We work quickly but never rush the artistic process.
+                </p>
+                <h3 style="color: var(--primary-blue); margin-bottom: 1.5rem; margin-top: 2rem; font-size: 1.5rem;">Post-Production</h3>
+                <p>
+                    Collaborative editing process with artist input at key stages. Color grading, 
+                    visual effects, and final delivery optimized for various platforms and 
+                    distribution strategies.
+                </p>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // Mobile menu placeholder
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            alert('Mobile menu would open here. This is a placeholder for mobile navigation.');
+        });
+    </script>
+</body>
+</html>

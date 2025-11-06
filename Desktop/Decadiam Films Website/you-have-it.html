@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>You Have It! - DECADIAM FILMS</title>
+    <meta name="description" content="You Have It! - A darkly comedic take on friendship, hunger, and human nature. Comedy short film in production by Decadiam Films.">
+    
+    <link rel="icon" href="logo-vertical.png" type="image/png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-blue: #007AFF;
+            --light-blue: #40A9FF;
+            --dark: #000000;
+            --darker: #000000;
+            --light: #ffffff;
+            --gray: #1a1a1a;
+            --text-light: #e0e0e0;
+            --text-dim: #888888;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-size: 16px;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Navigation */
+        .nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+            padding: 1rem 3rem;
+            background: rgba(0, 0, 0, 0.95);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .nav-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .logo {
+            height: 60px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2.5rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            font-weight: 400;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: var(--primary-blue);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+
+        .nav-links a:hover::before {
+            width: 100%;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-blue);
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid var(--primary-blue);
+            color: var(--primary-blue);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: var(--primary-blue);
+            color: var(--light);
+        }
+
+        /* Hero Section */
+        .project-hero {
+            height: 70vh;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #FF6B35 0%, #F7931E 50%, #FFB74D 100%);
+            margin-top: 80px;
+        }
+
+        .project-hero-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 1;
+        }
+
+        .project-hero-content {
+            text-align: center;
+            max-width: 800px;
+            padding: 0 2rem;
+            z-index: 2;
+            position: relative;
+        }
+
+        .project-category {
+            font-size: 0.9rem;
+            color: #FFD54F;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .project-title {
+            font-size: clamp(3rem, 6vw, 5rem);
+            font-weight: 800;
+            color: var(--light);
+            line-height: 0.9;
+            margin-bottom: 2rem;
+            letter-spacing: -2px;
+        }
+
+        .project-subtitle {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 3rem;
+            line-height: 1.6;
+        }
+
+        .project-status {
+            display: inline-block;
+            padding: 0.8rem 2rem;
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid #FFC107;
+            color: #FFC107;
+            border-radius: 25px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Content Sections */
+        .section {
+            padding: 4rem 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 2rem;
+            color: var(--light);
+        }
+
+        .section p {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text-light);
+            margin-bottom: 2rem;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4rem;
+            align-items: start;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: #FFC107;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .cast-crew-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .cast-crew-item {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 2rem;
+        }
+
+        .role-title {
+            color: #FFC107;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+        }
+
+        .person-name {
+            color: var(--light);
+            font-size: 1.2rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .character-name {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            font-style: italic;
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--light);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .nav { padding: 1rem 2rem; }
+            .section { padding: 4rem 2rem; }
+            .two-column { grid-template-columns: 1fr; gap: 3rem; }
+            .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .mobile-menu-btn { display: block; }
+            .project-hero { height: 60vh; margin-top: 70px; }
+            .section { padding: 3rem 1.5rem; }
+            .cast-crew-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 480px) {
+            .nav { padding: 1rem 1.5rem; }
+            .project-hero-content { padding: 0 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav">
+        <div class="nav-container">
+            <img src="Decadiam Horizontal.png" alt="Decadiam Films" class="logo">
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="index.html#projects">Projects</a></li>
+                <li><a href="index.html#awards">Awards</a></li>
+                <li><a href="index.html#contact">Contact</a></li>
+            </ul>
+            <button class="back-btn" onclick="window.location.href='index.html'">← Back</button>
+            <button class="mobile-menu-btn">☰</button>
+        </div>
+    </nav>
+
+    <!-- Project Hero -->
+    <section class="project-hero">
+        <div class="project-hero-overlay"></div>
+        <div class="project-hero-content">
+            <div class="project-category">Comedy</div>
+            <h1 class="project-title">You Have It!</h1>
+            <p class="project-subtitle">
+                A darkly comedic tale of four friends battling over the last slice of pizza, 
+                revealing the absurdity of human nature and friendship dynamics.
+            </p>
+            <span class="project-status">In Production</span>
+        </div>
+    </section>
+
+    <!-- Synopsis -->
+    <section class="section">
+        <div class="two-column">
+            <div>
+                <h2>Synopsis</h2>
+                <p>
+                    Four friends sit around a nearly empty pizza box, enjoying a late-night feast 
+                    until they realise only one slice remains. What starts as polite refusals 
+                    quickly spirals into a hilariously over-the-top battle of entitlement, 
+                    emotional manipulation, and long-held grievances.
+                </p>
+                <p>
+                    As the debate intensifies, friendships are tested, and the true weight of 
+                    this single slice is revealed. A darkly comedic take on friendship, hunger, 
+                    and the absurdity of human nature, You Have It! proves that sometimes, the 
+                    smallest things bring out the biggest conflicts.
+                </p>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center;">
+                <img src="you have it promo.jpg" alt="You Have It! Poster" style="width: 100%; max-width: 350px; border-radius: 15px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.1); margin-bottom: 2rem;">
+                <div class="stats-grid" style="width: 100%; max-width: 350px;">
+                    <div class="stat-item">
+                        <div class="stat-number">2026</div>
+                        <div class="stat-label">Release Year</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">4</div>
+                        <div class="stat-label">Lead Cast</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">Comedy</div>
+                        <div class="stat-label">Genre</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">Short</div>
+                        <div class="stat-label">Film Format</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Cast & Crew -->
+    <section class="section">
+        <h2>Cast & Crew</h2>
+        <div class="cast-crew-grid">
+            <div class="cast-crew-item">
+                <div class="role-title">Writer & Director</div>
+                <div class="person-name">Liam Budai</div>
+            </div>
+            <div class="cast-crew-item">
+                <div class="role-title">Co-Writer</div>
+                <div class="person-name">Noah Assayag</div>
+            </div>
+            <div class="cast-crew-item">
+                <div class="role-title">Producer</div>
+                <div class="person-name">Daniel Cabrita</div>
+            </div>
+            <div class="cast-crew-item">
+                <div class="role-title">Cast</div>
+                <div class="person-name">Isha Desai</div>
+                <div class="character-name">as Bella</div>
+            </div>
+            <div class="cast-crew-item">
+                <div class="role-title">Cast</div>
+                <div class="person-name">Crystal Larke</div>
+                <div class="character-name">as Sarah</div>
+            </div>
+            <div class="cast-crew-item">
+                <div class="role-title">Cast</div>
+                <div class="person-name">Ashton Cassar</div>
+                <div class="character-name">as Aidan</div>
+            </div>
+            <div class="cast-crew-item">
+                <div class="role-title">Cast</div>
+                <div class="person-name">Cenk Orhan</div>
+                <div class="character-name">as Sam</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Film Promo -->
+    <section class="section">
+        <h2 style="text-align: center;">Watch Promo</h2>
+        <div style="display: flex; justify-content: center;">
+            <video controls poster="you have it promo.jpg" style="width: 100%; max-width: 800px; height: auto; border-radius: 15px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.2);">
+                <source src="You Have It Promo.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </section>
+
+    <!-- About the Film -->
+    <section class="section">
+        <h2>About the Film</h2>
+        <div class="two-column">
+            <div>
+                <h3 style="color: #FFC107; margin-bottom: 1.5rem; font-size: 1.5rem;">Director's Vision</h3>
+                <p>
+                    "You Have It! explores the absurd lengths people go to avoid confrontation, 
+                    even over something as trivial as a pizza slice. Through comedy, we examine 
+                    how politeness can mask deeper tensions and how the smallest social situations 
+                    can reveal fundamental truths about human behavior and friendship dynamics."
+                </p>
+                <h3 style="color: #FFC107; margin-bottom: 1.5rem; margin-top: 2rem; font-size: 1.5rem;">Production Notes</h3>
+                <p>
+                    The film is designed as a single-location comedy, using tight framing and 
+                    intimate blocking to amplify the claustrophobic tension of the situation. 
+                    The humor emerges from the escalating absurdity of the characters' justifications 
+                    and the mounting importance they place on one pizza slice.
+                </p>
+            </div>
+            <div>
+                <h3 style="color: #FFC107; margin-bottom: 1.5rem; font-size: 1.5rem;">Themes</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="margin-bottom: 1rem; color: var(--text-light);">
+                        <strong style="color: var(--light);">Social Politeness:</strong> The absurdity of excessive courtesy
+                    </li>
+                    <li style="margin-bottom: 1rem; color: var(--text-light);">
+                        <strong style="color: var(--light);">Friendship Dynamics:</strong> How trivial conflicts test relationships
+                    </li>
+                    <li style="margin-bottom: 1rem; color: var(--text-light);">
+                        <strong style="color: var(--light);">Human Nature:</strong> Revealing character through mundane situations
+                    </li>
+                    <li style="margin-bottom: 1rem; color: var(--text-light);">
+                        <strong style="color: var(--light);">Escalation:</strong> How small problems become major conflicts
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- Production Status -->
+    <section class="section">
+        <h2>Production Status</h2>
+        <div style="max-width: 800px; margin: 0 auto; text-align: center;">
+            <p style="font-size: 1.2rem; line-height: 1.8; color: var(--text-light); margin-bottom: 2rem;">
+                You Have It! is currently in production, with filming taking place throughout 2025. 
+                The project represents an exploration of comedy filmmaking, focusing on character-driven 
+                humor and situational comedy within a contained narrative structure.
+            </p>
+            <p style="font-size: 1.1rem; line-height: 1.7; color: var(--text-light);">
+                Expected release: <strong style="color: #FFC107;">2026</strong>
+            </p>
+        </div>
+    </section>
+
+    <script>
+        // Mobile menu placeholder
+        document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+            alert('Mobile menu would open here. This is a placeholder for mobile navigation.');
+        });
+    </script>
+</body>
+</html>
