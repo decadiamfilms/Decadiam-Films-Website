@@ -1242,7 +1242,7 @@
 <body>
     <!-- Loading Screen -->
     <div id="loading-screen" class="loading-screen">
-        <video id="loading-video" autoplay muted playsinline preload="metadata" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
+        <video id="loading-video" muted playsinline preload="auto" style="width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0;">
             <source src="Decadiam Films intro 2024.mp4" type="video/mp4">
         </video>
     </div>
@@ -1520,49 +1520,38 @@
 
     <script>
         // Loading Screen with Intro Video
-        window.addEventListener('load', function() {
+        document.addEventListener('DOMContentLoaded', function() {
             const loadingScreen = document.getElementById('loading-screen');
             const loadingVideo = document.getElementById('loading-video');
-            let hasEnded = false;
+            let isComplete = false;
             
-            // Configure video immediately
-            loadingVideo.loop = false;
-            loadingVideo.playbackRate = 1.5; // Set speed immediately
-            
-            // Ensure video starts playing
-            loadingVideo.play().catch(e => console.log('Video autoplay failed:', e));
-            
-            function hideLoadingScreen() {
-                if (!hasEnded) {
-                    hasEnded = true;
-                    loadingVideo.pause();
-                    loadingVideo.currentTime = 0; // Reset video
-                    loadingScreen.classList.add('fading');
-                    
-                    // Hide completely after fade finishes
-                    setTimeout(() => {
-                        loadingScreen.remove(); // Remove from DOM completely
-                        window.scrollTo({ top: 0, behavior: 'instant' });
-                        
-                        // Initialize effects after loading screen is gone
-                        addMagneticEffect();
-                        addScrollReveal();
-                    }, 1000);
-                }
+            function completeLoading() {
+                if (isComplete) return;
+                isComplete = true;
+                
+                loadingVideo.pause();
+                loadingScreen.style.opacity = '0';
+                loadingScreen.style.transition = 'opacity 1s ease';
+                
+                setTimeout(() => {
+                    loadingScreen.remove();
+                    addMagneticEffect();
+                    addScrollReveal();
+                }, 1000);
             }
             
-            // Hide at 3 seconds (4.5 / 1.5 speed = 3 seconds real time)
-            loadingVideo.addEventListener('timeupdate', function() {
-                if (loadingVideo.currentTime >= 3 && !hasEnded) {
-                    hideLoadingScreen();
-                }
+            // When video can start playing, configure it
+            loadingVideo.addEventListener('canplay', function() {
+                loadingVideo.playbackRate = 1.2; // Slightly faster
+                loadingVideo.loop = false;
+                loadingVideo.play().catch(e => console.log('Video play failed:', e));
             });
             
-            // Hide when video naturally ends
-            loadingVideo.addEventListener('ended', hideLoadingScreen);
+            // End loading screen when video ends naturally
+            loadingVideo.addEventListener('ended', completeLoading);
             
-            // Fallback timeout
-            setTimeout(hideLoadingScreen, 5000);
+            // Fallback after 6 seconds
+            setTimeout(completeLoading, 6000);
         });
 
         // Navigation Scroll Effect
