@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Disallow large media files that shouldn't be indexed
+Disallow: /*.mp4
+Disallow: /*.heic
+Disallow: /*.mov
+
+Sitemap: https://decadiam-films-website.vercel.app/sitemap.xml
