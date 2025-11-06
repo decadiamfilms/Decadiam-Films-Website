@@ -1529,7 +1529,11 @@
                 if (isComplete) return;
                 isComplete = true;
                 
+                console.log('Completing loading screen...');
                 loadingVideo.pause();
+                loadingVideo.currentTime = 0;
+                loadingVideo.src = ''; // Clear video source to prevent any looping
+                
                 loadingScreen.style.opacity = '0';
                 loadingScreen.style.transition = 'opacity 1s ease';
                 
@@ -1540,18 +1544,33 @@
                 }, 1000);
             }
             
-            // When video can start playing, configure it
-            loadingVideo.addEventListener('canplay', function() {
-                loadingVideo.playbackRate = 1.2; // Slightly faster
-                loadingVideo.loop = false;
-                loadingVideo.play().catch(e => console.log('Video play failed:', e));
+            // Set video properties immediately
+            loadingVideo.loop = false;
+            loadingVideo.autoplay = false;
+            loadingVideo.controls = false;
+            
+            // Wait for video to load then start with proper settings
+            loadingVideo.addEventListener('loadeddata', function() {
+                console.log('Video loaded, starting playback...');
+                loadingVideo.playbackRate = 1.3;
+                loadingVideo.currentTime = 0;
+                loadingVideo.play().catch(e => {
+                    console.log('Video play failed:', e);
+                    completeLoading(); // If video fails, just hide loading screen
+                });
             });
             
-            // End loading screen when video ends naturally
-            loadingVideo.addEventListener('ended', completeLoading);
+            // End loading screen when video ends
+            loadingVideo.addEventListener('ended', function() {
+                console.log('Video ended naturally');
+                completeLoading();
+            });
             
-            // Fallback after 6 seconds
-            setTimeout(completeLoading, 6000);
+            // Force load the video
+            loadingVideo.load();
+            
+            // Absolute fallback
+            setTimeout(completeLoading, 8000);
         });
 
         // Navigation Scroll Effect
