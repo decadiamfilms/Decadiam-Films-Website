@@ -1523,8 +1523,9 @@
         document.addEventListener('DOMContentLoaded', function() {
             const loadingScreen = document.getElementById('loading-screen');
             const loadingVideo = document.getElementById('loading-video');
+            const isMobile = window.innerWidth <= 768;
             
-            console.log('Initializing loading screen...');
+            console.log('Initializing loading screen... Mobile:', isMobile);
             
             if (!loadingVideo || !loadingScreen) {
                 console.log('Loading elements not found');
@@ -1535,13 +1536,8 @@
             loadingVideo.loop = false;
             loadingVideo.removeAttribute('loop');
             
-            console.log('Video duration:', loadingVideo.duration);
-            console.log('Video loop property:', loadingVideo.loop);
-            
-            // Only listen for the video ending naturally
-            loadingVideo.addEventListener('ended', function() {
-                console.log('Video ended naturally - hiding loading screen');
-                
+            function hideLoadingScreen() {
+                console.log('Hiding loading screen...');
                 // Immediately prevent any restart
                 loadingVideo.pause();
                 loadingVideo.removeAttribute('src');
@@ -1556,7 +1552,27 @@
                     if (typeof addMagneticEffect === 'function') addMagneticEffect();
                     if (typeof addScrollReveal === 'function') addScrollReveal();
                 }, 1000);
-            });
+            }
+            
+            // Mobile devices: shorter timeout, skip complex video handling
+            if (isMobile) {
+                console.log('Mobile detected - using simplified loading');
+                setTimeout(hideLoadingScreen, 3000); // 3 second timeout on mobile
+                
+                // Try to play video but don't rely on it
+                loadingVideo.play().catch(e => {
+                    console.log('Mobile video failed, hiding immediately:', e);
+                    hideLoadingScreen();
+                });
+                
+                return; // Exit early for mobile
+            }
+            
+            // Desktop: Full video handling
+            console.log('Desktop detected - using full video experience');
+            
+            // Only listen for the video ending naturally on desktop
+            loadingVideo.addEventListener('ended', hideLoadingScreen);
             
             // Start video with settings
             loadingVideo.currentTime = 0;
@@ -1571,16 +1587,16 @@
                 }, 100);
             }).catch(e => {
                 console.log('Video failed to play:', e);
-                loadingScreen.style.display = 'none';
+                hideLoadingScreen();
             });
             
-            // Only emergency fallback if something goes very wrong
+            // Desktop fallback
             setTimeout(() => {
                 if (loadingScreen && loadingScreen.style.opacity !== '0') {
-                    console.log('Emergency fallback - removing loading screen');
-                    loadingScreen.remove();
+                    console.log('Desktop fallback - removing loading screen');
+                    hideLoadingScreen();
                 }
-            }, 10000);
+            }, 8000);
         });
 
         // Navigation Scroll Effect
@@ -1593,9 +1609,39 @@
             }
         });
 
-        // Mobile menu placeholder
+        // Mobile menu functionality
         document.getElementById('mobile-menu-btn').addEventListener('click', function() {
-            alert('Mobile menu would open here. This is a placeholder for mobile navigation.');
+            const navLinks = document.querySelector('.nav-links');
+            const isOpen = navLinks.style.display === 'flex';
+            
+            if (isOpen) {
+                // Close menu
+                navLinks.style.display = 'none';
+                this.innerHTML = '☰';
+            } else {
+                // Open menu
+                navLinks.style.display = 'flex';
+                navLinks.style.flexDirection = 'column';
+                navLinks.style.position = 'absolute';
+                navLinks.style.top = '100%';
+                navLinks.style.left = '0';
+                navLinks.style.right = '0';
+                navLinks.style.backgroundColor = 'rgba(0, 0, 0, 0.95)';
+                navLinks.style.padding = '2rem';
+                navLinks.style.gap = '1.5rem';
+                navLinks.style.zIndex = '1000';
+                this.innerHTML = '✕';
+            }
+        });
+        
+        // Close mobile menu when clicking on links
+        document.querySelectorAll('.nav-links a').forEach(link => {
+            link.addEventListener('click', () => {
+                const navLinks = document.querySelector('.nav-links');
+                const mobileBtn = document.getElementById('mobile-menu-btn');
+                navLinks.style.display = 'none';
+                mobileBtn.innerHTML = '☰';
+            });
         });
 
         // Smooth Scrolling
